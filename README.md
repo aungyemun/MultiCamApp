@@ -53,10 +53,12 @@ The developer does not endorse, support, or accept responsibility for any unlawf
 
 ## Credits
 
-- Original prototype: Shinnosuke Koketsu (纐纈真之介)
-- Development, testing, documentation, and maintenance: Aung Ye Mun
+- Original concept, early prototype, and initial workflow: Shinnosuke Koketsu (纐纈真之介)
+- Current application development, UI expansion, testing, debugging, documentation, installer preparation, and project maintenance: Aung Ye Mun
 
-This project was further developed through iterative testing, feature expansion, debugging, documentation, and AI-assisted software development workflows.
+MultiCamApp was substantially expanded from an early code-based prototype into a more complete Windows application with multi-camera preview layouts, recording controls, metadata logging, session verification, offline-first usage, and release preparation.
+
+The current version was further developed through iterative testing, feature expansion, debugging, documentation, and AI-assisted software development workflows.
 
 ## Contributing
 
