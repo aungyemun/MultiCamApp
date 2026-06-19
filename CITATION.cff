@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use MultiCamApp in academic, educational, or research-related work, please cite it using the metadata from this file."
+title: "MultiCamApp"
+type: software
+authors:
+
+* family-names: "Mun"
+  given-names: "Aung Ye"
+* family-names: "Koketsu"
+  given-names: "Shinnosuke"
+  version: "2.0.0"
+  date-released: "2026-MM-DD"
+  url: "https://github.com/aungyemun/MultiCamApp"
+  repository-code: "https://github.com/aungyemun/MultiCamApp"
+  abstract: "MultiCamApp is a lightweight multi-camera recording app for synchronized video capture, metadata logging, and session verification. It was substantially expanded from an early code-based prototype into a Windows application with multi-camera preview layouts, recording controls, metadata logging, session verification, offline-first usage, and release preparation."
+  license: "MIT"
+  keywords:
+* "multi-camera recording"
+* "video capture"
+* "session verification"
+* "research software"
+* "Windows application"
