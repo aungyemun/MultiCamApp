@@ -76,6 +76,10 @@ If you use MultiCamApp in academic, educational, or research-related work, citat
 
 Citation metadata is provided in the `CITATION.cff` file.
 
-## License
+## License and Usage
 
-This project is licensed under the MIT License. See the LICENSE file for details.
+MultiCamApp is free to use for non-commercial academic research, scientific work, education, personal study, laboratory experiments, reproducibility studies, and internal evaluation.
+
+Commercial use, resale, paid redistribution, sublicensing, SaaS hosting, paid service integration, monetized distribution, or selling modified versions is not permitted without prior written permission from the copyright holder.
+
+See [LICENSE.md](LICENSE.md) for details.
