@@ -58,6 +58,16 @@ The developer does not endorse, support, or accept responsibility for any unlawf
 
 This project was further developed through iterative testing, feature expansion, debugging, documentation, and AI-assisted software development workflows.
 
+## Contributing
+
+Contributions, suggestions, bug reports, and feature requests are welcome.
+
+If you would like to improve MultiCamApp, please open an issue or submit a pull request. Contributions may include bug fixes, documentation improvements, camera compatibility testing, UI/UX improvements, recording and verification improvements, or platform-support investigation.
+
+Contributors may be acknowledged through GitHub commit history, pull requests, release notes, or project documentation where appropriate.
+
+Please use this project responsibly and follow the responsible-use principles described above.
+
 ## License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
