@@ -70,6 +70,12 @@ Contributors may be acknowledged through GitHub commit history, pull requests, r
 
 Please use this project responsibly and follow the responsible-use principles described above.
 
+## Citation
+
+If you use MultiCamApp in academic, educational, or research-related work, citation or acknowledgement of this repository is appreciated.
+
+Citation metadata is provided in the `CITATION.cff` file.
+
 ## License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
