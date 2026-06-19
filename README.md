@@ -53,8 +53,8 @@ The developer does not endorse, support, or accept responsibility for any unlawf
 
 ## Credits
 
-Original prototype: Shinnosuke Koketsu (纐纈真之介)
-Development, testing, documentation, and project maintenance: Aung Ye Mun
+- Original prototype: Shinnosuke Koketsu (纐纈真之介)
+- Development, testing, documentation, and project maintenance: Aung Ye Mun
 
 This project was further developed through iterative testing, feature expansion, debugging, documentation, and AI-assisted software development workflows.
 
