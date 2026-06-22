@@ -2,28 +2,35 @@
 
 All notable changes to MultiCamApp will be documented in this file.
 
-This project is currently under private development and testing. Version history may change before the first public stable release.
-
-## [v1.1.0]
+## [v1.1.0] - 2026-06-23
 
 ### Added
 
-* Initial GitHub repository setup
-* README, MIT License, contribution guidelines, and citation metadata
-* Responsible-use notice
-* Windows-first development plan
+* Original Capture Mode for preserving real camera frames only
+* Per-frame Timestamp CSV files for timing-sensitive analysis
+* Scientific timing confidence reporting
+* Privacy-safe metadata summaries
+* Video Verification Simple View and Detailed View
+* Offline video/container metadata inspection using bundled `ffprobe.exe`
+* Synchronized start gate for active 2–4 camera sessions
+* Scientific exposure defaults
+* Clearer camera-control metadata wording
+* Offline Windows installer for Windows 10/11
+* Non-commercial academic and research license
+* Third-party notices for bundled runtime and build components
+* Citation metadata through `CITATION.cff`
 
-### In Progress
+### Changed
 
-* Multi-camera preview and recording stability testing
-* Session metadata logging
-* Session-level video verification
-* Offline-first release preparation
-* Windows installer preparation
+* Updated recording logic to avoid duplicate-frame and placeholder-frame insertion
+* Updated verification wording to distinguish Real Capture FPS from MP4/container Playback FPS
+* Updated metadata and report wording for research readability
+* Updated documentation for installation, verification, hardware diagnostics, security, licensing, and release packaging
+* Updated GitHub repository structure for public source release preparation
 
-### Planned
+### Notes
 
-* Stable Windows release
-* Public GitHub release package
-* Documentation for installation, usage, verification, and troubleshooting
-* Final third-party notices
+* Timestamp CSV is the recommended timing source for timing-sensitive analysis.
+* MP4 playback FPS and container duration are playback/container metadata, not the primary scientific timing source.
+* Frame counts may differ between cameras when devices deliver real frames at slightly different measured FPS.
+* Recordings should be verified using the in-app Video Verification page after capture.
