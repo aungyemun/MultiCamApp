@@ -5,7 +5,7 @@ type: software
 authors:
   - family-names: "Mun"
     given-names: "Aung Ye"
-  - name: "Koketsu, Shinnosuke (纐纈真之介)"
+  - name: "Koketsu, Shinnosuke"
     alias: "Shinnosuke Koketsu"
     note: "Original prototype workflow concept and foundational recording logic"
 version: "1.1.0"

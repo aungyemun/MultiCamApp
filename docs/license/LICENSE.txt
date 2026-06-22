@@ -18,7 +18,7 @@ Mun AY. MultiCamApp: Offline multi-camera synchronized recording and verificatio
 
 Attribution
 Original prototype workflow concept and foundational recording logic:
-Shinnosuke Koketsu (纐纈真之介)
+Shinnosuke Koketsu
 
 Modern application architecture, UI/UX redesign, offline packaging, verification framework, diagnostics, metadata/reporting, localization, testing, release engineering, and maintenance:
 Aung Ye Mun
