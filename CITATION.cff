@@ -1,30 +1,29 @@
 cff-version: 1.2.0
-message: "If you use MultiCamApp in academic, educational, or research-related work, please cite it using the metadata from this file."
 title: "MultiCamApp"
+message: "If you use this software in your research, please cite it as below."
 type: software
 authors:
-
-* family-names: "Mun"
-  given-names: "Aung Ye"
-  version: "1.1.0"
-  date-released: "2026-06-23"
-  url: "https://github.com/aungyemun/MultiCamApp"
-  repository-code: "https://github.com/aungyemun/MultiCamApp"
-  abstract: "MultiCamApp is an offline multi-camera synchronized recording and verification platform for behavioral analysis, supporting real-frame capture, per-frame timestamp logging, privacy-safe metadata, and offline video verification."
-  license: "LicenseRef-MultiCamApp-NonCommercial-Academic-Research"
-  keywords:
-* "multi-camera recording"
-* "video capture"
-* "session verification"
-* "behavioral analysis"
-* "research software"
-* "Windows application"
-
-preferred-citation:
-type: software
-title: "MultiCamApp: Offline multi-camera synchronized recording and verification platform for behavioral analysis"
-authors:
-- family-names: "Mun"
-given-names: "Aung Ye"
-year: 2026
+  - family-names: "Mun"
+    given-names: "Aung Ye"
+  - name: "Koketsu, Shinnosuke (纐纈真之介)"
+    alias: "Shinnosuke Koketsu"
+    note: "Original prototype workflow concept and foundational recording logic"
 version: "1.1.0"
+date-released: "2026-06-23"
+license: "LicenseRef-MultiCamApp-NonCommercial"
+abstract: >
+  Offline multi-camera synchronized recording and verification platform for
+  educational and research use. Supports 1–4 cameras with per-frame Timestamp
+  CSV, scientific timing confidence, privacy-safe metadata, and offline Video
+  Verification. All recording, metadata, and verification runs fully offline
+  on Windows 10/11.
+keywords:
+  - multi-camera recording
+  - scientific video
+  - behavioral analysis
+  - synchronized recording
+  - OpenCV
+  - Windows
+  - offline
+  - timestamp CSV
+  - video verification

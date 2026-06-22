@@ -1,0 +1,14 @@
+{
+  "default": {
+    "resolution": "1080p",
+    "fps": 30,
+    "codec": "H264",
+    "container": "mp4"
+  },
+  "fallback": {
+    "useBestSupportedResolution": true,
+    "fps": 30,
+    "codec": "H264",
+    "container": "mp4"
+  }
+}

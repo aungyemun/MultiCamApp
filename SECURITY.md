@@ -2,36 +2,38 @@
 
 ## Supported Versions
 
-MultiCamApp is currently under private development and testing.
+| Version | Status        |
+|---------|---------------|
+| 1.1.x   | Active        |
+| < 1.1.0 | Not supported |
 
-| Version               | Supported       |
-| --------------------- | --------------- |
-| Unreleased / testing  | Limited support |
-| Stable public release | Planned         |
+## Reporting a Vulnerability
 
-## Reporting Security or Privacy Issues
+To report a security vulnerability in MultiCamApp, contact the maintainer directly at **aungyemun25@gmail.com**.
 
-If you discover a security, privacy, or safety-related issue in MultiCamApp, please report it by opening a private or direct issue/discussion when available, or by contacting the project maintainer.
+Do not open a public GitHub issue for security vulnerabilities. Include a description of the issue, steps to reproduce, and any relevant log files (with personal paths redacted).
 
-Please do not publicly disclose security-sensitive details until the issue has been reviewed.
+## Scope
 
-## Privacy and Recording Safety
+MultiCamApp is a fully offline desktop application for Windows. It does not connect to the internet, does not transmit user data, and does not expose network services. Relevant security areas are:
 
-MultiCamApp is designed as an offline-first recording tool for controlled, lawful, and consent-based use cases.
+- **Installation integrity** — Setup.exe is produced by Inno Setup from verified source. Code signing is recommended but not currently applied.
+- **Privacy-safe metadata output** — exported metadata.txt and metadata.json files do not contain absolute paths, hardware identifiers, or computer names. See `THIRD_PARTY_NOTICES.md` and `docs\OUTPUT_FILES_AND_METADATA.md`.
+- **Bundled third-party components** — ffprobe, OpenCV, and the .NET runtime are bundled. See below.
 
-The app should not be used or modified for:
+## Bundled Third-Party Components
 
-* Illegal surveillance
-* Spying
-* Unauthorized recording
-* Harassment
-* Privacy invasion
-* Any activity that violates the rights, safety, or privacy of others
+| Component | License | Notes |
+|-----------|---------|-------|
+| ffprobe.exe | GPL v3 | Standalone exe; not linked into MultiCamApp.exe |
+| OpenCvSharp / OpenCV | Apache 2.0 | Native DLLs beside the app |
+| .NET 8 Runtime | MIT | Self-contained bundle |
+| Microsoft VC++ Redistributable | Microsoft License | Installed by Setup.exe |
 
-Users are responsible for complying with all applicable laws, institutional policies, privacy regulations, and consent requirements.
+See `THIRD_PARTY_NOTICES.md` and `dist\runtime\ffmpeg\FFMPEG_LICENSE.txt` for full details.
 
-## Internet and Data Handling
+## Out of Scope
 
-The current version is intended to operate offline and does not require automatic online updates.
-
-Users should avoid including private, sensitive, or identifiable information in shared logs, screenshots, videos, reports, or issue submissions.
+- Vulnerabilities in cameras or drivers connected by the user
+- Issues introduced by running the app in a non-standard environment
+- Hardware Diagnostics results (advisory only, do not affect recording behavior)

@@ -1,0 +1,54 @@
+FFmpeg / ffprobe — License and Attribution Notice
+==================================================
+
+The ffprobe.exe binary bundled with MultiCamApp is part of the FFmpeg project.
+
+  FFmpeg is copyright (C) 2000-2026 the FFmpeg developers.
+  Homepage: https://ffmpeg.org/
+
+This binary was obtained from the gyan.dev Windows FFmpeg essentials build:
+
+  Build provider : Gyan Doshi (https://www.gyan.dev/ffmpeg/builds/)
+  Build source   : https://github.com/GyanD/codexffmpeg
+  Version        : 8.1.1-essentials_build-www.gyan.dev
+
+License
+-------
+
+This binary was compiled with the following flags (partial):
+
+  --enable-gpl --enable-version3
+
+The presence of --enable-gpl and --enable-version3 means this binary is
+distributed under the terms of the GNU General Public License, version 3
+or later (GPL v3+).
+
+The full text of the GNU General Public License v3 is available at:
+
+  https://www.gnu.org/licenses/gpl-3.0.txt
+
+Source Code
+-----------
+
+The FFmpeg source code corresponding to this binary is available from
+the FFmpeg project at:
+
+  https://ffmpeg.org/download.html
+
+The gyan.dev build configuration and patches are available at:
+
+  https://github.com/GyanD/codexffmpeg
+
+Usage in MultiCamApp
+--------------------
+
+MultiCamApp uses ffprobe.exe solely as a standalone command-line tool
+for post-recording video metadata inspection (Video Verification feature).
+
+  - ffprobe.exe is invoked as a child process; no FFmpeg source code
+    is compiled into or linked with MultiCamApp.
+  - ffmpeg.exe is NOT bundled; only ffprobe.exe is included.
+  - No modifications were made to the FFmpeg source code.
+
+This notice satisfies the attribution requirements of the GPL v3 license
+for redistribution of an unmodified GPL-licensed binary.

@@ -1,0 +1,107 @@
+<UserControl x:Class="MultiCamApp.Ui.AboutPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{StaticResource AppBackgroundBrush}"
+             FontFamily="Segoe UI, Arial, sans-serif">
+    <UserControl.Resources>
+        <Style x:Key="AboutSection" TargetType="StackPanel">
+            <Setter Property="Margin" Value="0,0,0,26"/>
+        </Style>
+
+        <Style x:Key="AboutSectionHeading" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+
+        <Style x:Key="AboutBodyText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="LineHeight" Value="21"/>
+            <Setter Property="Foreground" Value="{StaticResource AppSecondaryTextBrush}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <Style x:Key="AboutLabelText" TargetType="TextBlock" BasedOn="{StaticResource AboutBodyText}">
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+
+        <Style x:Key="AboutLinkText" TargetType="TextBlock" BasedOn="{StaticResource AboutBodyText}">
+            <Setter Property="Foreground" Value="{StaticResource AccentSelectionBrush}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="TextDecorations" Value="Underline"/>
+        </Style>
+
+        <Style x:Key="AboutActionButton" TargetType="Button" BasedOn="{StaticResource NeutralButtonStyle}">
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="MinWidth" Value="150"/>
+            <Setter Property="Padding" Value="16,6"/>
+            <Setter Property="Margin" Value="0,10,0,0"/>
+        </Style>
+
+        <Style x:Key="AboutCitationBox" TargetType="TextBox">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontStyle" Value="Italic"/>
+            <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
+            <Setter Property="Background" Value="{StaticResource AppControlBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushMain}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="IsTabStop" Value="False"/>
+            <Setter Property="Focusable" Value="False"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <ScrollViewer Padding="34,30,34,26" VerticalScrollBarVisibility="Auto">
+            <StackPanel MaxWidth="680" HorizontalAlignment="Left">
+                <StackPanel Style="{StaticResource AboutSection}">
+                    <TextBlock x:Name="AppInformationTitle" Style="{StaticResource AboutSectionHeading}"/>
+                    <TextBlock x:Name="VersionText" FontSize="22" FontWeight="Bold" Foreground="{StaticResource AppForegroundBrush}" Margin="0,0,0,10"/>
+                    <TextBlock x:Name="BuildText" Style="{StaticResource AboutLabelText}"/>
+                    <TextBlock x:Name="StageText" Style="{StaticResource AboutLabelText}"/>
+                    <TextBlock x:Name="ReleaseText" Style="{StaticResource AboutLabelText}"/>
+                    <TextBlock x:Name="CopyrightBody" Style="{StaticResource AboutBodyText}" Margin="0,8,0,0"/>
+                    <Button x:Name="CopyVersionBtn" Click="CopyVersionBtn_Click" Style="{StaticResource AboutActionButton}"/>
+                </StackPanel>
+
+                <StackPanel Style="{StaticResource AboutSection}">
+                    <TextBlock x:Name="LicenseUsageTitle" Style="{StaticResource AboutSectionHeading}"/>
+                    <TextBlock x:Name="LicenseUsageBody" Style="{StaticResource AboutBodyText}"/>
+                    <TextBlock x:Name="CommercialUseBody" Style="{StaticResource AboutBodyText}" Margin="0,6,0,0"/>
+                </StackPanel>
+
+                <StackPanel Style="{StaticResource AboutSection}">
+                    <TextBlock x:Name="CitationTitle" Style="{StaticResource AboutSectionHeading}"/>
+                    <TextBox x:Name="CitationBody" Style="{StaticResource AboutCitationBox}"/>
+                    <Button x:Name="CopyCitationBtn" Click="CopyCitationBtn_Click" Style="{StaticResource AboutActionButton}"/>
+                </StackPanel>
+
+                <StackPanel Style="{StaticResource AboutSection}">
+                    <TextBlock x:Name="AttributionTitle" Style="{StaticResource AboutSectionHeading}"/>
+                    <TextBlock x:Name="AttributionKoketsuTitle" TextWrapping="Wrap" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource AppForegroundBrush}" Margin="0,0,0,4"/>
+                    <TextBlock x:Name="AttributionKoketsuBody" Style="{StaticResource AboutBodyText}" Margin="0,0,0,16"/>
+                    <TextBlock x:Name="AttributionAungTitle" TextWrapping="Wrap" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource AppForegroundBrush}" Margin="0,0,0,4"/>
+                    <TextBlock x:Name="AttributionAungBody" Style="{StaticResource AboutBodyText}" Margin="0,0,0,0"/>
+                </StackPanel>
+
+                <StackPanel Style="{StaticResource AboutSection}">
+                    <TextBlock x:Name="ThirdPartyNoticesTitle" Style="{StaticResource AboutSectionHeading}"/>
+                    <TextBlock x:Name="ThirdPartyNoticesBody" Style="{StaticResource AboutBodyText}"/>
+                    <Button x:Name="ThirdPartyNoticesBtn" Click="ThirdPartyNoticesBtn_Click" Style="{StaticResource AboutActionButton}"/>
+                    <Button x:Name="FfmpegLicenseBtn" Click="FfmpegLicenseBtn_Click" Style="{StaticResource AboutActionButton}"/>
+                </StackPanel>
+
+                <StackPanel Style="{StaticResource AboutSection}" Margin="0,0,0,8">
+                    <TextBlock x:Name="ProjectHomepageTitle" Style="{StaticResource AboutSectionHeading}"/>
+                    <TextBlock x:Name="HomepageLink" Style="{StaticResource AboutLinkText}" MouseLeftButtonDown="HomepageLink_MouseLeftButtonDown">
+                        https://github.com/aung-ye-mun/MultiCamApp
+                    </TextBlock>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

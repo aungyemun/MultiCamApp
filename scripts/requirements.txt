@@ -1,0 +1,8 @@
+# MultiCamApp — build-machine Python dependencies (pinned)
+# Installed by scripts\setup\install_dev_environment.ps1 into tools\python
+# End users run setup.exe / MultiCamApp.exe only; they do not use pip.
+#
+# Offline install (after: pip download -r scripts\requirements.txt -d tools\wheelhouse):
+#   tools\python\python.exe -m pip install --no-index -r scripts\requirements.txt -f tools\wheelhouse
+
+Pillow==12.2.0

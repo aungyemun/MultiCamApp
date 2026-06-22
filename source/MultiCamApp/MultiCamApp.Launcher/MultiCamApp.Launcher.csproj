@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <RootNamespace>MultiCamApp.Launcher</RootNamespace>
+    <AssemblyName>MultiCamAppLauncher</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationTitle>MultiCamApp</ApplicationTitle>
+    <ApplicationIcon>..\MultiCamApp\assets\icons\MultiCamApp.ico</ApplicationIcon>
+    <Version>1.1.0</Version>
+    <PublishSelfContained>true</PublishSelfContained>
+    <!-- Small launcher only: avoid compressed self-extract bundle (common AV false positive). -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
+    <IncludeAllContentForSelfExtract>false</IncludeAllContentForSelfExtract>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+</Project>

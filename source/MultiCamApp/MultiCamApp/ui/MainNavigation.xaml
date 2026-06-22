@@ -1,0 +1,17 @@
+<UserControl x:Class="MultiCamApp.Ui.MainNavigation"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Height="36">
+    <Border Background="{StaticResource PanelBackgroundBrush}"
+            BorderBrush="{StaticResource BorderBrushMain}" BorderThickness="0,0,0,1"
+            Padding="12,0">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <Button x:Name="MainNavBtn" Style="{StaticResource NavTabButtonActiveStyle}"
+                    Click="MainNavBtn_Click"/>
+            <Button x:Name="VerifyNavBtn" Style="{StaticResource NavTabButtonStyle}"
+                    Click="VerifyNavBtn_Click"/>
+            <Button x:Name="HardwareNavBtn" Style="{StaticResource NavTabButtonStyle}"
+                    Click="HardwareNavBtn_Click"/>
+        </StackPanel>
+    </Border>
+</UserControl>

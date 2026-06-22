@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>MultiCamApp</RootNamespace>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <ApplicationTitle>MultiCamApp</ApplicationTitle>
+    <AssemblyName>MultiCamApp</AssemblyName>
+    <ApplicationIcon>assets\icons\MultiCamApp.ico</ApplicationIcon>
+    <Version>1.1.0</Version>
+    <FileVersion>1.1.0.0</FileVersion>
+    <InformationalVersion>1.1.0</InformationalVersion>
+    <Product>MultiCamApp</Product>
+    <ProductName>MultiCamApp</ProductName>
+    <Company>Aung Ye Mun</Company>
+    <Authors>Aung Ye Mun</Authors>
+    <Description>Multi-camera video recording application for educational and research use</Description>
+    <Copyright>© 2026–Present Aung Ye Mun and contributors. Non-commercial research and educational use only.</Copyright>
+    <OriginalFilename>MultiCamApp.exe</OriginalFilename>
+    <PublishSelfContained>true</PublishSelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
+  </PropertyGroup>
+
+  <!-- WPF markup compile builds a *_wpftmp pass; suppress duplicate STABLE_CORE_V1 #warning (CS1030) there. -->
+  <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('_wpftmp'))">
+    <NoWarn>$(NoWarn);CS1030</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OpenCvSharp4" Version="4.10.0.20240616" />
+    <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.10.0.20240616" />
+    <Content Include="config\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="localization\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="localization\en.json" />
+    <EmbeddedResource Include="localization\ja.json" />
+    <Content Include="assets\icons\Multicam.png" CopyToOutputDirectory="PreserveNewest" Link="assets\icons\Multicam.png" />
+    <Content Include="assets\icons\MultiCamApp.ico" CopyToOutputDirectory="PreserveNewest" Link="assets\icons\MultiCamApp.ico" />
+    <PackageReference Include="System.Management" Version="10.0.9" />
+  </ItemGroup>
+</Project>
