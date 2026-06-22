@@ -5,12 +5,11 @@ type: software
 authors:
   - family-names: "Mun"
     given-names: "Aung Ye"
-  - name: "Koketsu, Shinnosuke"
-    alias: "Shinnosuke Koketsu"
-    note: "Original prototype workflow concept and foundational recording logic"
+  - family-names: "Koketsu"
+    given-names: "Shinnosuke"
 version: "1.1.0"
 date-released: "2026-06-23"
-license: "LicenseRef-MultiCamApp-NonCommercial"
+license: "LicenseRef-MultiCamApp-NonCommercial-Academic-Research"
 abstract: >
   Offline multi-camera synchronized recording and verification platform for
   educational and research use. Supports 1–4 cameras with per-frame Timestamp
