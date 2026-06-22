@@ -1,24 +1,95 @@
 MultiCamApp License Agreement
 
-© 2026–Present Aung Ye Mun and contributors. Non-commercial research and educational use only.
+(c) 2026-Present Aung Ye Mun and contributors. All rights reserved.
 
-License & Usage
-MultiCamApp may be used for non-commercial academic research, scientific work, education, laboratory experiments, reproducibility studies, and evaluation purposes.
+---
 
-Commercial Use
-Commercial use, redistribution, resale, sublicensing, SaaS hosting, monetized distribution, or commercial incorporation is prohibited without prior written permission from the copyright holder.
+1. Permitted Use
+
+MultiCamApp may be used, free of charge, for the following non-commercial purposes:
+
+- Academic research and scientific work
+- Educational use in universities, schools, and research institutions
+- Laboratory experiments and reproducibility studies
+- Personal evaluation and non-commercial testing
+
+Use is permitted provided that attribution and citation requirements in Section 4 are followed.
+
+---
+
+2. Redistribution
+
+Redistribution of this software, in source or binary form, is permitted for non-commercial purposes provided that:
+
+1. This license agreement and all copyright notices are retained in full.
+2. Redistributions in binary form reproduce this license and the attribution notice in
+   accompanying documentation.
+3. The software is not sold, sublicensed, or used as part of a commercial product or service
+   without prior written permission from the copyright holder.
+
+---
+
+3. Commercial Use Restriction
+
+Commercial use, redistribution, resale, sublicensing, SaaS hosting, monetized distribution,
+or commercial incorporation of MultiCamApp or any derivative work is prohibited without prior
+written permission from the copyright holder.
 
 For commercial licensing inquiries, contact the copyright holder.
 
-Third-Party Software
-MultiCamApp includes bundled third-party components, including OpenCV, FFmpeg/ffprobe, and the .NET runtime. See THIRD_PARTY_NOTICES.md in the installation folder for license and attribution details.
+---
 
-Citation
-Mun AY. MultiCamApp: Offline multi-camera synchronized recording and verification platform for behavioral analysis. Version v1.1.0. 2026.
+4. Attribution and Citation
 
-Attribution
+If you use MultiCamApp in academic, educational, or research-related work, please cite it as:
+
+  Mun AY. MultiCamApp: Offline multi-camera synchronized recording and verification platform
+  for behavioral analysis. Version v1.1.0. 2026.
+
+Machine-readable citation metadata is provided in CITATION.cff.
+
+---
+
+5. Contributors and Acknowledgement
+
 Original prototype workflow concept and foundational recording logic:
 Shinnosuke Koketsu
 
-Modern application architecture, UI/UX redesign, offline packaging, verification framework, diagnostics, metadata/reporting, localization, testing, release engineering, and maintenance:
+Modern application architecture, UI/UX redesign, offline packaging, verification framework,
+diagnostics, metadata/reporting, localization, testing, release engineering, and maintenance:
 Aung Ye Mun
+
+---
+
+6. Third-Party Components
+
+MultiCamApp bundles third-party software components, including OpenCV, FFmpeg/ffprobe, and
+the .NET runtime. Each component is subject to its own license terms. See
+THIRD_PARTY_NOTICES.md for full license and attribution details.
+
+---
+
+7. No Warranty
+
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT,
+OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+---
+
+8. No Implied Endorsement
+
+The names of the copyright holder, contributors, or affiliated institutions may not be used
+to endorse or promote products, services, or derivative works derived from this software
+without prior written permission.
+
+---
+
+9. Permission for Commercial Use
+
+To obtain permission for commercial use, redistribution, or incorporation into a commercial
+product or service, contact the copyright holder directly. Commercial licensing terms are
+negotiated on a case-by-case basis.

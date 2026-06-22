@@ -7,10 +7,16 @@ This file summarizes the current project layout and identifies source files, gen
 ```text
 MultiCamApp\
   MultiCamApp.exe          Dev launcher that starts dist\MultiCamApp.exe
-  README.md                Project overview and quick start
+  README.md                Project overview, quick start, citation, and attribution
   INSTALLATION.md          Install, offline test, and developer setup guide
   DIRECTORY_STRUCTURE.md   This file
+  LICENSE.md               Full license agreement (9 sections)
   THIRD_PARTY_NOTICES.md   Third-party component notices
+  CITATION.cff             Machine-readable citation metadata (CFF v1.2.0)
+  SECURITY.md              Security policy and responsible use
+  CONTRIBUTING.md          Contribution guidelines
+  CHANGELOG.md             Release changelog (user-facing)
+  global.json              .NET SDK version pin
   source\                  C# WPF app, launcher, and tests
   dist\                    Generated published app bundle used by Setup.exe
   installer\               Inno Setup script, build script, Setup.exe, VC++ redist, installer.zip
