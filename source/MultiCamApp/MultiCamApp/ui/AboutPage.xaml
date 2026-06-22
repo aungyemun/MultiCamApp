@@ -98,7 +98,7 @@
                 <StackPanel Style="{StaticResource AboutSection}" Margin="0,0,0,8">
                     <TextBlock x:Name="ProjectHomepageTitle" Style="{StaticResource AboutSectionHeading}"/>
                     <TextBlock x:Name="HomepageLink" Style="{StaticResource AboutLinkText}" MouseLeftButtonDown="HomepageLink_MouseLeftButtonDown">
-                        https://github.com/aung-ye-mun/MultiCamApp
+                        https://github.com/aungyemun/MultiCamApp
                     </TextBlock>
                 </StackPanel>
             </StackPanel>

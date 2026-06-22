@@ -1,5 +1,7 @@
 # STABLE_CORE_V1 — Freeze Exception Policy
 
+> **Historical note:** This document was originally created during v1.0.x stabilization and has been reviewed and updated for v1.1.0 Stable (2026-06-23). The Approved Freeze Exception Log includes all exceptions through v1.1.0.
+
 **Freeze name:** `STABLE_CORE_V1`  
 **Status:** **ACTIVE** (frozen by default)  
 **Parent document:** [STABLE_CORE_V1_FREEZE.md](STABLE_CORE_V1_FREEZE.md)  
@@ -33,12 +35,12 @@ Do **not**:
 
 | System | Scope |
 |--------|--------|
-| **Recording Engine** | Discovery through MP4 output and session folder layout |
-| **Metadata System** | Per-camera and session metadata fields and writers |
-| **Video Verification Logic** | Scan, ffprobe, metadata checks, verdicts, exports |
-| **Session Comparison Logic** | Intra-session dual/multi-camera sync and consistency |
+| **Recording Engine** | Discovery through MP4 output and session folder layout; Original Capture Mode (real frames only); synchronized start gate for active 2–4 camera sessions |
+| **Metadata System** | Per-camera and session metadata fields and writers; Timestamp CSV generation; privacy-safe output |
+| **Video Verification Logic** | Scan, ffprobe, metadata checks, verdicts, exports; PASS / PASS_WITH_WARNING / FAIL classification |
+| **Session Comparison Logic** | Intra-session multi-camera sync and consistency; inter-camera offset, frame-diff, wall-clock diff |
 
-**Primary paths:** `capture/` (recording pipeline), `recording/`, `metadata/`, `verification/`, `SessionComparisonService`, `experiment/FrameTimingMonitor.cs`, `utils/MonotonicClock.cs`
+**Primary paths:** `capture/` (recording pipeline), `recording/`, `metadata/`, `verification/`, `metadata/ScientificTimingAssessor.cs`, `SessionComparisonService`, `experiment/FrameTimingMonitor.cs`, `utils/MonotonicClock.cs`
 
 > **Note:** Camera **UI selection**, **display naming**, **refresh**, and **preview orchestration** are generally **outside** the frozen core unless a bug causes incorrect recording input (wrong device opened, merged duplicates, etc.). See approved exceptions below.
 
@@ -76,10 +78,13 @@ A change to protected code is permitted when **at least one** of the following i
 
 - Frame count is wrong
 - `FramesCaptured` or `FramesWritten` is wrong
-- Metadata timing is wrong
+- Metadata timing is wrong or missing
 - `ScientificTimingStatus` is empty or incorrect
-- Video Verification gives incorrect PASS / WARNING / FAIL
+- Video Verification gives incorrect PASS / PASS_WITH_WARNING / FAIL
 - Session Comparison compares videos from **different** sessions
+- Inter-camera start offset classification is wrong (wrong threshold used)
+- `MaxTotalQueueDrops` is reported as zero when drops occurred at stop boundary
+- Timestamp CSV row count does not match frames written
 
 ### 5. Hardware handling issue
 
@@ -113,6 +118,10 @@ Record new exceptions here **before** or **when** merging the fix.
 | 2026-06-12 – 2026-06-15 | v1.0.39 – v1.0.43 | **1.** Recording failure / **2.** cam3–cam4 mapping — 3/4-cam startup & record validation | Recording coordinator, multi-slot open | Validate 3-camera and 4-camera recording startup; 1/2-camera workflow unchanged | `recording/MultiCameraRecordingCoordinator.cs`, `capture/`, `ui/MainViewModel.cs` | 3-cam @ 360p/720p/1080p; 4-cam @ 360p; 1/2-cam smoke | **Accepted** | v1.0.43 |
 | 2026-06-16 – 2026-06-17 | v1.0.46 – v1.0.47 | **3.** Crash / recovery — preview crash, USB unplug; **5.** Hardware — lost connection per slot, preview slowness | Preview orchestration, disconnect handling (non-recording paths) | App must not crash when one selected camera fails or is unplugged; per-slot lost-connection UI | `capture/OpenCvPreviewController.cs`, `capture/CameraSlotPipeline.cs`, `ui/MainViewModel.cs`, `utils/PreviewStartTrace.cs`, `diagnostics/` | Start Preview 2/3/4-cam; unplug during preview; 1/2-cam record smoke | **Accepted** | v1.0.47 |
 | 2026-06-17 | v1.0.47 | **2.** Device-mapping — same-name USB cameras merged; wrong device opened; refresh cleared selections | Camera discovery, UI selection mapping (not recording engine) | App must open exact user-selected cameras; duplicate generic names (`USB Live camera`, etc.) numbered by unique device ID | `capture/CameraDeviceDisplayNamer.cs`, `capture/CameraDeviceDiscovery.cs`, `ui/MainViewModel.cs`, `MainWindow.xaml.cs`, `utils/CameraRefreshLog.cs` | `CameraDeviceDisplayNamerTests`; 2× same-name USB refresh/select; Start Preview device match; 1/2-cam record smoke | **Accepted** | v1.0.47 |
+| 2026-06-22 – 2026-06-23 | v1.1.0 | **4.** Scientific accuracy — 2-camera sessions not using synchronized start gate; ~190 ms inter-camera first-frame offset | `recording/RecordingSession.cs` | `openCvSlots.Count >= 3` guard excluded 2-camera from the shared start barrier; fix: `>= 2`. All active 2–4 camera sessions now use the synchronized start gate. Validated tests kept first-frame offset < 50 ms. | `recording/RecordingSession.cs` (one line: threshold `>= 3` → `>= 2`) | 2-cam record @ 1080p/720p/360p; start offset < 50 ms confirmed; 1-cam smoke | **Accepted** | v1.1.0 |
+| 2026-06-22 – 2026-06-23 | v1.1.0 | **4.** Scientific accuracy — `MaxTotalQueueDrops` reported as 0 when drops occurred at or after recording stop boundary | `recording/RecordingDiagnosticsMonitor.cs` | Sample-based aggregation missed drops captured in per-camera final stats at stop boundary; fix: `Math.Max(sample-based, cameraSummaries.Sum(drops))` | `recording/RecordingDiagnosticsMonitor.cs` | 2-cam record with forced stop-boundary drop; verified non-zero result | **Accepted** | v1.1.0 |
+| 2026-06-22 – 2026-06-23 | v1.1.0 | **4.** Scientific accuracy — no `PASS_WITH_WARNING` result for 50–100 ms inter-camera start offset; only PASS or FAIL existed | `metadata/ScientificTimingAssessor.cs` | Added `StartOffsetWarnMs = 50.0` and `StartOffsetFailMs = 100.0` threshold constants; 50–100 ms range now returns `PASS_WITH_WARNING` instead of PASS; > 100 ms returns FAIL. Added 6 unit tests covering boundary cases. | `metadata/ScientificTimingAssessor.cs` | Unit tests (6 new); 2-cam session result reviewed | **Accepted** | v1.1.0 |
+| 2026-06-22 – 2026-06-23 | v1.1.0 | **4.** Scientific accuracy — focus metadata wording ambiguous when autofocus-off driver readback is unreliable | `metadata/MetadataWriter.cs` | Added `BuildFinalFocusMode` helper; autofocus-off sessions where driver readback incorrectly reports autofocus active are now annotated `Unknown/readback unreliable` in `FinalFocusMode` field | `metadata/MetadataWriter.cs` | Metadata field review; 1/2-cam smoke | **Accepted** | v1.1.0 |
 
 ### Exception summaries (current approved set)
 
@@ -124,6 +133,18 @@ Record new exceptions here **before** or **when** merging the fix.
 
 3. **cam3 / cam4 startup and recording validation**  
    **Reason:** Original STABLE_CORE_V1 was validated mainly for 1-camera / 2-camera workflow; 3/4-camera paths required targeted fixes without regressing 1/2-camera behavior.
+
+4. **2-camera synchronized start gate correction** (v1.1.0)  
+   **Reason:** Scientific accuracy issue — 2-camera sessions were excluded from the synchronized start gate by an off-by-one threshold, causing ~190 ms inter-camera first-frame offsets. Fix is a single-line threshold change; 1-camera behavior unchanged.
+
+5. **MaxTotalQueueDrops aggregation fix** (v1.1.0)  
+   **Reason:** Scientific accuracy issue — drops occurring at or after recording stop were not captured in sample-based aggregation, causing false-zero drop counts in diagnostics.
+
+6. **PASS_WITH_WARNING inter-camera start offset range** (v1.1.0)  
+   **Reason:** Scientific accuracy — introduced explicit warn/fail thresholds (50 ms / 100 ms) so sessions with moderate offset are clearly distinguished from clean sessions and from clearly failing sessions.
+
+7. **Focus metadata FinalFocusMode wording** (v1.1.0)  
+   **Reason:** Metadata accuracy — driver readback for autofocus state can be unreliable; unreliable cases now annotated explicitly in metadata output.
 
 ---
 
@@ -140,5 +161,5 @@ Record new exceptions here **before** or **when** merging the fix.
 
 ## Related documents
 
-- [STABLE_CORE_V1_FREEZE.md](STABLE_CORE_V1_FREEZE.md) — freeze declaration and validation summary  
+- [STABLE_CORE_V1_FREEZE.md](STABLE_CORE_V1_FREEZE.md) — freeze declaration and validation summary
 - [STABLE_CORE_V1_REGRESSION_CHECKLIST.md](STABLE_CORE_V1_REGRESSION_CHECKLIST.md) — stable-core regression checklist

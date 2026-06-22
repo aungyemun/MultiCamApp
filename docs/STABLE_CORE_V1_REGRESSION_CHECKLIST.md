@@ -1,6 +1,8 @@
 # STABLE_CORE_V1 Regression Checklist
 
-**Applies to:** `STABLE_CORE_V1` (MultiCamApp v1.0.36 build 136)  
+> **Historical note:** This document was originally created during v1.0.36 stabilization and has been reviewed and updated for v1.1.0 Stable (2026-06-23). Pass criteria reflect current v1.1.0 Stable thresholds including synchronized start gate, PASS_WITH_WARNING offset range, and Timestamp CSV requirements.
+
+**Applies to:** `STABLE_CORE_V1` (original freeze: MultiCamApp v1.0.36 build 136; current: v1.1.0 build 193)  
 **Required before:** Any change to protected recording, metadata, verification, or session-comparison code  
 **Reference:** [STABLE_CORE_V1_FREEZE.md](STABLE_CORE_V1_FREEZE.md) · [STABLE_CORE_V1_EXCEPTIONS.md](STABLE_CORE_V1_EXCEPTIONS.md)
 
@@ -34,6 +36,7 @@ Use j5 Webcam JVU250 × 2 or equivalent. Record **≥ 10 minutes** per preset un
 - [ ] Both MP4 files play; no corruption
 - [ ] `RequestedResolution` = `1920x1080` in metadata
 - [ ] Writer drops = **0** (`WriterQueueDrops`)
+- [ ] `RecordingTimingMode` = `OriginalCapture` in metadata
 
 ### 720p dual-camera test
 
@@ -53,14 +56,25 @@ Use j5 Webcam JVU250 × 2 or equivalent. Record **≥ 10 minutes** per preset un
 
 - [ ] **0** corrupt / unreadable files (ffprobe succeeds)
 - [ ] **0** Writer drops (`WriterQueueDrops`)
-- [ ] **0** duplicates (`DuplicatedFrames` / `DuplicateFrames`)
-- [ ] **0** placeholders (`PlaceholderFrames`)
-- [ ] Frame difference **≤ 5** frames per session (cam1 vs cam2)
-- [ ] Start offset **≤ 100 ms**
+- [ ] **0** duplicates (`DuplicatedFrames` / `DuplicateFrames`) — Original Capture Mode must not insert duplicate frames
+- [ ] **0** placeholders (`PlaceholderFrames`) — Original Capture Mode must not insert placeholder frames
 - [ ] `FramesCaptured` and `FramesWritten` match (≤ 1 frame stop-edge allowed)
 - [ ] `CaptureIntervalMeanMs` is nonzero and ~ **34.4 ms** (±0.5 ms) for ~29 fps delivery
-- [ ] `ScientificTimingStatus` populated (PASS or PASS_WITH_WARNING, not FAIL)
+- [ ] `ScientificTimingStatus` populated — **PASS** or **PASS_WITH_WARNING** (not FAIL, not empty)
 - [ ] `metadata.json`, `metadata.txt`, `session_summary.txt` present per session
+- [ ] `camN_frame_timestamps.csv` present per camera — **Timestamp CSV** is the primary scientific timing source
+- [ ] Timestamp CSV row count = `FramesWritten` for each camera (no row-count mismatch)
+- [ ] `MaxTotalQueueDrops` is **0** (or nonzero and matches actual drops — not silently zero when drops occurred)
+- [ ] Metadata output is **privacy-safe**: no absolute paths, hardware IDs, computer names, or usernames
+
+---
+
+## Synchronized start gate (active 2–4 camera sessions)
+
+- [ ] Active 2-camera session: inter-camera first-frame start offset **< 50 ms** (synchronized start gate active for ≥ 2 active slots)
+- [ ] Start offset **50–100 ms** → `PASS_WITH_WARNING` (expected for borderline timing; not FAIL)
+- [ ] Start offset **> 100 ms** → `FAIL` (synchronized start gate may not have fired)
+- [ ] 1-camera session: start offset check not applicable (single slot; no inter-camera comparison)
 
 ---
 
@@ -70,19 +84,22 @@ Open **Video Verification** page on regression folder:
 
 - [ ] Scan finds all sessions and videos
 - [ ] Verify All completes without crash
-- [ ] **0 FAIL** overall (Warning acceptable for container vs camera FPS)
+- [ ] **0 FAIL** overall (PASS_WITH_WARNING acceptable for container vs camera FPS mismatch or 50–100 ms offset)
 - [ ] Expected resolution/FPS from session metadata (not global appsettings)
 - [ ] Session groups show per-session comparison only
+- [ ] PASS_WITH_WARNING verdict shown correctly for sessions with moderate offset or FPS mismatch
+- [ ] FAIL verdict shown correctly for sessions with Writer drops, duplicate/placeholder frames, or missing Timestamp CSV
 
 ---
 
 ## Session comparison logic
 
-- [ ] Each session audited separately (11 sessions → 11 session groups when testing final matrix)
+- [ ] Each session audited separately
 - [ ] Inter-camera metrics only within same session folder
 - [ ] Videos from **different sessions are not compared** with each other
 - [ ] cam1/cam2 (and cam3/cam4 if used) listed in session audit
 - [ ] Frame diff, start offset, wall duration diff shown in session summary
+- [ ] Start offset classification matches thresholds: < 50 ms → PASS, 50–100 ms → PASS_WITH_WARNING, > 100 ms → FAIL
 
 ---
 
@@ -119,12 +136,14 @@ dotnet run --project scripts/diagnostics/VerifyFolderCli/VerifyFolderCli.csproj 
 
 ## Quick pass/fail
 
-| Check | Pass |
-|-------|------|
+| Check | Pass criteria |
+|-------|---------------|
 | Audit / verification FAIL count | 0 |
 | Writer drops | 0 |
-| Duplicates / placeholders | 0 |
+| Duplicates / placeholders | 0 — Original Capture Mode only |
 | Corrupt MP4 | 0 |
-| Inter-camera frame diff | Explained by Real Capture FPS in Original Capture Mode |
-| Start offset | ≤ 100 ms |
+| Timestamp CSV row count | = `FramesWritten` per camera |
+| Inter-camera frame diff | Explained by Real Capture FPS differences in Original Capture Mode |
+| Start offset (2–4 cam) | < 50 ms → PASS; 50–100 ms → PASS_WITH_WARNING; > 100 ms → FAIL |
 | Offline vs in-app verdicts | Match |
+| Privacy-safe metadata | No paths, hardware IDs, hostnames, or usernames in output |

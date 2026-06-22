@@ -1,8 +1,10 @@
 # STABLE_CORE_V1 — Freeze Declaration
 
+> **Historical note:** This document was originally created during v1.0.36 stabilization and has been reviewed and updated for v1.1.0 Stable (2026-06-23). The freeze remains ACTIVE. Post-freeze approved exceptions are logged in [STABLE_CORE_V1_EXCEPTIONS.md](STABLE_CORE_V1_EXCEPTIONS.md) and summarised in the sections below.
+
 **Freeze name:** `STABLE_CORE_V1`  
-**App version:** MultiCamApp **v1.0.36** (build **136**)  
-**Freeze date:** 2026-06-11  
+**Original freeze version:** MultiCamApp **v1.0.36** (build **136**), 2026-06-11  
+**Current release:** MultiCamApp **v1.1.0** (build **193**), 2026-06-23 — freeze still ACTIVE; see post-freeze exceptions  
 **Lock file:** [STABLE_CORE_V1.lock](../STABLE_CORE_V1.lock)  
 **Compile marker:** `core/StableCoreV1.cs`
 
@@ -16,10 +18,10 @@ The following systems are **validated and production-stable**. They must not be 
 
 | System | Scope |
 |--------|--------|
-| **Recording Engine** | Discovery through MP4 output and session folder layout |
-| **Metadata System** | Per-camera and session metadata fields and writers |
-| **Video Verification Logic** | Scan, ffprobe, metadata checks, verdicts, exports |
-| **Session Comparison Logic** | Intra-session dual/multi-camera sync and consistency |
+| **Recording Engine** | Discovery through MP4 output and session folder layout; Original Capture Mode (real frames only); synchronized start gate for active 2–4 camera sessions |
+| **Metadata System** | Per-camera and session metadata fields and writers; Timestamp CSV generation; privacy-safe output |
+| **Video Verification Logic** | Scan, ffprobe, metadata checks, verdicts, exports; PASS / PASS_WITH_WARNING / FAIL classification |
+| **Session Comparison Logic** | Intra-session multi-camera sync and consistency; inter-camera offset, frame-diff, wall-clock diff |
 
 Future work should focus on **installer**, **UI polish**, **reports**, **documentation**, and **OFLA analysis** unless a stable-core bug is proven.
 
@@ -29,39 +31,50 @@ Future work should focus on **installer**, **UI polish**, **reports**, **documen
 
 | Item | Value |
 |------|--------|
-| Tested laptop | **developer test machine** |
+| Original freeze laptop | **developer test machine** |
 | Tested camera | **j5 Webcam JVU250 × 2** |
 | Tested resolutions | **1920×1080**, **1280×720**, **640×480** |
 | Tested sessions | **11** |
 | Tested videos | **22** |
-| Result | **0 FAIL**, **22 PASS_WITH_WARNING** |
+| Result at v1.0.36 | **0 FAIL**, **22 PASS_WITH_WARNING** |
 | Validation folder | `Final test on other laptop` (2026-06-11) |
 
 **PASS_WITH_WARNING is expected:** MP4 container is tagged **30 fps** while USB camera delivery is **~29 fps**. This is not a recording defect.
 
-**Scientific timing rule:** Use **frame count + wall-clock/monotonic timing**, not ffprobe container duration alone.
+**Scientific timing rule:** Use **Timestamp CSV** and **frame count + wall-clock/monotonic timing**, not ffprobe container duration alone.
 
-> **v1.0.38 is stable baseline for 1-camera and 2-camera workflows.** A targeted post-freeze bug fix was required because cam3 preview worked but cam3 recording failed/froze on Start Recording. The fix is limited to 3-camera/4-camera recording startup and diagnostics and does not alter the validated 1-camera/2-camera workflow.
+> **v1.0.38 baseline for 1-camera and 2-camera workflows.** A targeted post-freeze bug fix was required because cam3 preview worked but cam3 recording failed/froze on Start Recording. The fix is limited to 3-camera/4-camera recording startup and diagnostics and does not alter the validated 1-camera/2-camera workflow.
 
-> **v1.0.39–v1.0.43 targeted fixes:** Validates **3-camera** and **4-camera** recording startup. Existing **1-camera** and **2-camera** workflow remains unchanged. **3-camera** validation should be run at **360p**, **720p**, and **1080p** using 3 external webcams. **4-camera** validation may be run at **360p** using 3 external webcams plus the built-in camera to validate the 4-slot pipeline.
+> **v1.0.39–v1.0.43 targeted fixes:** Validates **3-camera** and **4-camera** recording startup. Existing **1-camera** and **2-camera** workflow remains unchanged.
 
 > **v1.0.60 diagnostic-only update:** Hardware Diagnostics adds advisory system, graphics, camera capability, and USB topology reports. This does **not** change recording engine behavior, metadata fields, session folder layout, ffprobe verification, Video Verification thresholds, session comparison semantics, or 1/2-camera workflow.
+
+> **v1.1.0 targeted exceptions (scientific accuracy):** Four targeted fixes applied to protected code as formal freeze exceptions. See [Approved Freeze Exception Log](STABLE_CORE_V1_EXCEPTIONS.md#approved-freeze-exception-log) for full details.
+> - **2-camera synchronized start gate:** `RecordingSession.cs` — threshold changed from `openCvSlots.Count >= 3` to `>= 2`. 2-camera sessions now use the shared synchronized start gate. Validated tests kept first-frame inter-camera offset below 50 ms.
+> - **MaxTotalQueueDrops aggregation:** `RecordingDiagnosticsMonitor.cs` — `MaxTotalQueueDrops` now takes the max of sample-based total and the sum of per-camera final stats, preventing a false zero when a drop occurs at or after the recording stop boundary.
+> - **PASS_WITH_WARNING offset range:** `ScientificTimingAssessor.cs` — added `StartOffsetWarnMs = 50.0` and `StartOffsetFailMs = 100.0` constants; sessions with 50–100 ms inter-camera start offset now report `PASS_WITH_WARNING` instead of either PASS or FAIL.
+> - **Focus metadata wording:** `MetadataWriter.cs` — added `BuildFinalFocusMode` method; unreliable autofocus-off driver readback annotated as `Unknown/readback unreliable`.
 
 See [STABLE_CORE_V1_REGRESSION_CHECKLIST.md](STABLE_CORE_V1_REGRESSION_CHECKLIST.md) for the current regression checklist and pass criteria.
 
 ---
 
-## Validated behavior
+## Validated behavior (v1.1.0 Stable)
 
+- **Original Capture Mode** — preserves real camera frames only; no duplicate frames inserted; no placeholder frames inserted
+- **Timestamp CSV** — generated per camera per session; row count must match frames written; primary scientific timing source
 - Correct resolution presets (1080p / 720p / 360p match requested settings)
-- Correct session folder structure (`session_summary.txt`, `camN/`, MP4 + metadata)
+- Correct session folder structure (`session_summary.txt`, `camN/`, MP4 + metadata + Timestamp CSV)
 - Correct metadata fields populated (see protected field list below)
 - Correct capture interval statistics (`CaptureIntervalMeanMs` ~ **34.4 ms** for ~29 fps delivery)
-- **0** queue drops across all 22 videos
+- **0** queue drops across all validated 2-camera 22-video baseline sessions
 - **0** duplicates, **0** placeholders
-- Inter-camera sync **0–3 frames** per session
-- Start offset approximately **6–20 ms**
-- **Offline audit** (`scripts/diagnostics/audit_videos_folder.py`) and **in-app Video Verification** agreed on all 22 files
+- Inter-camera frame difference explained by Real Capture FPS differences in Original Capture Mode
+- Start offset **< 50 ms** for active 2–4 camera sessions using synchronized start gate (v1.1.0 validated)
+- `PASS_WITH_WARNING` for start offset 50–100 ms; `FAIL` above 100 ms
+- **Offline audit** and **in-app Video Verification** agreed on all validated baseline files
+- **Privacy-safe metadata** — exported files do not contain absolute paths, hardware IDs, computer names, or usernames
+- **Hardware Diagnostics** are advisory only — do not change recording behavior or verification thresholds
 
 ---
 
@@ -69,11 +82,12 @@ See [STABLE_CORE_V1_REGRESSION_CHECKLIST.md](STABLE_CORE_V1_REGRESSION_CHECKLIST
 
 ### 1. Recording Engine
 
-- Camera discovery, initialization, mode selection  
-- Frame acquisition, queue, timestamp generation  
-- Synchronized start/stop, video writer creation  
-- FPS/resolution selection, MP4 output  
-- Session/camera folder structure  
+- Camera discovery, initialization, mode selection
+- Frame acquisition, queue, timestamp generation
+- **Synchronized start gate** for active 2–4 camera sessions (`openCvSlots.Count >= 2`)
+- **Original Capture Mode** — real frames only; no duplicate or placeholder frame insertion
+- FPS/resolution selection, MP4 output
+- Session/camera folder structure
 
 **Primary paths:** `capture/`, `recording/`, `experiment/FrameTimingMonitor.cs`, `utils/MonotonicClock.cs`
 
@@ -82,36 +96,43 @@ See [STABLE_CORE_V1_REGRESSION_CHECKLIST.md](STABLE_CORE_V1_REGRESSION_CHECKLIST
 Protected outputs and fields:
 
 - `metadata.json`, `metadata.txt`, `session_summary.txt`
+- `camN_frame_timestamps.csv` — **Timestamp CSV**; row count must equal `FramesWritten`
 - `FramesCaptured`, `FramesWritten`
 - `MeasuredCameraFps`
 - `CaptureIntervalMeanMs`, `CaptureIntervalMinMs`, `CaptureIntervalMaxMs`, `CaptureIntervalStdMs`
 - `ScientificTimingStatus`, `ScientificTimingMessage`
 - `ContainerVsWallClockDifferenceSeconds`
+- `WriterQueueDrops`, `MaxTotalQueueDrops` (aggregated correctly across stop boundary)
+- `DuplicateFrames`, `PlaceholderFrames` (must remain 0 in Original Capture Mode)
+- `FocusMode`, `FinalFocusMode` (including unreliable-readback annotation)
 
 **Primary paths:** `metadata/`
 
-Recording metadata files remain **English** regardless of UI language.
+Recording metadata files remain **English** regardless of UI language.  
+Exported files are **privacy-safe**: no absolute paths, hardware identifiers, computer names, or usernames.
 
 ### 3. Video Verification Logic
 
-- Folder scan and video discovery  
-- ffprobe validation  
-- Metadata validation  
-- Expected vs actual resolution / FPS / duration / frame checks  
-- PASS / PASS_WITH_WARNING / FAIL classification  
-- Export TXT / JSON / CSV reports  
+- Folder scan and video discovery
+- ffprobe validation
+- Metadata validation
+- Expected vs actual resolution / FPS / duration / frame checks
+- PASS / PASS_WITH_WARNING / FAIL classification
+- Inter-camera start offset thresholds: warn at **50 ms**, fail at **100 ms** (`ScientificTimingAssessor`)
+- Timestamp CSV row-count validation
+- Export TXT / JSON / CSV reports
 
-**Primary paths:** `verification/` (core services; not experiment/locomotor verification profiles)
+**Primary paths:** `verification/`, `metadata/ScientificTimingAssessor.cs`
 
 ### 4. Session Comparison Logic
 
-- Group videos by recording session folder  
-- Compare **only** cameras inside the same session  
-- cam1 / cam2 / cam3 / cam4 handling  
-- Inter-camera frame difference, start/stop offset  
-- Wall-clock duration difference, measured FPS difference  
-- Resolution / codec / pixel-format consistency  
-- Drops / duplicates / placeholders comparison  
+- Group videos by recording session folder
+- Compare **only** cameras inside the same session
+- cam1 / cam2 / cam3 / cam4 handling
+- Inter-camera frame difference, start/stop offset
+- Wall-clock duration difference, measured FPS difference
+- Resolution / codec / pixel-format consistency
+- Drops / duplicates / placeholders comparison
 
 **Primary class:** `SessionComparisonService`
 
@@ -125,33 +146,37 @@ Protected code may be changed **only** when a [freeze exception](STABLE_CORE_V1_
 
 **Exception trigger categories (summary):**
 
-1. **Recording failure** — empty/corrupt MP4, freeze on record, `FramesWritten = 0`, unsafe stop  
-2. **Camera-slot / device-mapping bug** — wrong device opened, duplicate merge, same-name treated as one device  
-3. **Crash or recovery issue** — preview/record crash, USB unplug, unsafe stop/recover  
-4. **Scientific accuracy issue** — wrong frame counts, metadata timing, verification or session-comparison errors  
-5. **Hardware handling issue** — resolution crash, unclear open failure, missing per-slot lost connection  
+1. **Recording failure** — empty/corrupt MP4, freeze on record, `FramesWritten = 0`, unsafe stop
+2. **Camera-slot / device-mapping bug** — wrong device opened, duplicate merge, same-name treated as one device
+3. **Crash or recovery issue** — preview/record crash, USB unplug, unsafe stop/recover
+4. **Scientific accuracy issue** — wrong frame counts, metadata timing, verification or session-comparison errors
+5. **Hardware handling issue** — resolution crash, unclear open failure, missing per-slot lost connection
 
 **Rules for exception fixes:**
 
-- Make the **smallest targeted change**; do not refactor stable systems casually  
-- Do **not** change validated 1-camera / 2-camera behavior unless the bug affects them  
-- Add **diagnostic logs** before changing timing-sensitive code  
-- Run the [regression checklist](STABLE_CORE_V1_REGRESSION_CHECKLIST.md) after the change  
-- **Document** the reason and log the exception in [Approved Freeze Exception Log](STABLE_CORE_V1_EXCEPTIONS.md#approved-freeze-exception-log)  
+- Make the **smallest targeted change**; do not refactor stable systems casually
+- Do **not** change validated 1-camera / 2-camera behavior unless the bug affects them
+- Add **diagnostic logs** before changing timing-sensitive code
+- Run the [regression checklist](STABLE_CORE_V1_REGRESSION_CHECKLIST.md) after the change
+- **Document** the reason and log the exception in [Approved Freeze Exception Log](STABLE_CORE_V1_EXCEPTIONS.md#approved-freeze-exception-log)
 
 Before merging changes:
 
-1. Confirm a trigger in [STABLE_CORE_V1_EXCEPTIONS.md](STABLE_CORE_V1_EXCEPTIONS.md)  
-2. Complete [STABLE_CORE_V1_REGRESSION_CHECKLIST.md](STABLE_CORE_V1_REGRESSION_CHECKLIST.md)  
-3. Add or update a row in the **Approved Freeze Exception Log**  
-4. Document justification in changelog / PR  
-5. Preserve `STABLE_CORE_V1` banners; bump to `STABLE_CORE_V2` only if core behavior intentionally changes  
+1. Confirm a trigger in [STABLE_CORE_V1_EXCEPTIONS.md](STABLE_CORE_V1_EXCEPTIONS.md)
+2. Complete [STABLE_CORE_V1_REGRESSION_CHECKLIST.md](STABLE_CORE_V1_REGRESSION_CHECKLIST.md)
+3. Add or update a row in the **Approved Freeze Exception Log**
+4. Document justification in changelog / PR
+5. Preserve `STABLE_CORE_V1` banners; bump to `STABLE_CORE_V2` only if core behavior intentionally changes
 
 **Current approved targeted exceptions** (STABLE_CORE_V1 still active):
 
-- Device selection mapping and duplicate camera naming (v1.0.47)  
-- Preview startup reliability and USB disconnect handling (v1.0.46–v1.0.47)  
-- cam3 / cam4 startup and recording validation (v1.0.38–v1.0.43)  
+- Device selection mapping and duplicate camera naming (v1.0.47)
+- Preview startup reliability and USB disconnect handling (v1.0.46–v1.0.47)
+- cam3 / cam4 startup and recording validation (v1.0.38–v1.0.43)
+- 2-camera synchronized start gate correction (v1.1.0)
+- MaxTotalQueueDrops aggregation fix (v1.1.0)
+- PASS_WITH_WARNING offset range addition (v1.1.0)
+- Focus metadata wording / FinalFocusMode (v1.1.0)
 
 ---
 
@@ -163,6 +188,7 @@ Every protected file begins with:
 ////////////////////////////////////////////////////
 /// STABLE_CORE_V1
 /// Validated in MultiCamApp v1.0.36 build 136.
+/// Post-freeze exceptions approved through v1.1.0 build 193.
 /// Do not modify without documented regression testing.
 /// Protected: recording, metadata, verification, session comparison.
 ////////////////////////////////////////////////////
@@ -174,9 +200,9 @@ Refresh banners: `python scripts/maintenance/tag_stable_core_v1.py`
 
 ## Related documents
 
-- [STABLE_CORE_V1_EXCEPTIONS.md](STABLE_CORE_V1_EXCEPTIONS.md) — freeze exception policy and approved exception log  
+- [STABLE_CORE_V1_EXCEPTIONS.md](STABLE_CORE_V1_EXCEPTIONS.md) — freeze exception policy and approved exception log
 - [STABLE_CORE_V1_REGRESSION_CHECKLIST.md](STABLE_CORE_V1_REGRESSION_CHECKLIST.md) — stable-core regression checklist
-- [user_guide/video_verification.md](user_guide/video_verification.md) — interpreting verification results  
+- [user_guide/video_verification.md](user_guide/video_verification.md) — interpreting verification results
 
 ---
 

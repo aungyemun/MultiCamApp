@@ -156,7 +156,7 @@ Frame counts may differ because cameras delivered real frames at different measu
 
 ## Release ZIP contents
 
-Offline release packages or installer outputs include `Setup.exe`, `README.md`, `INSTALLATION.md`, `LICENSE.txt`, and `THIRD_PARTY_NOTICES.md`. Verification itself runs inside the installed application; no separate download is needed.
+Offline release packages (`installer.zip`) include `Setup.exe`, `README.md`, `INSTALLATION.md`, `DIRECTORY_STRUCTURE.md`, `LICENSE.md`, `THIRD_PARTY_NOTICES.md`, `SECURITY.md`, `CITATION.cff`, `CHANGELOG.md`, and key user-guide docs. Verification itself runs inside the installed application; no separate download is needed.
 
 ## Related documentation
 

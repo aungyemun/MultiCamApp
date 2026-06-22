@@ -39,7 +39,7 @@ For commercial licensing inquiries, contact the copyright holder.
 
 If you use MultiCamApp in academic, educational, or research-related work, please cite it as:
 
-> Mun AY. MultiCamApp: Offline multi-camera synchronized recording and verification platform for behavioral analysis. Version v1.1.0. 2026.
+> Mun AY, Koketsu S. MultiCamApp: Offline multi-camera synchronized recording and verification platform for behavioral analysis. Version v1.1.0. 2026.
 
 Machine-readable citation metadata is provided in `CITATION.cff`.
 

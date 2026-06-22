@@ -173,14 +173,13 @@ var
   LogDir: string;
 begin
   LogDir := ExpandConstant('{app}\logs');
-  Result := DirExists(LogDir) or CreateDir(LogDir);
+  Result := DirExists(LogDir) or ForceDirectories(LogDir);
   if Result then
   begin
     InstallLogPath := LogDir + '\install.log';
     UpdateLogPath := LogDir + '\install_update.log';
-  end
-  else
-    MsgBox('Cannot write to ' + LogDir + '. Try running setup as administrator or choose a user-writable folder.', mbError, MB_OK);
+  end;
+  { If log dir cannot be created, continue silently without installer logging. }
 end;
 
 function IsUpgradeInstall(): Boolean;

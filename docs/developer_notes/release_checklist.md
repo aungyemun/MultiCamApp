@@ -20,7 +20,7 @@ Use before distributing MultiCamApp to end users.
 ## Signing (public release)
 
 - [ ] Set `MULTICAMAPP_SIGN_PFX` or `MULTICAMAPP_SIGN_THUMBPRINT`
-- [ ] `scripts\packaging\sign_release.ps1` signs `dist\MultiCamApp.exe`, key DLLs, and `MultiCamApp_Setup.exe`
+- [ ] `scripts\packaging\sign_release.ps1` signs `dist\MultiCamApp.exe`, key DLLs, and `installer\Setup.exe`
 - [ ] Signature verifies as **Valid** on release machine
 
 ## Antivirus (build machine)
@@ -57,8 +57,8 @@ Use before distributing MultiCamApp to end users.
 - [ ] User data preservation verified (videos/logs remain after uninstall)
 - [ ] App runs **without admin** when installed to a user profile folder
 - [ ] Offline test: Install on a machine with NO internet; app launches and records successfully
-- [ ] `C:\Program Files\MultiCamApp\logs\startup_smoketest.log` is written during install validation
-- [ ] `C:\Program Files\MultiCamApp\logs\smoke_test_result.txt` contains PASS / WARNING / FAIL
+- [ ] `{app}\logs\startup_smoketest.log` is written during install validation (app folder for user installs: `%LOCALAPPDATA%\Programs\MultiCamApp`)
+- [ ] `{app}\logs\smoke_test_result.txt` contains PASS / WARNING / FAIL
 - [ ] **Refresh cameras** lists devices
 - [ ] **Start Preview** opens camera only after click; status shows Previewing
 - [ ] **Start Recording** only after preview; status shows Recording
@@ -69,6 +69,6 @@ Use before distributing MultiCamApp to end users.
 
 ## Distribution
 
-- [ ] Ship `MultiCamApp_Setup.exe` (signed for production)
+- [ ] Ship `installer\Setup.exe` or `installer\installer.zip` (signed for production)
 - [ ] Do **not** ask users to disable antivirus or add exclusions
-- [ ] Include `LICENSE.txt` and version in About tab
+- [ ] Include `LICENSE.md` and version in About tab

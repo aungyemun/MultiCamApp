@@ -47,7 +47,7 @@ public partial class AboutPage : UserControl
         ThirdPartyNoticesBtn.Content = lang["viewThirdPartyNotices"];
         FfmpegLicenseBtn.Content = "View FFmpeg License (FFMPEG_LICENSE.txt)";
         ProjectHomepageTitle.Text = lang["projectHomepage"];
-        HomepageLink.Text = "https://github.com/aung-ye-mun/MultiCamApp";
+        HomepageLink.Text = "https://github.com/aungyemun/MultiCamApp";
         FontHelper.ApplyLanguageFont(this, lang.CurrentLanguage);
     }
 
@@ -75,7 +75,7 @@ public partial class AboutPage : UserControl
 
     private static string BuildCitationBody(VersionInfo version, LanguageManager lang)
     {
-        return $"Mun AY. MultiCamApp: Offline multi-camera synchronized recording and verification platform for behavioral analysis. Version v{version.Version}. 2026.";
+        return $"Mun AY, Koketsu S. MultiCamApp: Offline multi-camera synchronized recording and verification platform for behavioral analysis. Version v{version.Version}. 2026.";
     }
 
     private void TryCopy(string text, Button btn)
@@ -101,7 +101,7 @@ public partial class AboutPage : UserControl
     {
         try
         {
-            var url = "https://github.com/aung-ye-mun/MultiCamApp";
+            var url = "https://github.com/aungyemun/MultiCamApp";
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
             {
                 FileName = url,
