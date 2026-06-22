@@ -2,7 +2,7 @@
 
 Windows 10/11 offline multi-camera recording, metadata capture, and video verification for educational and research use.
 
-Current release: **v1.1.0 Stable**. This release uses Original Capture Mode, per-frame Timestamp CSV files, scientific timing confidence, privacy-safe metadata summaries, clearer camera-control metadata wording, and scientific exposure defaults. All multi-camera sessions (2–4 cameras) now use a synchronized start gate, keeping inter-camera first-frame offset below 50 ms.
+Current release: **v1.1.0 Stable**. This release uses Original Capture Mode, per-frame Timestamp CSV files, scientific timing confidence, privacy-safe metadata summaries, clearer camera-control metadata wording, and scientific exposure defaults. Validated 2–4 camera sessions use a synchronized start gate, and test sessions kept inter-camera first-frame offset below 50 ms.
 
 This project includes third-party components. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
