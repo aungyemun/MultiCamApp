@@ -4,7 +4,7 @@ All notable changes to MultiCamApp will be documented in this file.
 
 This project is currently under private development and testing. Version history may change before the first public stable release.
 
-## [Unreleased]
+## [v1.1.0]
 
 ### Added
 
