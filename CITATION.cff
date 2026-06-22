@@ -3,18 +3,28 @@ message: "If you use MultiCamApp in academic, educational, or research-related w
 title: "MultiCamApp"
 type: software
 authors:
-  - family-names: "Mun"
-    given-names: "Aung Ye"
+
+* family-names: "Mun"
+  given-names: "Aung Ye"
+  version: "1.1.0"
+  date-released: "2026-06-23"
+  url: "https://github.com/aungyemun/MultiCamApp"
+  repository-code: "https://github.com/aungyemun/MultiCamApp"
+  abstract: "MultiCamApp is an offline multi-camera synchronized recording and verification platform for behavioral analysis, supporting real-frame capture, per-frame timestamp logging, privacy-safe metadata, and offline video verification."
+  license: "LicenseRef-MultiCamApp-NonCommercial-Academic-Research"
+  keywords:
+* "multi-camera recording"
+* "video capture"
+* "session verification"
+* "behavioral analysis"
+* "research software"
+* "Windows application"
+
+preferred-citation:
+type: software
+title: "MultiCamApp: Offline multi-camera synchronized recording and verification platform for behavioral analysis"
+authors:
+- family-names: "Mun"
+given-names: "Aung Ye"
+year: 2026
 version: "1.1.0"
-date-released: "2026-06-23"
-url: "https://github.com/aungyemun/MultiCamApp"
-repository-code: "https://github.com/aungyemun/MultiCamApp"
-abstract: "MultiCamApp is an offline multi-camera synchronized recording and verification platform for behavioral analysis, supporting real-frame capture, per-frame timestamp logging, privacy-safe metadata, and offline video verification."
-license: "LicenseRef-MultiCamApp-NonCommercial-Academic-Research"
-keywords:
-  - "multi-camera recording"
-  - "video capture"
-  - "session verification"
-  - "behavioral analysis"
-  - "research software"
-  - "Windows application"
