@@ -2,13 +2,17 @@
 
 Windows 10/11 offline multi-camera recording, metadata capture, and video verification for educational and research use.
 
-Current release: **v1.1.0 stable**. This release uses Original Capture Mode, per-frame Timestamp CSV files, scientific timing confidence, privacy-safe metadata summaries, clearer camera-control metadata wording, and scientific exposure defaults. All multi-camera sessions (2–4 cameras) now use a synchronized start gate, keeping inter-camera first-frame offset below 50 ms.
+Current release: **v1.1.0 Stable**. This release uses Original Capture Mode, per-frame Timestamp CSV files, scientific timing confidence, privacy-safe metadata summaries, clearer camera-control metadata wording, and scientific exposure defaults. All multi-camera sessions (2–4 cameras) now use a synchronized start gate, keeping inter-camera first-frame offset below 50 ms.
 
 This project includes third-party components. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
+## Download
+
+End users should download `Setup.exe` or `installer.zip` from the [GitHub Releases](../../releases) page. The source repository is for development, review, documentation, and reproducible building. Installer binaries (`Setup.exe`, `installer.zip`) are not committed to the repository.
+
 ## Quick Start
 
-1. Install with `installer\Setup.exe`. The installer is fully offline and includes required runtime dependencies.
+1. Download `Setup.exe` or `installer.zip` from [GitHub Releases](../../releases) and run the installer. It is fully offline and includes all required runtime dependencies.
 2. Launch MultiCamApp from the Desktop or Start Menu.
 3. Select a 1-4 camera layout and assign devices to slots.
 4. Click **Start Preview** and wait for active cameras to show live preview.
@@ -59,13 +63,13 @@ This downloads local build dependencies into `tools\`, vendor runtime files into
 
 ```text
 source\       C# WPF app, launcher, and tests
-dist\         generated published app bundle used by Setup.exe
-installer\    Inno Setup script, build script, Setup.exe, VC++ redist, installer.zip
+dist\         generated published app bundle used by Setup.exe (generated, not committed)
+installer\    Inno Setup script and build scripts; Setup.exe and installer.zip are generated release artifacts (not committed)
 scripts\      build, diagnostic, maintenance, packaging, and setup scripts
-runtime\      staged vendor runtime helpers and FFmpeg tools
-tools\        local developer toolchain
+runtime\      staged vendor runtime helpers and FFmpeg license/readme files
+tools\        local developer toolchain (not committed)
 docs\         architecture, user, release, license, and changelog docs
-data\         temporary scratch/download area
+data\         temporary scratch/download area (not committed)
 ```
 
 See [Directory Structure](DIRECTORY_STRUCTURE.md).
@@ -98,6 +102,10 @@ See [Video Verification](docs/user_guide/video_verification.md) and [Output File
 - [Security and Antivirus](docs/user_guide/security_antivirus.md)
 - [Changelog](docs/changelogs/CHANGELOG.md)
 
+## Responsible Use
+
+MultiCamApp is intended for lawful, consent-based recording only. Do not use for illegal surveillance, spying, harassment, unauthorized recording, privacy invasion, or any activity that violates the rights, safety, or privacy of others.
+
 ## Uninstallation
 
 Use **Uninstall MultiCamApp** from the Start Menu or Windows Control Panel. The uninstaller removes application files and bundled runtime components while preserving recorded videos, exported reports, and user project folders.
@@ -117,4 +125,4 @@ Aung Ye Mun
 ## License
 
 © 2026–Present Aung Ye Mun and contributors. Non-commercial research and educational use only.
-See [LICENSE.txt](docs/license/LICENSE.txt) for details.
+See [LICENSE.md](LICENSE.md) for details.

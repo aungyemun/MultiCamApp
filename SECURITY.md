@@ -13,6 +13,10 @@ To report a security vulnerability in MultiCamApp, contact the maintainer direct
 
 Do not open a public GitHub issue for security vulnerabilities. Include a description of the issue, steps to reproduce, and any relevant log files (with personal paths redacted).
 
+## Responsible Use
+
+MultiCamApp is intended for lawful, consent-based recording only. Unauthorized or covert recording is outside the intended and permitted use.
+
 ## Scope
 
 MultiCamApp is a fully offline desktop application for Windows. It does not connect to the internet, does not transmit user data, and does not expose network services. Relevant security areas are:

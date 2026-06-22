@@ -14,11 +14,11 @@ Third-Party Software
 MultiCamApp includes bundled third-party components, including OpenCV, FFmpeg/ffprobe, and the .NET runtime. See THIRD_PARTY_NOTICES.md in the installation folder for license and attribution details.
 
 Citation
-Mun AY. MultiCamApp: Offline multi-camera synchronized recording and verification platform for behavioral analysis. Developed from an original prototype workflow concept by Shinnosuke Koketsu (纐纈真之介). Version installed by this setup package; 2026.
+Mun AY. MultiCamApp: Offline multi-camera synchronized recording and verification platform for behavioral analysis. Version v1.1.0. 2026.
 
 Attribution
-Original prototype workflow concept and foundational idea:
+Original prototype workflow concept and foundational recording logic:
 Shinnosuke Koketsu (纐纈真之介)
 
-Modern application design, implementation, camera recording system, UI/UX redesign, offline packaging, installer/uninstaller system, verification framework, diagnostics, metadata/reporting, testing, release engineering, and maintenance:
+Modern application architecture, UI/UX redesign, offline packaging, verification framework, diagnostics, metadata/reporting, localization, testing, release engineering, and maintenance:
 Aung Ye Mun

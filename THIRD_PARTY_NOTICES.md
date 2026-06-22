@@ -129,7 +129,7 @@ The installer (`Setup.exe`) bundles and installs the Microsoft Visual C++ 2015â€
 
 This projectâ€™s release artifacts should include:
 
-- `LICENSE.txt`
+- `LICENSE.md`
 - `THIRD_PARTY_NOTICES.md`
 - `README.md`
 - `INSTALLATION.md`

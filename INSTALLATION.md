@@ -4,11 +4,7 @@ MultiCamApp is a self-contained, offline-capable Windows application. This guide
 
 ## End-User Installation
 
-Use:
-
-```text
-installer\Setup.exe
-```
+Download `Setup.exe` or `installer.zip` from the [GitHub Releases](../../releases) page. Installer binaries are not committed to the source repository.
 
 The installer is the recommended release artifact. It includes the app bundle, native camera/video dependencies, FFmpeg `ffprobe`, config/localization files, third-party notices, license text, runtime setup scripts, and the Microsoft Visual C++ Redistributable.
 
@@ -86,7 +82,7 @@ Test machine requirements:
 
 Procedure:
 
-1. Copy `installer\Setup.exe` or `installer\installer.zip` to the test machine.
+1. Download `Setup.exe` or `installer.zip` from GitHub Releases and copy to the test machine.
 2. Run `Setup.exe`.
 3. Confirm VC++ Runtime setup completes.
 4. Confirm bundled runtime setup completes.
@@ -146,7 +142,7 @@ Export the shareable ZIP:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\packaging\create_release_zip.ps1 -DestinationZip installer\installer.zip
 ```
 
-The ZIP contains `Setup.exe`, `README.md`, `INSTALLATION.md`, `DIRECTORY_STRUCTURE.md`, `THIRD_PARTY_NOTICES.md`, `LICENSE.txt`, and key user-guide docs.
+The ZIP contains `Setup.exe`, `README.md`, `INSTALLATION.md`, `DIRECTORY_STRUCTURE.md`, `THIRD_PARTY_NOTICES.md`, `LICENSE.md`, and key user-guide docs.
 
 ## Shipped Runtime Dependencies
 
@@ -188,4 +184,4 @@ Aung Ye Mun
 ## License
 
 © 2026–Present Aung Ye Mun and contributors. Non-commercial research and educational use only.
-See [LICENSE.txt](docs/license/LICENSE.txt).
+See [LICENSE.md](LICENSE.md).

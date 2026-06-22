@@ -2,6 +2,10 @@
 
 MultiCamApp is designed to be a transparent, secure, and offline-capable Windows application. It follows standard desktop application practices and does not require weakening your system's security.
 
+## Responsible Use
+
+This application is intended for lawful, consent-based video recording only. Do not use for unauthorized, covert, or illegal recording.
+
 ## For End Users
 
 - **No Exclusions Required**: You do **not** need to disable your antivirus or add manual exclusions for MultiCamApp.
@@ -37,6 +41,6 @@ The application's security posture is controlled via the `security` section in `
 
 ## SmartScreen & Signing
 
-Unsigned builds may trigger a Windows SmartScreen warning ("Windows protected your PC"). This is normal for development or test builds. For production environments, we recommend using **signed** builds which verify the publisher's identity.
+Unsigned builds may trigger a Windows SmartScreen warning ("Windows protected your PC"). This is normal for unsigned builds. For official releases, code signing is recommended to reduce SmartScreen warnings and verify the publisher's identity.
 
 For more details on the release process, see the [Release Checklist](../developer_notes/release_checklist.md).

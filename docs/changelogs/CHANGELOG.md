@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.1.0] - 2026-06-23
+## [v1.1.0] - 2026-06-23
 
 ### Fixed
 - 2-camera sessions now use the synchronized start gate (threshold changed from ≥3 to ≥2 cameras), eliminating ~190 ms inter-camera first-frame offset.
@@ -215,7 +215,7 @@
 - Centralized UI button/status rules via UpdateUiStateFromCurrentState.
 - 1080p multi-cam sequential open and serialized OpenCV release to prevent preview crashes.
 
-## [1.0.52-dev] - 2026-06-17
+## [1.0.52] - 2026-06-17
 
 ### Fixed
 - Fixed possible stale OpenCvDeviceSession mapping state during Start Preview.
