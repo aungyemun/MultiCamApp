@@ -171,17 +171,26 @@ Do not ask users to disable antivirus. If a tool flags the app, verify signature
 
 ## Citation
 
-Mun AY. MultiCamApp: Offline multi-camera synchronized recording and verification platform for behavioral analysis. Version v1.1.0. 2026.
+If you use MultiCamApp in research, education, or published work, please cite:
+
+Mun AY. **MultiCamApp: Offline multi-camera recording, metadata capture, and video verification platform for research and educational workflows.** Version v1.1.0. 2026.
 
 ## Attribution
 
-**Original prototype workflow concept and foundational recording logic:**
-Shinnosuke Koketsu
+Original prototype workflow concept and foundational recording idea:
 
-**Modern application architecture, UI/UX redesign, offline packaging, verification framework, diagnostics, metadata/reporting, localization, testing, release engineering, and maintenance:**
-Aung Ye Mun
+**Shinnosuke Koketsu**
+
+Modern application architecture, UI/UX redesign, offline packaging, verification framework, diagnostics, metadata/reporting, localization, testing, release engineering, and maintenance:
+
+**Aung Ye Mun**
 
 ## License
 
-© 2026–Present Aung Ye Mun and contributors. Non-commercial research and educational use only.
-See [LICENSE.md](LICENSE.md).
+© 2026–Present Aung Ye Mun and contributors.
+
+MultiCamApp is available for non-commercial academic, scientific, educational, evaluation, and personal use.
+
+Commercial use, redistribution, resale, sublicensing, SaaS hosting, monetized distribution, or commercial incorporation is prohibited without prior written permission from the copyright holder.
+
+See [LICENSE.md](LICENSE.md) for full details.
