@@ -2,6 +2,18 @@
 
 All notable changes to MultiCamApp will be documented in this file.
 
+## [v2.0.2] - 2026-07-10 (build 335)
+
+> **User was running the actual v2.0.1.334 Setup.exe and asked me to check the installer's License Agreement page for staleness.** Traced `docs/license/LICENSE.txt` (fixed for its stale v1.1.0 citation in an earlier pass this session) and discovered it is not just a repo documentation file — `MultiCamApp.iss` uses it directly as `LicenseFile` (compiled into the installer's License Agreement wizard page) and also copies it into the installed app folder as `LICENSE.txt`. That earlier fix was treated as "documentation-only, no rebuild needed" at the time, which was wrong for this specific file: the already-built and already-shared v2.0.1.334 `Setup.exe` still had the old, stale citation baked into its License Agreement page, since it was compiled before the fix.
+>
+> This release has no functional/behavior changes — it exists solely to rebuild the installer with the corrected `docs/license/LICENSE.txt` actually compiled in, and to bump the citation strings that reference the version number to stay consistent with the new build.
+
+### Fixed
+* **Installer License Agreement page** — now shows the corrected citation (previously stuck at the stale "v1.1.0... behavioral analysis" wording even after the source file was fixed, because the installer hadn't been rebuilt since).
+
+### Tests
+* Updated `BackendVersion` constant (`VideoEngineRegistry.cs`) and its test assertion to `2.0.2`. 295 tests passing (unchanged baseline).
+
 ## [v2.0.1] - 2026-07-10 (build 334) — STABLE_CORE_V2 Freeze Declared
 
 > **User asked to freeze the current camera recording components, logic, and other important app components** now that v2.0.0 is the second stable release — protecting them from accidental changes or deletion, while explicitly pre-authorizing genuine bug fixes through an exception process (mirroring how STABLE_CORE_V1 worked before it was lifted).

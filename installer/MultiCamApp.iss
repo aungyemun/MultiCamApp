@@ -2,11 +2,11 @@
 ; Fully offline, self-contained bundle. Supports in-place upgrade without manual uninstall.
 #define AppName "MultiCamApp"
 #ifndef AppVersion
-#define AppVersion "2.0.1"
+#define AppVersion "2.0.2"
 #endif
 #define AppPublisher "Aung Ye Mun"
 ; Numeric-only version for Windows VersionInfoVersion (no alpha/beta suffix allowed)
-#define AppVersionNumeric "2.0.1.334"
+#define AppVersionNumeric "2.0.2.335"
 #define AppExeName "MultiCamApp.exe"
 #ifndef PublishDir
 #define PublishDir "..\dist"
