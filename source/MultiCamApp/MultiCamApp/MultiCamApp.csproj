@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
@@ -12,9 +12,9 @@
     <ApplicationTitle>MultiCamApp</ApplicationTitle>
     <AssemblyName>MultiCamApp</AssemblyName>
     <ApplicationIcon>assets\icons\MultiCamApp.ico</ApplicationIcon>
-    <Version>1.1.0</Version>
-    <FileVersion>1.1.0.0</FileVersion>
-    <InformationalVersion>1.1.0</InformationalVersion>
+    <Version>2.0.1</Version>
+    <FileVersion>2.0.1.334</FileVersion>
+    <InformationalVersion>2.0.1</InformationalVersion>
     <Product>MultiCamApp</Product>
     <ProductName>MultiCamApp</ProductName>
     <Company>Aung Ye Mun</Company>
@@ -26,20 +26,55 @@
     <PublishSingleFile>false</PublishSingleFile>
   </PropertyGroup>
 
-  <!-- WPF markup compile builds a *_wpftmp pass; suppress duplicate STABLE_CORE_V1 #warning (CS1030) there. -->
+  <!-- WPF markup compile builds a *_wpftmp pass; suppress duplicate warnings there. -->
+  <!-- CS1030: STABLE_CORE_V1 #warning duplicated in wpftmp pass. -->
+  <!-- CS1998: async method in CameraControlManagerV2 is intentionally async for future await use. -->
   <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('_wpftmp'))">
-    <NoWarn>$(NoWarn);CS1030</NoWarn>
+    <NoWarn>$(NoWarn);CS1030;CS1998</NoWarn>
+  </PropertyGroup>
+
+  <!-- Suppress CS1998 project-wide for V2 experimental async stubs. -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);CS1998</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="OpenCvSharp4" Version="4.10.0.20240616" />
     <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.10.0.20240616" />
+    <PackageReference Include="Vortice.Direct3D11" Version="3.8.3" />
+    <PackageReference Include="Vortice.DXGI" Version="3.8.3" />
+    <PackageReference Include="Vortice.MediaFoundation" Version="3.8.3" />
     <Content Include="config\**\*" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="localization\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Prevent LanguageManager.cs (source file in localization\ folder) from leaking into publish output. -->
+    <Content Remove="localization\LanguageManager.cs" />
+    <None Update="localization\LanguageManager.cs" CopyToOutputDirectory="Never" />
     <EmbeddedResource Include="localization\en.json" />
     <EmbeddedResource Include="localization\ja.json" />
     <Content Include="assets\icons\Multicam.png" CopyToOutputDirectory="PreserveNewest" Link="assets\icons\Multicam.png" />
     <Content Include="assets\icons\MultiCamApp.ico" CopyToOutputDirectory="PreserveNewest" Link="assets\icons\MultiCamApp.ico" />
     <PackageReference Include="System.Management" Version="10.0.9" />
   </ItemGroup>
+
+  <!--
+    Dev-build convenience only: mirrors the same files scripts\build\stage_dist_runtime.ps1
+    stages into dist\runtime\ffmpeg for the packaged release. Without this, VideoProbeService.ResolveFfprobe()
+    finds no ffprobe.exe next to a plain `dotnet build`/F5 output (bin\...\win-x64\), so the entire
+    ffprobe-based self-verification tier (container/color audit, duplicate-frame detection, CFR/VFR
+    classification) silently reports "ffprobe not available" with no user-facing warning explaining why.
+    ffmpeg.exe is included the same way so DeepVerifyService.ResolveFfmpeg() (Deep Verify on the
+    Video Verification page) also works in local dev/debug builds, not just packaged releases.
+    Condition guards CI/checkouts that haven't run scripts\download_vendor_tools.ps1 yet.
+  -->
+  <ItemGroup Condition="Exists('..\..\..\runtime\ffmpeg\ffprobe.exe')">
+    <Content Include="..\..\..\runtime\ffmpeg\ffprobe.exe" CopyToOutputDirectory="PreserveNewest" Link="runtime\ffmpeg\ffprobe.exe" />
+    <Content Include="..\..\..\runtime\ffmpeg\FFMPEG_LICENSE.txt" CopyToOutputDirectory="PreserveNewest" Link="runtime\ffmpeg\FFMPEG_LICENSE.txt" Condition="Exists('..\..\..\runtime\ffmpeg\FFMPEG_LICENSE.txt')" />
+  </ItemGroup>
+  <ItemGroup Condition="Exists('..\..\..\runtime\ffmpeg\ffmpeg.exe')">
+    <Content Include="..\..\..\runtime\ffmpeg\ffmpeg.exe" CopyToOutputDirectory="PreserveNewest" Link="runtime\ffmpeg\ffmpeg.exe" />
+  </ItemGroup>
 </Project>
+
+
+
+

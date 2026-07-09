@@ -8,8 +8,8 @@ authors:
   - family-names: "Koketsu"
     given-names: "Shinnosuke"
 repository-code: "https://github.com/aungyemun/MultiCamApp"
-version: "1.1.0"
-date-released: "2026-06-23"
+version: "2.0.1"
+date-released: "2026-07-10"
 license: "LicenseRef-MultiCamApp-NonCommercial-Academic-Research"
 abstract: >
   Offline multi-camera synchronized recording and verification platform for

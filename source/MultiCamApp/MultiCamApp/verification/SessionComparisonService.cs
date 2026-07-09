@@ -1,10 +1,10 @@
 ////////////////////////////////////////////////////
-/// STABLE_CORE_V1
-/// Validated in MultiCamApp v1.0.36 build 136.
+/// STABLE_CORE_V2
+/// Validated in MultiCamApp v2.0.0 build 333 (first stable release).
 /// Do not modify without documented regression testing.
-/// Protected: recording, metadata, verification, session comparison.
+/// Protected: VideoEngineV2 recording engine, native metadata, video verification, session comparison.
 ////////////////////////////////////////////////////
-// STABLE_CORE_V1 protected component — modification requires regression checklist; do not refactor casually.
+// STABLE_CORE_V2 protected component — modification requires regression checklist; do not refactor casually. See docs/STABLE_CORE_V2_FREEZE.md.
 
 using MultiCamApp.Localization;
 using MultiCamApp.Metadata;
@@ -79,9 +79,9 @@ public sealed class SessionComparisonService
             if (mp4 == null)
                 result.MissingMp4Files.Add(slot);
 
-            if (!File.Exists(Path.Combine(camFolder, "metadata.json")))
+            if (RecordingSessionDiscovery.FindCameraMetadataFile(camFolder, slot, "json") == null)
                 result.MissingMetadataJson.Add(slot);
-            if (!File.Exists(Path.Combine(camFolder, "metadata.txt")))
+            if (RecordingSessionDiscovery.FindCameraMetadataFile(camFolder, slot, "txt") == null)
                 result.MissingMetadataTxt.Add(slot);
         }
 
@@ -94,7 +94,7 @@ public sealed class SessionComparisonService
         {
             result.SessionTimingMode = OriginalCaptureAuditPolicy.Mode;
             result.FrameCountDifferenceAcceptedBecauseOriginalMode = true;
-            result.InterpretationNotes.Add(OriginalCaptureAuditPolicy.SessionInterpretation);
+            result.InterpretationNotes.Add(OriginalCaptureAuditPolicy.GetSessionInterpretation(language));
         }
         else if (IsLegacyConstantFrameCountSession(sessionVideos))
         {
@@ -105,7 +105,8 @@ public sealed class SessionComparisonService
         {
             if (video.Probe?.Success != true || !video.Probe.HasVideoStream)
                 result.Failures.Add(Tf(language, "sessionAuditVideoUnreadable", "{0}: video unreadable or corrupt", video.Entry.CameraSlot));
-            if (video.Metadata == null && File.Exists(Path.Combine(Path.GetDirectoryName(video.Entry.FullPath) ?? "", "metadata.json")))
+            if (video.Metadata == null && RecordingSessionDiscovery.FindCameraMetadataFile(
+                    Path.GetDirectoryName(video.Entry.FullPath) ?? "", video.Entry.CameraSlot, "json") != null)
                 result.Warnings.Add(Tf(language, "verifyMsgMetadataJsonUnparsed", "{0}: metadata.json present but could not be parsed", video.Entry.CameraSlot));
         }
 
@@ -267,8 +268,14 @@ public sealed class SessionComparisonService
 
         if (result.InterCameraMeasuredFpsDifference > OriginalCaptureAuditPolicy.AcceptableMeasuredFpsDifference)
             result.Warnings.Add(Tf(language, "sessionAuditFpsDiffWarning", "Measured camera FPS difference {0:F3} fps", result.InterCameraMeasuredFpsDifference));
-        else if (originalCaptureSession && result.InterCameraMeasuredFpsDifference > 0.05)
-            result.InterpretationNotes.Add(OriginalCaptureAuditPolicy.StableDifferentFpsNote);
+        // Only add this bland "frame counts may differ" note when the more specific, more useful
+        // one above (with the actual frame-count difference) didn't already fire — in every real
+        // session where frames genuinely differ because of FPS differences, both conditions are true
+        // simultaneously, and stacking two notes that say the same thing (one with a number, one
+        // without) is redundant, not informative.
+        else if (originalCaptureSession && result.InterCameraMeasuredFpsDifference > 0.05
+                 && !(originalCaptureSession && result.InterCameraFrameDifference > 0))
+            result.InterpretationNotes.Add(OriginalCaptureAuditPolicy.GetStableDifferentFpsNote(language));
 
         if (result.InterCameraWallDurationDifferenceSeconds > OriginalCaptureAuditPolicy.AcceptableWallClockDurationDifferenceSeconds)
             result.Warnings.Add(Tf(language, "sessionAuditWallDurationDiff", "Wall-clock duration difference {0:F2}s between cameras", result.InterCameraWallDurationDifferenceSeconds));
@@ -289,8 +296,8 @@ public sealed class SessionComparisonService
             if (meta.OriginalCaptureMode)
             {
                 var message = OriginalCaptureVerificationPolicy.IsAcceptedStopBoundaryDifference(meta)
-                    ? OriginalCaptureVerificationPolicy.StopBoundaryAcceptedMessage
-                    : $"Original Capture framesCaptured differs from framesWritten by {delta} frame(s)";
+                    ? OriginalCaptureVerificationPolicy.GetStopBoundaryAcceptedMessage(language)
+                    : Tf(language, "verifyMsgOriginalCaptureFramesCapturedDiff", "Original Capture framesCaptured differs from framesWritten by {0} frame(s)", delta);
                 result.Warnings.Add($"{video.Entry.CameraSlot}: {message}");
             }
             else if (delta == 1)
@@ -318,7 +325,8 @@ public sealed class SessionComparisonService
             result.Warnings.Add($"{video.Entry.CameraSlot}: {msg}");
         }
 
-        if (!File.Exists(Path.Combine(Path.GetDirectoryName(video.Entry.FullPath) ?? "", "metadata.txt")))
+        if (RecordingSessionDiscovery.FindCameraMetadataFile(
+                Path.GetDirectoryName(video.Entry.FullPath) ?? "", video.Entry.CameraSlot, "txt") == null)
             result.Warnings.Add(Tf(language, "verifyMsgMetadataTxtMissingOptional", "{0}: metadata.txt missing (optional warning)", video.Entry.CameraSlot));
     }
 

@@ -2,18 +2,20 @@
 
 > **Historical note:** This document was originally created during v1.0.36 stabilization and has been reviewed and updated for v1.1.0 Stable (2026-06-23). Pass criteria reflect current v1.1.0 Stable thresholds including synchronized start gate, PASS_WITH_WARNING offset range, and Timestamp CSV requirements.
 
+> **🔓 FREEZE LIFTED (2026-07-09, v1.2.104) — project owner directive.** See [STABLE_CORE_V1_FREEZE.md](STABLE_CORE_V1_FREEZE.md#freeze-declaration). This checklist is no longer a mandatory pre-merge gate, but running it (or the parts of it that apply — a recording-engine change should still get a real recording test, a metadata-schema change should still get a real audit) remains the best available way to catch a regression in this code before shipping. The "Required before" line below described the pre-lift mandatory process.
+
 **Applies to:** `STABLE_CORE_V1` (original freeze: MultiCamApp v1.0.36 build 136; current: v1.1.0 build 193)  
-**Required before:** Any change to protected recording, metadata, verification, or session-comparison code  
+**Required before (while frozen):** Any change to protected recording, metadata, verification, or session-comparison code — see FREEZE LIFTED note above for current status  
 **Reference:** [STABLE_CORE_V1_FREEZE.md](STABLE_CORE_V1_FREEZE.md) · [STABLE_CORE_V1_EXCEPTIONS.md](STABLE_CORE_V1_EXCEPTIONS.md)
 
 ---
 
 ## Pre-change
 
-- [ ] Change is justified by a [freeze exception trigger](STABLE_CORE_V1_EXCEPTIONS.md#freeze-exception-conditions) (reproducible bug, corruption, frame drops, sync failure, scientific accuracy, or hardware-handling issue)
-- [ ] Exception logged in [Approved Freeze Exception Log](STABLE_CORE_V1_EXCEPTIONS.md#approved-freeze-exception-log) (or row prepared before merge)
+- [ ] Change is justified by a [freeze exception trigger](STABLE_CORE_V1_EXCEPTIONS.md#freeze-exception-conditions) (reproducible bug, corruption, frame drops, sync failure, scientific accuracy, or hardware-handling issue) — good practice, no longer a mandatory gate while the freeze is lifted
+- [ ] Exception logged in [Approved Freeze Exception Log](STABLE_CORE_V1_EXCEPTIONS.md#approved-freeze-exception-log) (optional now; still useful as a changelog of *why*)
 - [ ] Scope limited to stable core; no bundled UI/installer drive-by changes
-- [ ] [STABLE_CORE_V1.lock](../STABLE_CORE_V1.lock) reviewed — protected systems understood
+- [ ] `STABLE_CORE_V1.lock` — referenced historically as a protected-systems marker file; it does not exist in this repo (nothing to review) and is not required
 - [ ] `STABLE_CORE_V1` file banners preserved (run `python scripts/maintenance/tag_stable_core_v1.py` if adding new protected files)
 
 ---
@@ -128,7 +130,7 @@ dotnet run --project scripts/diagnostics/VerifyFolderCli/VerifyFolderCli.csproj 
 
 ## Post-change
 
-- [ ] Update [CHANGELOG.md](changelogs/CHANGELOG.md) with regression note
+- [ ] Update [CHANGELOG.md](../CHANGELOG.md) with regression note
 - [ ] If core behavior changed intentionally, update [STABLE_CORE_V1_FREEZE.md](STABLE_CORE_V1_FREEZE.md) or plan `STABLE_CORE_V2`
 - [ ] Do **not** change verification thresholds or metadata calculations without explicit scientific justification
 

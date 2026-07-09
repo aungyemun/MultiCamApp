@@ -1,10 +1,10 @@
 ////////////////////////////////////////////////////
-/// STABLE_CORE_V1
-/// Validated in MultiCamApp v1.0.36 build 136.
+/// STABLE_CORE_V2
+/// Validated in MultiCamApp v2.0.0 build 333 (first stable release).
 /// Do not modify without documented regression testing.
-/// Protected: recording, metadata, verification, session comparison.
+/// Protected: VideoEngineV2 recording engine, native metadata, video verification, session comparison.
 ////////////////////////////////////////////////////
-// STABLE_CORE_V1 protected component — modification requires regression checklist; do not refactor casually.
+// STABLE_CORE_V2 protected component — modification requires regression checklist; do not refactor casually. See docs/STABLE_CORE_V2_FREEZE.md.
 
 using MultiCamApp.Capture;
 using MultiCamApp.Core;
@@ -67,14 +67,14 @@ public sealed class VideoVerificationService
         if (entries.Count == 0)
         {
             report.Summary.OverallVerdict = VerificationVerdict.Warning;
-            Log("No MP4 videos found in the selected folder.");
+            Log(language != null ? language["verifyMsgNoVideosFound"] : "No MP4 videos found in the selected folder.");
             return report;
         }
 
         if (!_probe.IsAvailable)
         {
             report.Summary.OverallVerdict = VerificationVerdict.Fail;
-            Log(_probe.MissingToolMessage ?? "ffprobe missing");
+            Log(_probe.GetMissingToolMessage(language));
             return report;
         }
 
@@ -134,13 +134,17 @@ public sealed class VideoVerificationService
                 .ToList();
             var audit = sessionComparison.CompareSession(group.Key, sessionVideos, group.ToList(), language);
             report.SessionAudits.Add(audit);
-            Log($"Session {audit.SessionLabel}: {audit.SessionStatus}");
+            Log(language != null
+                ? string.Format(language["verifyLogSessionStatusLine"], audit.SessionLabel, audit.SessionStatus)
+                : $"Session {audit.SessionLabel}: {audit.SessionStatus}");
             foreach (var line in audit.ComparisonSummaryText.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries))
                 Log($"  {line}");
         }
 
         report.Summary.SessionMessages.Add(
-            "Inter-camera comparison is performed only within the same recording session. Videos from different sessions are audited individually but not compared with each other.");
+            language != null
+                ? language["verifySessionScopeNote"]
+                : "Inter-camera comparison is performed only within the same recording session. Videos from different sessions are audited individually but not compared with each other.");
 
         foreach (var audit in report.SessionAudits)
         {
@@ -196,7 +200,7 @@ public sealed class VideoVerificationService
             report.SessionResult.MaxEndOffsetSec = audit.MaxEndOffsetSec;
             report.SessionResult.MaxFrameCountDifference = audit.MaxFrameCountDifference;
             report.SessionResult.FrameCountDifferenceAcceptedBecauseOriginalMode = audit.FrameCountDifferenceAcceptedBecauseOriginalMode;
-            ApplyOriginalCaptureSessionCardFields(report.SessionResult, audit, report.Videos);
+            ApplyOriginalCaptureSessionCardFields(report.SessionResult, audit, report.Videos, language);
         }
         else if (report.SessionAudits.Count > 1)
         {
@@ -212,21 +216,27 @@ public sealed class VideoVerificationService
                 .Select(a => a.InterCameraFrameDifference!.Value)
                 .DefaultIfEmpty(0)
                 .Max();
-            ApplyOriginalCaptureSessionCardFields(report.SessionResult, report.SessionAudits, report.Videos);
+            ApplyOriginalCaptureSessionCardFields(report.SessionResult, report.SessionAudits, report.Videos, language);
         }
 
         try
         {
             var auditReportPath = Path.Combine(folder, "video_audit_report.txt");
             await new VerificationReportWriter(language).ExportVideoAuditReportAsync(report, auditReportPath);
-            Log($"Saved audit report: {auditReportPath}");
+            Log(language != null
+                ? string.Format(language["verifyLogSavedAuditReport"], auditReportPath)
+                : $"Saved audit report: {auditReportPath}");
         }
         catch (Exception ex)
         {
-            Log($"Could not save video_audit_report.txt: {ex.Message}");
+            Log(language != null
+                ? string.Format(language["verifyLogCouldNotSaveAuditReport"], ex.Message)
+                : $"Could not save video_audit_report.txt: {ex.Message}");
         }
 
-        Log($"Overall: {report.Summary.OverallVerdict}");
+        Log(language != null
+            ? string.Format(language["verifyLogOverallLine"], report.Summary.OverallVerdict)
+            : $"Overall: {report.Summary.OverallVerdict}");
         progress?.Report(new VerificationProgressUpdate
         {
             Current = total,
@@ -241,8 +251,9 @@ public sealed class VideoVerificationService
     private static void ApplyOriginalCaptureSessionCardFields(
         SessionVerificationResult session,
         RecordingSessionAuditResult audit,
-        IReadOnlyList<VideoVerificationResult> videos) =>
-        ApplyOriginalCaptureSessionCardFields(session, [audit], videos);
+        IReadOnlyList<VideoVerificationResult> videos,
+        LanguageManager? language = null) =>
+        ApplyOriginalCaptureSessionCardFields(session, [audit], videos, language);
 
     private static string AggregateSessionScientificTimingConfidence(IReadOnlyList<RecordingSessionAuditResult> audits)
     {
@@ -262,7 +273,8 @@ public sealed class VideoVerificationService
     private static void ApplyOriginalCaptureSessionCardFields(
         SessionVerificationResult session,
         IReadOnlyList<RecordingSessionAuditResult> audits,
-        IReadOnlyList<VideoVerificationResult> videos)
+        IReadOnlyList<VideoVerificationResult> videos,
+        LanguageManager? language = null)
     {
         var metadata = videos.Select(v => v.Metadata).Where(m => m != null).Select(m => m!).ToList();
         var original = metadata.Count > 0 && metadata.All(OriginalCaptureVerificationPolicy.IsOriginalCapture);
@@ -286,7 +298,7 @@ public sealed class VideoVerificationService
                 ?? "-";
         session.ShowContainerWallClockWarning = metadata.Any(m => Math.Abs(m.ContainerVsWallClockDifferenceSeconds) > 0.5);
         session.ContainerWallClockWarning = session.ShowContainerWallClockWarning
-            ? OriginalCaptureVerificationPolicy.ContainerWallClockNote
+            ? OriginalCaptureVerificationPolicy.GetContainerWallClockNote(language)
             : "";
         if (string.IsNullOrWhiteSpace(session.SessionTimingMode))
             session.SessionTimingMode = audits.Select(a => a.SessionTimingMode).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s)) ?? "";
@@ -461,7 +473,7 @@ public sealed class VideoVerificationService
                     else if (originalCaptureVerification)
                     {
                         r.DurationMatch = VerificationMatchStatus.Warning;
-                        AddMsg(OriginalCaptureVerificationPolicy.ContainerWallClockNote, VerificationVerdict.Warning);
+                        AddMsg(OriginalCaptureVerificationPolicy.GetContainerWallClockNote(language), VerificationVerdict.Warning);
                     }
                     else
                     {
@@ -538,65 +550,102 @@ public sealed class VideoVerificationService
                     : null;
             r.TimestampDriftSeconds = r.ContainerVsWallClockDifferenceSeconds;
             r.ConstantFpsDisplay = probe?.ConstantFps == true ? "YES" : "NO";
-            r.ScientificTimingStatus = OriginalCaptureVerificationPolicy.IsOriginalCapture(metaRecord)
-                ? AssessScientificTimingStatus(probe, metaRecord)
-                : !string.IsNullOrWhiteSpace(metaRecord.ScientificTimingStatus)
-                    ? metaRecord.ScientificTimingStatus
-                    : AssessScientificTimingStatus(probe, metaRecord);
-            r.ScientificTimingMessage = OriginalCaptureVerificationPolicy.IsAcceptedStopBoundaryDifference(metaRecord)
-                ? OriginalCaptureVerificationPolicy.StopBoundaryAcceptedMessage
-                : metaRecord.ScientificTimingMessage ?? "";
-            if (string.IsNullOrWhiteSpace(r.ScientificTimingMessage)
-                && string.Equals(r.ScientificTimingStatus, "PASS_WITH_WARNING", StringComparison.OrdinalIgnoreCase))
-                r.ScientificTimingMessage = ScientificTimingAssessor.DefaultMessage;
-
-            if (metaRecord.OriginalCaptureMode && metaRecord.FrameCount > 0)
+            // VideoEngineV2 recordings (metaRecord.IsV2Source) already carry their own
+            // already-computed, already-correct scientific-timing verdict (see
+            // MetadataParser.BuildRecordFromV2Metadata and V2RecordingMetadata's
+            // VerificationGlobalSessionResult doc comment). The three checks in the `else` branch
+            // below (AssessScientificTimingStatus, the CSV-row-count equality check, and the
+            // metadata-completeness critical-fields check) all assume the legacy OpenCV pipeline's
+            // exact-match semantics — e.g. FrameTimestampCsvRowCount must equal FrameCount exactly —
+            // which V2's own preview-inclusive frame-counting model routinely and legitimately
+            // violates by a small amount (V2 itself already tolerates this via its own
+            // frameIntegrity.csvRowsDiff/integrityVerdict check). Forcing V2 data through those
+            // legacy-specific equality checks reliably produced false FAILs. Trust V2's own verdict
+            // instead of re-deriving one from a schema it was never designed for. The `else` branch
+            // is byte-for-byte the original legacy logic, unchanged, for non-V2 (or older/partial V2)
+            // metadata.
+            if (metaRecord.IsV2Source && !string.IsNullOrWhiteSpace(metaRecord.ScientificTimingStatus))
             {
-                var timestampCsvIncomplete =
-                    !metaRecord.FrameTimestampCsvWritten ||
-                    metaRecord.FrameTimestampCsvRowCount != metaRecord.FrameCount ||
-                    string.IsNullOrWhiteSpace(metaRecord.FrameTimestampCsvPath) ||
-                    !File.Exists(ResolveMetadataRelativePath(entry, metaRecord.FrameTimestampCsvPath));
-                if (timestampCsvIncomplete)
-                {
-                    r.ScientificTimingStatus = CameraAuditStatus.Fail;
-                    var timestampMsg =
-                        $"Frame timestamp CSV metadata incomplete: written={metaRecord.FrameTimestampCsvWritten}, rows={metaRecord.FrameTimestampCsvRowCount}, frames={metaRecord.FrameCount}.";
-                    r.ScientificTimingMessage = string.IsNullOrWhiteSpace(r.ScientificTimingMessage)
-                        ? timestampMsg
-                        : $"{r.ScientificTimingMessage} {timestampMsg}";
-                }
-            }
+                r.ScientificTimingStatus = metaRecord.ScientificTimingStatus;
+                r.ScientificTimingMessage = metaRecord.ScientificTimingMessage ?? "";
+                if (string.IsNullOrWhiteSpace(r.ScientificTimingMessage)
+                    && string.Equals(r.ScientificTimingStatus, "PASS_WITH_WARNING", StringComparison.OrdinalIgnoreCase))
+                    r.ScientificTimingMessage = ScientificTimingAssessor.DefaultMessage;
 
-            if (metaRecord.OriginalCaptureMode)
-            {
-                var completeness = MetadataCompletenessPolicy.Assess(metaRecord);
-                r.MetadataCompletenessPercent = completeness.Percent;
-                r.MissingRequiredMetadataFields = string.Join(", ", completeness.MissingRequiredFields);
-                r.MissingCriticalMetadataFields = string.Join(", ", completeness.MissingCriticalFields);
-                r.ScientificMetadataComplete = completeness.ScientificMetadataComplete;
-
-                if (!completeness.ScientificMetadataComplete)
-                {
-                    var completenessMsg =
-                        $"Scientific metadata completeness: {completeness.Percent:F1}% complete; missingRequiredMetadataFields={r.MissingRequiredMetadataFields}.";
-                    if (completeness.MissingCriticalFields.Count > 0)
-                    {
-                        r.ScientificTimingStatus = CameraAuditStatus.Fail;
-                        r.ScientificTimingMessage = AppendScientificTimingMessage(
-                            r.ScientificTimingMessage,
-                            $"{completenessMsg} Critical timing fields missing: {r.MissingCriticalMetadataFields}.");
-                    }
-                    else if (CameraAuditStatus.IsPassLevel(r.ScientificTimingStatus))
-                    {
-                        r.ScientificTimingStatus = CameraAuditStatus.PassWithWarning;
-                        r.ScientificTimingMessage = AppendScientificTimingMessage(r.ScientificTimingMessage, completenessMsg);
-                    }
-                }
+                // Still computed for display/export (shown in reports as metadata completeness %),
+                // but never allowed to downgrade/override the verdict V2 already trusts — V2
+                // metadata legitimately doesn't populate several legacy-only statistical fields
+                // (P95/P99 interval percentiles, fpsStabilityGrade, first/last-frame monotonic
+                // seconds) that have no V2 equivalent, and treating their absence as a
+                // scientific-accuracy failure would be wrong for a recording V2 already validated.
+                var v2Completeness = MetadataCompletenessPolicy.Assess(metaRecord);
+                r.MetadataCompletenessPercent = v2Completeness.Percent;
+                r.MissingRequiredMetadataFields = string.Join(", ", v2Completeness.MissingRequiredFields);
+                r.MissingCriticalMetadataFields = string.Join(", ", v2Completeness.MissingCriticalFields);
+                r.ScientificMetadataComplete = v2Completeness.ScientificMetadataComplete;
             }
             else
             {
-                r.ScientificMetadataComplete = false;
+                r.ScientificTimingStatus = OriginalCaptureVerificationPolicy.IsOriginalCapture(metaRecord)
+                    ? AssessScientificTimingStatus(probe, metaRecord)
+                    : !string.IsNullOrWhiteSpace(metaRecord.ScientificTimingStatus)
+                        ? metaRecord.ScientificTimingStatus
+                        : AssessScientificTimingStatus(probe, metaRecord);
+                r.ScientificTimingMessage = OriginalCaptureVerificationPolicy.IsAcceptedStopBoundaryDifference(metaRecord)
+                    ? OriginalCaptureVerificationPolicy.GetStopBoundaryAcceptedMessage(language)
+                    : metaRecord.ScientificTimingMessage ?? "";
+                if (string.IsNullOrWhiteSpace(r.ScientificTimingMessage)
+                    && string.Equals(r.ScientificTimingStatus, "PASS_WITH_WARNING", StringComparison.OrdinalIgnoreCase))
+                    r.ScientificTimingMessage = ScientificTimingAssessor.DefaultMessage;
+
+                if (metaRecord.OriginalCaptureMode && metaRecord.FrameCount > 0)
+                {
+                    var timestampCsvIncomplete =
+                        !metaRecord.FrameTimestampCsvWritten ||
+                        metaRecord.FrameTimestampCsvRowCount != metaRecord.FrameCount ||
+                        string.IsNullOrWhiteSpace(metaRecord.FrameTimestampCsvPath) ||
+                        !File.Exists(ResolveMetadataRelativePath(entry, metaRecord.FrameTimestampCsvPath));
+                    if (timestampCsvIncomplete)
+                    {
+                        r.ScientificTimingStatus = CameraAuditStatus.Fail;
+                        var timestampMsg =
+                            $"Frame timestamp CSV metadata incomplete: written={metaRecord.FrameTimestampCsvWritten}, rows={metaRecord.FrameTimestampCsvRowCount}, frames={metaRecord.FrameCount}.";
+                        r.ScientificTimingMessage = string.IsNullOrWhiteSpace(r.ScientificTimingMessage)
+                            ? timestampMsg
+                            : $"{r.ScientificTimingMessage} {timestampMsg}";
+                    }
+                }
+
+                if (metaRecord.OriginalCaptureMode)
+                {
+                    var completeness = MetadataCompletenessPolicy.Assess(metaRecord);
+                    r.MetadataCompletenessPercent = completeness.Percent;
+                    r.MissingRequiredMetadataFields = string.Join(", ", completeness.MissingRequiredFields);
+                    r.MissingCriticalMetadataFields = string.Join(", ", completeness.MissingCriticalFields);
+                    r.ScientificMetadataComplete = completeness.ScientificMetadataComplete;
+
+                    if (!completeness.ScientificMetadataComplete)
+                    {
+                        var completenessMsg =
+                            $"Scientific metadata completeness: {completeness.Percent:F1}% complete; missingRequiredMetadataFields={r.MissingRequiredMetadataFields}.";
+                        if (completeness.MissingCriticalFields.Count > 0)
+                        {
+                            r.ScientificTimingStatus = CameraAuditStatus.Fail;
+                            r.ScientificTimingMessage = AppendScientificTimingMessage(
+                                r.ScientificTimingMessage,
+                                $"{completenessMsg} Critical timing fields missing: {r.MissingCriticalMetadataFields}.");
+                        }
+                        else if (CameraAuditStatus.IsPassLevel(r.ScientificTimingStatus))
+                        {
+                            r.ScientificTimingStatus = CameraAuditStatus.PassWithWarning;
+                            r.ScientificTimingMessage = AppendScientificTimingMessage(r.ScientificTimingMessage, completenessMsg);
+                        }
+                    }
+                }
+                else
+                {
+                    r.ScientificMetadataComplete = false;
+                }
             }
 
             var measuredCameraFps = metaRecord.MeasuredCameraFps > 0

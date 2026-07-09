@@ -1,9 +1,15 @@
 namespace MultiCamApp.Capture;
 
-/// <summary>Standard capture presets exposed in the UI as 360p, 720p, and 1080p.</summary>
+/// <summary>Standard capture presets exposed in the UI as 480p, 720p, and 1080p.</summary>
 public static class CaptureResolutionPreset
 {
-    public const string Label360 = "360p";
+    // Was labelled "360p" until v1.2.40, but always requested 640x480 (4:3 VGA), not true
+    // 360p (640x360, 16:9 — matching 720p/1080p's aspect ratio). Relabelled to the honest
+    // "480p" rather than changing the actual requested pixels, since 640x480 is a near-universal
+    // UVC webcam mode already proven reliable; switching to 640x360 risked a camera that lacks
+    // that exact mode falling back to a much higher resolution via the format-selector's
+    // priority ladder, which is worse than a label correction. See CHANGELOG v1.2.40.
+    public const string Label360 = "480p";
     public const string Label720 = "720p";
     public const string Label1080 = "1080p";
 
@@ -26,6 +32,7 @@ public static class CaptureResolutionPreset
         switch (label.Trim().ToLowerInvariant())
         {
             case Label360:
+            case "360p": // pre-v1.2.40 label, kept as an accepted alias for the same 640x480
                 width = Width360;
                 height = Height360;
                 return true;

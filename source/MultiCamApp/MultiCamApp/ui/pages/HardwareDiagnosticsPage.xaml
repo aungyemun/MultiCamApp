@@ -71,9 +71,9 @@
 
         <Border Grid.Row="0" Style="{StaticResource SectionCardStyle}" Margin="0,0,0,10">
             <StackPanel>
-                <TextBlock Text="Hardware Diagnostics" FontSize="20" FontWeight="SemiBold"
+                <TextBlock x:Name="PageTitleText" FontSize="20" FontWeight="SemiBold"
                            Foreground="{StaticResource AppForegroundBrush}" Margin="0,0,0,6"/>
-                <TextBlock Text="Diagnostics are advisory and privacy-safe. They do not change recording behavior."
+                <TextBlock x:Name="PageDescriptionText"
                            TextWrapping="Wrap" Foreground="{StaticResource AppSecondaryTextBrush}"/>
                 <Grid Margin="0,12,0,0" HorizontalAlignment="Left" VerticalAlignment="Center">
                     <Grid.ColumnDefinitions>
@@ -81,11 +81,11 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <Button x:Name="RunScanButton" Content="Run Hardware Scan" MinWidth="150"
+                    <Button x:Name="RunScanButton" MinWidth="150"
                             Grid.Column="0" Style="{StaticResource HardwarePrimaryActionButton}" Click="RunScanButton_Click"/>
-                    <Button x:Name="OpenLogsButton" Content="Open Logs Folder" MinWidth="130"
+                    <Button x:Name="OpenLogsButton" MinWidth="130"
                             Grid.Column="1" Style="{StaticResource HardwareSecondaryActionButton}" Click="OpenLogsButton_Click"/>
-                    <Button x:Name="CopySummaryButton" Content="Copy Diagnostic Summary" MinWidth="180" Margin="0"
+                    <Button x:Name="CopySummaryButton" MinWidth="180" Margin="0"
                             Grid.Column="2" Style="{StaticResource HardwareSecondaryActionButton}" Click="CopySummaryButton_Click"/>
                 </Grid>
             </StackPanel>
@@ -95,13 +95,13 @@
             <StackPanel>
                 <Border Style="{StaticResource SectionCardStyle}">
                     <StackPanel>
-                        <TextBlock Text="Summary" FontWeight="SemiBold" FontSize="15"
+                        <TextBlock x:Name="SummaryTitleText" FontWeight="SemiBold" FontSize="15"
                                    Foreground="{StaticResource AccentVideoBrush}" Margin="0,0,0,8"/>
-                        <TextBlock x:Name="LastScanText" Text="Last scan: not run"
+                        <TextBlock x:Name="LastScanText"
                                    Foreground="{StaticResource AppSecondaryTextBrush}" Margin="0,0,0,6"/>
-                        <TextBlock x:Name="RecommendedPresetText" Text="Recommended for 4-camera 1080p: use separate USB ports or powered USB hub, bright room lighting, preview FPS Balanced, and High-Stability Recording Mode ON."
+                        <TextBlock x:Name="RecommendedPresetText"
                                    TextWrapping="Wrap" Foreground="{StaticResource AccentVideoBrush}" Margin="0,0,0,6"/>
-                        <TextBlock x:Name="StatusText" Text="Ready."
+                        <TextBlock x:Name="StatusText"
                                    TextWrapping="Wrap" Foreground="{StaticResource AppSecondaryTextBrush}"/>
                     </StackPanel>
                 </Border>
@@ -114,23 +114,20 @@
                     </Grid.ColumnDefinitions>
                     <Border Grid.Column="0" Style="{StaticResource HardwareSummaryPanel}" Margin="0,0,10,0">
                         <StackPanel>
-                            <TextBlock Text="System" Style="{StaticResource HardwarePanelTitle}"/>
-                            <TextBlock x:Name="SystemCardText" Style="{StaticResource HardwarePanelText}"
-                                       Text="Run a scan to view CPU, RAM, OS, and display adapter status."/>
+                            <TextBlock x:Name="SystemCardTitleText" Style="{StaticResource HardwarePanelTitle}"/>
+                            <TextBlock x:Name="SystemCardText" Style="{StaticResource HardwarePanelText}"/>
                         </StackPanel>
                     </Border>
                     <Border Grid.Column="1" Style="{StaticResource HardwareSummaryPanel}" Margin="0,0,10,0">
                         <StackPanel>
-                            <TextBlock Text="Camera Devices" Style="{StaticResource HardwarePanelTitle}"/>
-                            <TextBlock x:Name="CameraDevicesCardText" Style="{StaticResource HardwarePanelText}"
-                                       Text="Run a scan to list detected camera devices."/>
+                            <TextBlock x:Name="CameraDevicesCardTitleText" Style="{StaticResource HardwarePanelTitle}"/>
+                            <TextBlock x:Name="CameraDevicesCardText" Style="{StaticResource HardwarePanelText}"/>
                         </StackPanel>
                     </Border>
                     <Border Grid.Column="2" Style="{StaticResource HardwareSummaryPanel}">
                         <StackPanel>
-                            <TextBlock Text="USB / Camera Connection" Style="{StaticResource HardwarePanelTitle}"/>
-                            <TextBlock x:Name="UsbStatusCardText" Style="{StaticResource HardwarePanelText}"
-                                       Text="Run a scan to view advisory USB and camera connection guidance."/>
+                            <TextBlock x:Name="UsbStatusCardTitleText" Style="{StaticResource HardwarePanelTitle}"/>
+                            <TextBlock x:Name="UsbStatusCardText" Style="{StaticResource HardwarePanelText}"/>
                         </StackPanel>
                     </Border>
                 </Grid>
@@ -138,7 +135,7 @@
                 <Border Style="{StaticResource SectionCardStyle}">
                     <StackPanel>
                         <Border Style="{StaticResource HardwareReportPanel}">
-                            <Expander Header="Detailed System Report" Style="{StaticResource HardwareExpander}" IsExpanded="False">
+                            <Expander x:Name="SystemReportExpander" Style="{StaticResource HardwareExpander}" IsExpanded="False">
                             <TextBox x:Name="SystemSummaryBox" MinHeight="150" IsReadOnly="True"
                                      TextWrapping="Wrap" AcceptsReturn="True"
                                      VerticalScrollBarVisibility="Auto"
@@ -146,7 +143,7 @@
                             </Expander>
                         </Border>
                         <Border Style="{StaticResource HardwareReportPanel}">
-                            <Expander Header="Detailed Camera Capability Report" Style="{StaticResource HardwareExpander}" IsExpanded="False">
+                            <Expander x:Name="CameraReportExpander" Style="{StaticResource HardwareExpander}" IsExpanded="False">
                             <TextBox x:Name="CameraSummaryBox" MinHeight="180" IsReadOnly="True"
                                      TextWrapping="Wrap" AcceptsReturn="True"
                                      VerticalScrollBarVisibility="Auto"
@@ -154,7 +151,7 @@
                             </Expander>
                         </Border>
                         <Border Style="{StaticResource HardwareReportPanel}" Margin="0">
-                            <Expander Header="Detailed USB Topology Report" Style="{StaticResource HardwareExpander}" IsExpanded="False">
+                            <Expander x:Name="UsbReportExpander" Style="{StaticResource HardwareExpander}" IsExpanded="False">
                             <TextBox x:Name="UsbSummaryBox" MinHeight="140" IsReadOnly="True"
                                      TextWrapping="Wrap" AcceptsReturn="True"
                                      VerticalScrollBarVisibility="Auto"

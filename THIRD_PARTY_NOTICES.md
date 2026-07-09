@@ -33,15 +33,15 @@ For upstream OpenCV license and attribution requirements, see the OpenCvSharp pa
 
 The `opencv_videoio_ffmpeg4100_64.dll` runtime component is included through the OpenCvSharp/OpenCV runtime package and provides FFmpeg-based video I/O support for OpenCV. Its licensing and redistribution terms should be interpreted together with the OpenCvSharp/OpenCV package notices and the FFmpeg-related notices included in this file. MultiCamApp documents this file separately because FFmpeg-related video I/O components may carry additional license obligations.
 
-## FFmpeg / ffprobe
+## FFmpeg / ffprobe / ffmpeg
 
-MultiCamApp bundles `ffprobe.exe` for offline video verification and video/container metadata inspection.
+MultiCamApp bundles `ffprobe.exe` for offline video verification and video/container metadata inspection, and `ffmpeg.exe` for the on-demand "Deep Verify" independent per-frame MD5 duplicate-frame check on the Video Verification page (opt-in only — never runs automatically).
 
-The bundled `ffprobe.exe` binary is from the gyan.dev Windows FFmpeg build:
+The bundled `ffprobe.exe`/`ffmpeg.exe` binaries are from the gyan.dev Windows FFmpeg build:
 
 > https://www.gyan.dev/ffmpeg/builds/
 
-The bundled build reports the configuration flags `--enable-gpl --enable-version3`. MultiCamApp therefore treats the bundled `ffprobe.exe` as licensed under the GNU General Public License version 3 (GPL v3) for distribution notice purposes.
+The bundled build reports the configuration flags `--enable-gpl --enable-version3`. MultiCamApp therefore treats the bundled `ffprobe.exe` and `ffmpeg.exe` as licensed under the GNU General Public License version 3 (GPL v3) for distribution notice purposes.
 
 FFmpeg and ffprobe are developed by the FFmpeg project contributors.
 
@@ -53,15 +53,27 @@ Source code and license information:
 - gyan.dev build scripts and patches: https://github.com/GyanD/codexffmpeg
 - GPL v3 license text: https://www.gnu.org/licenses/gpl-3.0.txt
 
-MultiCamApp uses `ffprobe.exe` only as an external standalone executable for post-recording video metadata inspection. No FFmpeg source code was modified. `ffprobe.exe` is not linked into the `MultiCamApp.exe` binary.
+MultiCamApp uses `ffprobe.exe` and `ffmpeg.exe` only as external standalone executables, invoked as separate processes for post-recording video metadata inspection and (for `ffmpeg.exe`) per-frame hashing. No FFmpeg source code was modified. Neither binary is linked into the `MultiCamApp.exe` binary.
 
 Bundled runtime files and references:
 
 - `dist/runtime/ffmpeg/ffprobe.exe`
+- `dist/runtime/ffmpeg/ffmpeg.exe`
 - `runtime/ffmpeg/README.txt`
 - `dist/runtime/ffmpeg/README.txt`
 - `runtime/ffmpeg/FFMPEG_LICENSE.txt`
 - `dist/runtime/ffmpeg/FFMPEG_LICENSE.txt`
+
+## Vortice.Windows (Direct3D11, DXGI, MediaFoundation)
+
+MultiCamApp uses the Vortice.Windows managed bindings for GPU-accelerated live preview rendering (`Vortice.Direct3D11`, `Vortice.DXGI`) and for the raw Media Foundation H.264 recording pipeline (`Vortice.MediaFoundation`), all version 3.8.3.
+
+- Author: Amer Koleci
+- License: MIT (`https://licenses.nuget.org/MIT`)
+- Project: https://github.com/amerkoleci/Vortice.Windows
+- Package metadata: `tools/nuget-packages/vortice.direct3d11/3.8.3/vortice.direct3d11.nuspec`, `tools/nuget-packages/vortice.dxgi/3.8.3/vortice.dxgi.nuspec`, `tools/nuget-packages/vortice.mediafoundation/3.8.3/vortice.mediafoundation.nuspec`, `tools/nuget-packages/vortice.directx/3.8.3/vortice.directx.nuspec` (transitive dependency)
+
+The managed Vortice assemblies are bundled inside the single-file `MultiCamApp.exe` release apphost, same as OpenCvSharp above.
 
 ## Python
 
@@ -88,6 +100,10 @@ The release process may redistribute or stage runtime assets from these package 
 
 - `OpenCvSharp4`
 - `OpenCvSharp4.runtime.win`
+- `Vortice.Direct3D11`
+- `Vortice.DXGI`
+- `Vortice.MediaFoundation`
+- `Vortice.DirectX` (transitive dependency of the above)
 - `Microsoft.NETCore.App.Runtime.win-x64`
 - `Microsoft.AspNetCore.App.Runtime.win-x64`
 - `Microsoft.WindowsDesktop.App.Runtime.win-x64`

@@ -1,10 +1,12 @@
-; MultiCamApp installer — build with installer\build_release.bat
+﻿; MultiCamApp installer — build with installer\build_release.bat
 ; Fully offline, self-contained bundle. Supports in-place upgrade without manual uninstall.
 #define AppName "MultiCamApp"
 #ifndef AppVersion
-#define AppVersion "1.1.0"
+#define AppVersion "2.0.1"
 #endif
 #define AppPublisher "Aung Ye Mun"
+; Numeric-only version for Windows VersionInfoVersion (no alpha/beta suffix allowed)
+#define AppVersionNumeric "2.0.1.334"
 #define AppExeName "MultiCamApp.exe"
 #ifndef PublishDir
 #define PublishDir "..\dist"
@@ -22,17 +24,17 @@ AppCopyright=Copyright (C) 2026-Present Aung Ye Mun and contributors
 AppPublisherURL=
 AppSupportURL=
 AppUpdatesURL=
-VersionInfoVersion={#AppVersion}
+VersionInfoVersion={#AppVersionNumeric}
 VersionInfoCompany={#AppPublisher}
-VersionInfoDescription=Multi-camera recording (OpenCV preview), per-camera metadata, and Video Verification
+VersionInfoDescription=Multi-camera recording (VideoEngineV2/MediaFoundation), hardware calibration lock, per-camera metadata, and Video Verification
 VersionInfoProductName={#AppName}
-VersionInfoProductVersion={#AppVersion}
+VersionInfoProductVersion={#AppVersionNumeric}
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 UsePreviousAppDir=yes
 DisableProgramGroupPage=no
 OutputDir=.
-OutputBaseFilename=Setup
+OutputBaseFilename=MultiCamApp_{#AppVersion}_Setup
 SetupIconFile={#AppIcon}
 UninstallDisplayIcon={app}\{#AppExeName}
 Compression=lzma2
@@ -52,7 +54,7 @@ ChangesAssociations=no
 RestartIfNeededByRun=no
 SetupLogging=yes
 CloseApplications=force
-CloseApplicationsFilter={#AppExeName},{#AppExeName}.dll,MultiCamApp.dll,OpenCvSharpExtern.dll
+CloseApplicationsFilter={#AppExeName},MultiCamApp.dll
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -69,7 +71,7 @@ Name: "startmenuicon"; Description: "Create Start Menu shortcuts"; GroupDescript
 Source: "vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 Source: "{#PublishDir}\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#LicenseFile}"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
-Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "ffmpeg.exe,run_external4_preview_stress.bat,*.pdb,*.pyc,*.cache,*.tmp,*.bak,*.log,*.user,*.orig,*.mp4,*.avi,*.mov,*.mkv,*.wmv,*.webm,*.m4v,logs,backup_before_update,user_settings,config_user,debug,test,tests,tmp,temp,__pycache__"
+Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "run_external4_preview_stress.bat,*.pdb,*.pyc,*.cache,*.tmp,*.bak,*.log,*.user,*.orig,*.mp4,*.avi,*.mov,*.mkv,*.wmv,*.webm,*.m4v,logs,backup_before_update,user_settings,config_user,debug,test,tests,tmp,temp,__pycache__"
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#AppExeName}"
@@ -484,6 +486,8 @@ begin
   { OpenCvSharp managed code is bundled into the single-file apphost. The native extern DLL must remain beside the app. }
   if not FileExists(ExpandConstant('{app}\OpenCvSharpExtern.dll')) then begin AppendToInstallLog('FAIL: OpenCvSharpExtern.dll missing'); AppendToUpdateLog('FAIL: OpenCvSharpExtern.dll missing'); CoreSuccess := False; end;
   if not FileExists(ExpandConstant('{app}\runtime\ffmpeg\ffprobe.exe')) then begin AppendToInstallLog('FAIL: ffprobe.exe missing'); AppendToUpdateLog('FAIL: ffprobe.exe missing'); CoreSuccess := False; end;
+  { Full ffmpeg.exe — powers the on-demand Deep Verify per-frame MD5 duplicate-frame check. }
+  if not FileExists(ExpandConstant('{app}\runtime\ffmpeg\ffmpeg.exe')) then begin AppendToInstallLog('FAIL: ffmpeg.exe missing'); AppendToUpdateLog('FAIL: ffmpeg.exe missing'); CoreSuccess := False; end;
   if not FileExists(ExpandConstant('{app}\config\appsettings.json')) then begin AppendToInstallLog('FAIL: appsettings.json missing'); AppendToUpdateLog('FAIL: appsettings.json missing'); CoreSuccess := False; end;
   if not FileExists(ExpandConstant('{app}\localization\en.json')) then begin AppendToInstallLog('FAIL: en.json missing'); AppendToUpdateLog('FAIL: en.json missing'); CoreSuccess := False; end;
   if not FileExists(ExpandConstant('{app}\assets\icons\MultiCamApp.ico')) then begin AppendToInstallLog('FAIL: MultiCamApp.ico missing'); AppendToUpdateLog('FAIL: MultiCamApp.ico missing'); CoreSuccess := False; end;
@@ -624,3 +628,8 @@ end;
 procedure DeinitializeUninstall();
 begin
 end;
+
+
+
+
+

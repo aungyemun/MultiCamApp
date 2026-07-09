@@ -21,8 +21,20 @@ if (-not (Test-Path $distExe)) { $fail += "Missing dist\MultiCamApp.exe" }
 if (-not (Test-Path $rootExe)) { $fail += "Missing root MultiCamApp.exe launcher" }
 if (-not (Test-Path (Join-Path $Root "dist\localization\en.json"))) { $fail += "Missing dist\localization\en.json" }
 if (-not (Test-Path (Join-Path $Root "dist\runtime\ffmpeg\ffprobe.exe"))) { $fail += "Missing dist\runtime\ffmpeg\ffprobe.exe" }
+if (-not (Test-Path (Join-Path $Root "dist\runtime\ffmpeg\ffmpeg.exe"))) { $fail += "Missing dist\runtime\ffmpeg\ffmpeg.exe (Deep Verify)" }
 if (-not (Test-Path (Join-Path $Root "dist\config\appsettings.json"))) { $fail += "Missing dist\config\appsettings.json" }
 if (Test-Path (Join-Path $Root "dist\localization\LanguageManager.cs")) { $fail += "dist\localization should not contain LanguageManager.cs" }
+
+# OpenCV native DLL — required by legacy pipeline and V2 Tier4 fallback
+if (-not (Test-Path (Join-Path $Root "dist\OpenCvSharpExtern.dll"))) {
+    $fail += "Missing dist\OpenCvSharpExtern.dll (required for legacy OpenCV pipeline)"
+}
+
+# VC++ Redistributable — required on fresh offline Windows installs
+# Warn only (not error) — the file is a large binary not always present in repo
+if (-not (Test-Path (Join-Path $Root "dist\runtime\vc_runtime\vc_redist.x64.exe"))) {
+    Write-Warning "dist\runtime\vc_runtime\vc_redist.x64.exe not staged. Fresh offline installs may fail if VC++ runtime is missing."
+}
 
 if (Test-Path $distExe) {
     $distVersion = Get-ProductVersion $distExe

@@ -5,22 +5,26 @@ MultiCamApp is a WPF (.NET 8) desktop application for offline multi-camera recor
 ## Main Layers
 
 - **UI:** WPF views and view models for recording, Video Verification, Hardware Diagnostics, About, and settings.
-- **Capture backend:** camera slot pipelines, OpenCV/DirectShow preview, WinRT fallback, duplicate-device mapping, and preview lifecycle.
-- **Recording backend:** recording sessions, per-camera writers, Original Capture Mode timing, metadata, and session summaries.
-- **Verification backend:** bundled `ffprobe`, metadata readers, audit classification, Timestamp CSV analysis, and export.
+- **Capture backend:** camera slot pipelines (`capture/CameraSlotPipeline.cs`), the VideoEngineV2 engine (`capture/video_engine_v2/`), OpenCV/DirectShow fallback preview, duplicate-device mapping, and preview lifecycle.
+- **Recording backend:** VideoEngineV2 recording sessions (`MediaFoundationEncoderService` — a raw `IMFSinkWriter` H.264 encoder via `Vortice.MediaFoundation`, `CameraPipelineV2`), the legacy `recording/` orchestration shared across both engines, Original Capture Mode timing, metadata, and session summaries.
+- **Verification backend:** bundled `ffprobe`, `verification/MetadataParser.cs` (natively parses both the legacy flat schema and the VideoEngineV2 nested schema as of v1.2.104 — see [Output Files and Metadata](../OUTPUT_FILES_AND_METADATA.md#per-camera-metadata)), a separate V2 metadata reader/runner (`verification/V2MetadataReader.cs`, `V2VerificationRunner.cs`) used for the per-camera Deep Verify / V2-specific detail sections, audit classification, Timestamp CSV analysis, and export.
 - **Installer/runtime:** Inno Setup installer, bundled VC++ runtime, bundled FFmpeg tools, and smoke-test diagnostics.
 
 ## Camera And Recording Flow
 
-MultiCamApp uses OpenCV/DirectShow as the preferred preview and recording path for external USB cameras. WinRT MediaCapture is available as an exact-device fallback when OpenCV cannot open a selected device.
+As of v1.2.22-alpha, **VideoEngineV2 (WinRT `MediaCapture` for capture + a raw Media Foundation `IMFSinkWriter` H.264 encoder) is the default and primary preview and recording path** for all camera types, including external USB cameras. The experimental V3/V3B backends that previously existed alongside V2 were removed entirely in v1.2.22-alpha. OpenCV/DirectShow remains in the codebase as a fallback path (`previewEngine`/`recordingEngine` config can select it, and it's used automatically if the WinRT path cannot open a selected device), but it is no longer the preferred default.
+
+As of v1.2.65, the encoder (`MediaFoundationEncoderService`) writes samples directly via `Vortice.MediaFoundation`'s `IMFSinkWriter` instead of the higher-level WinRT `LowLagMediaRecording` API, so recorded MP4s carry real per-frame VFR timestamps rather than a forced constant frame rate. As of v1.2.66, every recorded MP4 is also tagged with BT.709 color primaries/transfer/matrix, and this tagging is surfaced in exported metadata and the Video Verification page as of v1.2.67. The nominal range was initially tagged limited-range (`tv`) in v1.2.66/v1.2.67 based on an unverified assumption, then corrected to full-range (`0-255`/`pc`) in v1.2.78 after a side-by-side ffprobe comparison proved Windows Camera's real output is full-range, not limited.
 
 Each active camera slot owns its own lifecycle:
 
 ```text
-selected device -> open preview -> preview ready -> start recording -> write real frames -> stop recording -> write metadata -> release resources
+selected device -> open camera (VideoEngineV2) -> negotiate format -> apply research-safe camera-control defaults
+  -> preview ready -> start recording -> write real frames (Media Foundation H.264) -> stop recording
+  -> finalize MP4 -> write metadata (JSON + TXT, prefixed and legacy-compatible names) -> release resources
 ```
 
-For 3/4-camera layouts, cameras are opened in a staggered order to reduce USB and DirectShow driver contention. OBSBOT devices are opened first when selected, followed by the remaining cameras.
+For 3/4-camera layouts, cameras are opened in a staggered order (see `CaptureResolutionHelper.MultiCameraStaggerMs`) to reduce USB and driver contention.
 
 ## Original Capture Mode
 
@@ -52,15 +56,18 @@ Recording durations use monotonic timing (`Stopwatch` / QueryPerformanceCounter)
 
 ```text
 SessionName_YYYYMMDD_HHMMSS\
-  session_summary.txt
+  session_metadata.json
+  session_metadata.txt
   cam1\
-    MCAM_YYYYMMDD_HHMMSS_cam1.mp4
-    cam1_frame_timestamps.csv
-    metadata.txt
-    metadata.json
+    cam1.mp4
+    cam1_timestamps.csv
+    cam1_metadata.json
+    cam1_metadata.txt
   cam2\
     ...
 ```
+
+`cam1_metadata.json`/`cam1_metadata.txt` are the VideoEngineV2 per-camera metadata files. Through v1.2.104, `MainWindow.xaml.cs` also wrote a byte-identical unprefixed `metadata.json`/`metadata.txt` duplicate, solely because `VideoScanner` only recognized that exact unprefixed name. As of v1.2.105, `VideoScanner`/`SessionComparisonService` resolve the slot-prefixed name directly (`RecordingSessionDiscovery.FindCameraMetadataFile`, falling back to the unprefixed name for older recordings or the legacy OpenCV engine), so the duplicate write was removed.
 
 See [Output Files and Metadata](../OUTPUT_FILES_AND_METADATA.md).
 

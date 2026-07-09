@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text;
 using MultiCamApp.Core;
 
@@ -12,6 +13,41 @@ public static class AppDiagnosticLogger
     private static readonly string PrimaryDir = PathHelper.LogsFolder();
 
     public static void Runtime(string message) => Append("app_runtime", $"app_runtime_{DateTime.Now:yyyyMMdd}.txt", message);
+
+    /// <summary>
+    /// Writes a one-time environment snapshot into the SAME rotating app_runtime log used for
+    /// ongoing debugging (not a separate overwritten file), so every daily log begins with full
+    /// context for correlating bugs to a specific machine/OS/runtime without cross-referencing
+    /// multiple files. Deliberately avoids WMI (CPU/RAM/GPU detection) — that's slow (50-200ms+
+    /// per query) and would measurably delay every app launch; full hardware capability details
+    /// already live in logs/SystemProfile.latest.json, written on-demand by the Hardware
+    /// Diagnostics page's scan, and are cross-referenced here by file existence/timestamp only.
+    /// </summary>
+    public static void SystemBanner()
+    {
+        try
+        {
+            var version = VersionService.Load();
+            var sb = new StringBuilder();
+            sb.Append("V2_SYSTEM_BANNER ");
+            sb.Append($"appVersion={version.Version} build={version.Build} stage={version.Stage} ");
+            sb.Append($"os=\"{Environment.OSVersion.VersionString}\" ");
+            sb.Append($"dotnet=\"{RuntimeInformation.FrameworkDescription}\" ");
+            sb.Append($"arch={(Environment.Is64BitProcess ? "x64" : "x86")} ");
+            sb.Append($"processors={Environment.ProcessorCount} ");
+            sb.Append($"workingSetMB={Environment.WorkingSet / (1024 * 1024)} ");
+            sb.Append($"uiCulture={System.Globalization.CultureInfo.CurrentUICulture.Name} ");
+            sb.Append($"processId={Environment.ProcessId} ");
+
+            var sysProfilePath = Path.Combine(PrimaryDir, "SystemProfile.latest.json");
+            sb.Append(File.Exists(sysProfilePath)
+                ? $"hardwareReport=\"{new FileInfo(sysProfilePath).LastWriteTime:yyyy-MM-dd HH:mm:ss}\""
+                : "hardwareReport=NeverScanned(RunHardwareDiagnosticsForFullCpuRamGpuDetails)");
+
+            Append("app_runtime", $"app_runtime_{DateTime.Now:yyyyMMdd}.txt", sb.ToString());
+        }
+        catch { /* never crash on logging */ }
+    }
 
     /// <summary>Recording lifecycle events (start/stop, per-slot, failures) — daily rotating file.</summary>
     public static void Recording(string message) =>

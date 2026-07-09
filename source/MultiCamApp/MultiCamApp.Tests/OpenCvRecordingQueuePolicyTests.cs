@@ -15,10 +15,17 @@ public sealed class OpenCvRecordingQueuePolicyTests
     }
 
     [Theory]
-    [InlineData(1280, 720, 15)]
-    [InlineData(1920, 1080, 10)]
+    [InlineData(1280, 720, 20)]
+    [InlineData(1920, 1080, 15)]
     public void ResolveRecordingPreviewFpsCap_ReducesPreviewLoadFor1080p(int width, int height, int expected)
     {
         Assert.Equal(expected, OpenCvPreviewController.ResolveRecordingPreviewFpsCap(width, height));
+    }
+
+    [Fact]
+    public void ResolveRecordingPreviewFpsCap_BelowFullHd_Returns20()
+    {
+        // 640×480 is below 1280×720 threshold — should use DefaultRecordingPreviewFpsCap (20).
+        Assert.Equal(20, OpenCvPreviewController.ResolveRecordingPreviewFpsCap(640, 480));
     }
 }

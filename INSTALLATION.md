@@ -2,6 +2,22 @@
 
 MultiCamApp is a self-contained, offline-capable Windows application. This guide covers end-user installation, offline install testing, developer setup, dependencies, and troubleshooting.
 
+## System Requirements
+
+| Requirement | Minimum | Recommended |
+| :--- | :--- | :--- |
+| OS | Windows 10 64-bit | Windows 11 64-bit |
+| RAM | 8 GB | 16 GB or more for multi-camera recording |
+| Graphics | Integrated Intel/AMD | Any — discrete GPU is optional |
+| Camera | Any Windows Camera-compatible device | USB 3.0 for 1080p multi-camera |
+| Internet | Not required | — |
+
+**If a camera works in the Microsoft Windows Camera app, it should usually work in MultiCamApp.**
+
+For 3–4 cameras at 1080p, sufficient USB bandwidth is required. If recording fails at 1080p, try 720p or 480p, use separate USB ports or controllers, or reduce the camera count.
+
+Recording engine: **VideoEngineV2 / Windows MediaFoundation.** No discrete GPU is required. The app uses hardware acceleration if available and safely falls back to software encoding.
+
 ## End-User Installation
 
 Download `Setup.exe` or `installer.zip` from the [GitHub Releases](../../releases) page. Installer binaries are not committed to the source repository.
@@ -173,7 +189,7 @@ Do not ask users to disable antivirus. If a tool flags the app, verify signature
 
 If you use MultiCamApp in research, education, or published work, please cite:
 
-Mun AY. **MultiCamApp: Offline multi-camera recording, metadata capture, and video verification platform for research and educational workflows.** Version v1.1.0. 2026.
+Mun AY, Koketsu S. **MultiCamApp: Offline multi-camera recording, metadata capture, and video verification platform for research and educational workflows.** Version v2.0.1. 2026.
 
 ## Attribution
 

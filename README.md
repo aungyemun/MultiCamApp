@@ -4,7 +4,7 @@
 
 MultiCamApp is a Windows desktop application designed to support reproducible video-based workflows. It allows users to record from 1–4 cameras, capture metadata, generate per-frame timestamp files, and verify recorded videos after acquisition.
 
-Current release: **v1.1.0 Stable**
+Current release: **v2.0.1** (Stable)
 
 ---
 
@@ -46,15 +46,19 @@ MultiCamApp is especially useful when users need offline recording, metadata cap
 ## Key Features
 
 * Supports **1–4 camera layouts**
-* Offline Windows recording workflow
-* Original Capture Mode that preserves real camera frames only
-* Per-frame timestamp CSV files
-* Metadata output in human-readable and machine-readable formats
+* **VideoEngineV2** recording engine using Windows MediaFoundation — works on integrated graphics, no discrete GPU required
+* Compatible with any Windows Camera-compatible webcam (USB 2.0/3.0, built-in laptop camera, cheap 1080p/720p webcams)
+* Offline Windows recording workflow — no internet required
+* Original Capture Mode that preserves real camera frames only (no duplicates, no placeholder frames)
+* Per-frame timestamp CSV files for scientific timing analysis
+* Metadata output in human-readable (TXT) and machine-readable (JSON) formats
+* Metadata language follows the selected UI language (English or Japanese) at recording start
+* English and Japanese UI localization
 * Video Verification page with Simple View and Detailed View
 * Scientific timing confidence reporting
 * Privacy-safe metadata summaries
 * Hardware diagnostics page
-* High-stability recording mode
+* High-stability recording mode (always enabled internally)
 * Coordinated software start gate with timing verification for multi-camera sessions
 * Offline installer
 * Third-party notices and FFmpeg/ffprobe license files included
@@ -112,7 +116,7 @@ The source repository is for development, review, documentation, and reproducibl
 
 ## Original Capture Mode
 
-MultiCamApp v1.1.0 uses **Original Capture Mode**.
+MultiCamApp uses **Original Capture Mode** (introduced in v1.1.0, still the default in the current VideoEngineV2 pipeline).
 
 Original Capture Mode preserves real camera frames only. It does not insert duplicate frames or placeholder frames to force exact nominal FPS or equal frame counts.
 
@@ -262,7 +266,7 @@ The uninstaller removes application files and bundled runtime components while p
 
 If you use MultiCamApp in research, education, or published work, please cite:
 
-Mun AY. **MultiCamApp: Offline multi-camera recording, metadata capture, and video verification platform for research and educational workflows.** Version v1.1.0. 2026.
+Mun AY, Koketsu S. **MultiCamApp: Offline multi-camera recording, metadata capture, and video verification platform for research and educational workflows.** Version v2.0.1. 2026.
 
 ---
 

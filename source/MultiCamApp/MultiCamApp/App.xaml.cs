@@ -18,6 +18,7 @@ public partial class App : System.Windows.Application
     private async void Application_Startup(object sender, StartupEventArgs e)
     {
         LogStartupAttempt();
+        AppDiagnosticLogger.SystemBanner();
 
         bool isSmokeTest = false;
         bool isExternal4PreviewStress = false;
@@ -368,9 +369,15 @@ public partial class App : System.Windows.Application
             return true;
 
         _log.Info("startup", "Another MultiCamApp instance is already running; shutting down this launch");
+        // No LanguageManager exists yet at this point in startup (no window/settings loaded), so fall
+        // back to the OS display language as the best available signal for which message to show.
+        var isJapaneseOs = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName
+            .Equals("ja", StringComparison.OrdinalIgnoreCase);
         MessageBox.Show(
-            "MultiCamApp is already running. Close the existing window before launching again.",
-            "MultiCamApp already running",
+            isJapaneseOs
+                ? "MultiCamApp は既に実行中です。既存のウィンドウを閉じてから、もう一度起動してください。"
+                : "MultiCamApp is already running. Close the existing window before launching again.",
+            isJapaneseOs ? "MultiCamApp は実行中です" : "MultiCamApp already running",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
         Shutdown(0);

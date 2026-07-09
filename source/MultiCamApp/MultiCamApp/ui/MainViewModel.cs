@@ -918,9 +918,15 @@ public sealed class MainViewModel
 
     public void ApplyCaptureSettings(int width, int height, double fps)
     {
-        Config.PreferredCaptureWidth = width;
+        Config.PreferredCaptureWidth  = width;
         Config.PreferredCaptureHeight = height;
         Config.PreferFps = Math.Clamp(fps, 5, 60);
+
+        // Propagate to VideoEngineV2 so the format selector and encoder both use the chosen values.
+        Capture.VideoEngineV2.VideoEngineSettings.DefaultPreferredWidth  = width;
+        Capture.VideoEngineV2.VideoEngineSettings.DefaultPreferredHeight = height;
+        Capture.VideoEngineV2.VideoEngineSettings.DefaultPreferredFps    = Config.PreferFps;
+
         _log.Info("settings", $"Capture prefs {CaptureResolutionPreset.ToLabel(width, height)} @ {Config.PreferFps:F0} fps");
     }
 

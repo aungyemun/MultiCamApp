@@ -46,11 +46,7 @@ Get-ChildItem -Path $Root -Recurse -File -Filter "*.pyc" | Remove-Item -Force
 
 # 4. Clean up installer folder
 Write-Host "Cleaning installer artifacts..."
-$setupFiles = @("Setup.exe", "MultiCamApp_Setup.exe", "setup.exe")
-foreach ($setup in $setupFiles) {
-    $path = Join-Path $Root "installer\$setup"
-    if (Test-Path $path) { Remove-Item -Force $path }
-}
+Get-ChildItem -Path (Join-Path $Root "installer") -Filter "*_Setup.exe" | Remove-Item -Force
 Get-ChildItem -Path (Join-Path $Root "installer") -Filter "*.zip" | Remove-Item -Force
 
 # 5. Re-create empty dist folder

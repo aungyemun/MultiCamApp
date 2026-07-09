@@ -1,10 +1,10 @@
 ////////////////////////////////////////////////////
-/// STABLE_CORE_V1
-/// Validated in MultiCamApp v1.0.36 build 136.
+/// STABLE_CORE_V2
+/// Validated in MultiCamApp v2.0.0 build 333 (first stable release).
 /// Do not modify without documented regression testing.
-/// Protected: recording, metadata, verification, session comparison.
+/// Protected: VideoEngineV2 recording engine, native metadata, video verification, session comparison.
 ////////////////////////////////////////////////////
-// STABLE_CORE_V1 protected component — modification requires regression checklist; do not refactor casually.
+// STABLE_CORE_V2 protected component — modification requires regression checklist; do not refactor casually. See docs/STABLE_CORE_V2_FREEZE.md.
 
 using System.Text.RegularExpressions;
 using MultiCamApp.Core;
@@ -75,8 +75,6 @@ public sealed class VideoScanner
         string mp4Path,
         VerificationSettings settings)
     {
-        var metaTxt = Path.Combine(cameraFolder, "metadata.txt");
-        var metaJson = Path.Combine(cameraFolder, "metadata.json");
         return new VideoFileEntry
         {
             CameraSlot = slot,
@@ -85,8 +83,8 @@ public sealed class VideoScanner
             CameraFolder = cameraFolder,
             FileName = Path.GetFileName(mp4Path),
             FullPath = mp4Path,
-            MetadataPath = File.Exists(metaTxt) ? metaTxt : null,
-            MetadataJsonPath = File.Exists(metaJson) ? metaJson : null
+            MetadataPath = RecordingSessionDiscovery.FindCameraMetadataFile(cameraFolder, slot, "txt"),
+            MetadataJsonPath = RecordingSessionDiscovery.FindCameraMetadataFile(cameraFolder, slot, "json")
         };
     }
 
@@ -104,12 +102,8 @@ public sealed class VideoScanner
             CameraFolder = cameraFolder,
             FileName = mp4Path == null ? "(missing mp4)" : Path.GetFileName(mp4Path),
             FullPath = mp4Path ?? Path.Combine(cameraFolder, $"{slot}.mp4"),
-            MetadataPath = File.Exists(Path.Combine(cameraFolder, "metadata.txt"))
-                ? Path.Combine(cameraFolder, "metadata.txt")
-                : null,
-            MetadataJsonPath = File.Exists(Path.Combine(cameraFolder, "metadata.json"))
-                ? Path.Combine(cameraFolder, "metadata.json")
-                : null,
+            MetadataPath = RecordingSessionDiscovery.FindCameraMetadataFile(cameraFolder, slot, "txt"),
+            MetadataJsonPath = RecordingSessionDiscovery.FindCameraMetadataFile(cameraFolder, slot, "json"),
             IsMissingVideo = mp4Path == null
         };
 
@@ -130,8 +124,6 @@ public sealed class VideoScanner
             var dir = Path.GetDirectoryName(path)!;
             var slot = InferCameraSlot(path, rootFolder);
             var session = InferSessionFolder(path, rootFolder);
-            var metaTxt = Path.Combine(dir, "metadata.txt");
-            var metaJson = Path.Combine(dir, "metadata.json");
             entries.Add(new VideoFileEntry
             {
                 CameraSlot = slot,
@@ -140,8 +132,8 @@ public sealed class VideoScanner
                 CameraFolder = dir,
                 FileName = Path.GetFileName(path),
                 FullPath = path,
-                MetadataPath = File.Exists(metaTxt) ? metaTxt : null,
-                MetadataJsonPath = File.Exists(metaJson) ? metaJson : null
+                MetadataPath = RecordingSessionDiscovery.FindCameraMetadataFile(dir, slot, "txt"),
+                MetadataJsonPath = RecordingSessionDiscovery.FindCameraMetadataFile(dir, slot, "json")
             });
         }
 

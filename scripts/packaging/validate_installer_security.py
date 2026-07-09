@@ -21,6 +21,18 @@ ALLOWED_SCRIPTS = {"runtime/setup_runtime.bat", "runtime/run_app_debug.bat"}
 FORBIDDEN_DIST_SUFFIXES = {".ps1", ".bat", ".cmd", ".vbs", ".js"}
 FORBIDDEN_DIST_NAMES = {"ffmpeg.exe", "ffprobe.exe", "python.exe", "dotnet.exe"}
 ALLOWED_VENDOR_SUBPATH = Path("runtime") / "ffmpeg"
+ALLOWED_VENDOR_TOOL_NAMES = {"ffprobe.exe", "ffmpeg.exe"}
+
+
+def is_allowed_vendor_tool(name: str, rel: Path) -> bool:
+    """True if `name` is ffprobe.exe/ffmpeg.exe staged under runtime/ffmpeg/ — both are
+    legitimate bundled tools (ffprobe for fast Video Verification, ffmpeg for the on-demand
+    Deep Verify per-frame MD5 check), never linked into MultiCamApp.exe itself."""
+    return (
+        name in ALLOWED_VENDOR_TOOL_NAMES
+        and len(rel.parts) >= 3
+        and Path(*rel.parts[:2]) == ALLOWED_VENDOR_SUBPATH
+    )
 SUSPICIOUS_ISS_PATTERNS = [
     r"RunOnce",
     r"RunServices",
@@ -118,20 +130,11 @@ def main() -> int:
             if path.suffix.lower() in FORBIDDEN_DIST_SUFFIXES and rel_str not in ALLOWED_SCRIPTS:
                 errors.append(f"Forbidden script in dist: {rel}")
             if name in FORBIDDEN_DIST_NAMES:
-                allowed_vendor = (
-                    name == "ffprobe.exe"
-                    and len(rel.parts) >= 3
-                    and Path(*rel.parts[:2]) == ALLOWED_VENDOR_SUBPATH
-                )
-                if not allowed_vendor:
+                if not is_allowed_vendor_tool(name, rel):
                     errors.append(f"Forbidden bundled tool in dist: {rel}")
             if path.suffix.lower() == ".exe":
-                vendor_ffprobe = (
-                    path.name == "ffprobe.exe"
-                    and len(rel.parts) >= 3
-                    and Path(*rel.parts[:2]) == ALLOWED_VENDOR_SUBPATH
-                )
-                if path.name not in ALLOWED_EXE and not vendor_ffprobe:
+                vendor_tool = is_allowed_vendor_tool(path.name, rel)
+                if path.name not in ALLOWED_EXE and not vendor_tool:
                     errors.append(f"Unexpected exe in dist: {rel}")
 
         ffprobe = DIST / "runtime" / "ffmpeg" / "ffprobe.exe"
@@ -139,6 +142,12 @@ def main() -> int:
             errors.append("dist/runtime/ffmpeg/ffprobe.exe missing (Video Verification)")
         else:
             ok("dist/runtime/ffmpeg/ffprobe.exe")
+
+        ffmpeg = DIST / "runtime" / "ffmpeg" / "ffmpeg.exe"
+        if not ffmpeg.is_file():
+            errors.append("dist/runtime/ffmpeg/ffmpeg.exe missing (Deep Verify)")
+        else:
+            ok("dist/runtime/ffmpeg/ffmpeg.exe")
 
         if not (DIST / "localization" / "en.json").is_file():
             errors.append("dist/localization/en.json missing")

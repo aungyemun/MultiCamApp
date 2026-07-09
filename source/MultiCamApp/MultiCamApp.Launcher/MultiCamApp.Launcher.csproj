@@ -9,7 +9,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationTitle>MultiCamApp</ApplicationTitle>
     <ApplicationIcon>..\MultiCamApp\assets\icons\MultiCamApp.ico</ApplicationIcon>
-    <Version>1.1.0</Version>
+    <Version>1.2.22-alpha</Version>
+    <FileVersion>1.2.22.240</FileVersion>
+    <InformationalVersion>1.2.22-alpha</InformationalVersion>
     <PublishSelfContained>true</PublishSelfContained>
     <!-- Small launcher only: avoid compressed self-extract bundle (common AV false positive). -->
     <PublishSingleFile>true</PublishSingleFile>

@@ -17,10 +17,14 @@ if (-not (Test-Path (Join-Path $srcFfmpeg "FFMPEG_LICENSE.txt"))) {
 }
 
 New-Item -ItemType Directory -Force -Path $destFfmpeg | Out-Null
-# Only ship ffprobe.exe to end users (for Video Verification).
-# ffmpeg.exe is for developer diagnostics only.
-# FFMPEG_LICENSE.txt must be shipped alongside ffprobe.exe for GPL v3 compliance.
-foreach ($name in @("ffprobe.exe", "FFMPEG_LICENSE.txt")) {
+# Ship both ffprobe.exe (fast metadata-only Video Verification) and ffmpeg.exe (the on-demand
+# Deep Verify per-frame MD5 duplicate-frame check — see DeepVerifyService.cs). ffmpeg.exe is
+# opt-in from the UI and never runs automatically.
+# FFMPEG_LICENSE.txt must be shipped alongside both for GPL v3 compliance.
+if (-not (Test-Path (Join-Path $srcFfmpeg "ffmpeg.exe"))) {
+    Write-Error "Missing runtime\ffmpeg\ffmpeg.exe. Run scripts\download_vendor_tools.ps1 or installer\build_release.bat"
+}
+foreach ($name in @("ffprobe.exe", "ffmpeg.exe", "FFMPEG_LICENSE.txt")) {
     $src = Join-Path $srcFfmpeg $name
     if (Test-Path $src) {
         Copy-Item $src (Join-Path $destFfmpeg $name) -Force
@@ -77,4 +81,20 @@ foreach ($dll in Get-ChildItem $srcFfmpeg -Filter "*.dll" -File -ErrorAction Sil
 $readme = Join-Path $srcFfmpeg "README.txt"
 if (Test-Path $readme) {
     Copy-Item $readme (Join-Path $destFfmpeg "README.txt") -Force
+}
+
+# 5. VC++ 2015-2022 x64 Redistributable
+# Bundled for offline installs. The installer (Setup.exe) runs vc_redist.x64.exe silently.
+# MultiCamApp itself does NOT run the installer; Setup.exe does.
+# runtime\vc_runtime\vc_redist.x64.exe is in .gitignore (binary) — download via
+# scripts\download_vendor_tools.ps1 or place manually from aka.ms/vs/17/release/vc_redist.x64.exe
+$srcVcRedist  = Join-Path $Root "runtime\vc_runtime\vc_redist.x64.exe"
+$destVcRedist = Join-Path $Dist "runtime\vc_runtime"
+if (Test-Path $srcVcRedist) {
+    New-Item -ItemType Directory -Force -Path $destVcRedist | Out-Null
+    Copy-Item $srcVcRedist (Join-Path $destVcRedist "vc_redist.x64.exe") -Force
+    Write-Host "Staged dist\runtime\vc_runtime\vc_redist.x64.exe"
+}
+else {
+    Write-Warning "runtime\vc_runtime\vc_redist.x64.exe not found — fresh offline installs may fail if VC++ runtime is missing. Download from aka.ms/vs/17/release/vc_redist.x64.exe"
 }

@@ -29,8 +29,8 @@ public sealed class OpenCvPreviewController : IDisposable
     private const int MaxPreviewDisplayWidth = 960;
     internal const int DefaultRecordQueueCapacity = 30;
     internal const int MaxRecordQueueCapacity = 90;
-    internal const int DefaultRecordingPreviewFpsCap = 15;
-    internal const int HighResolutionRecordingPreviewFpsCap = 10;
+    internal const int DefaultRecordingPreviewFpsCap = 20;
+    internal const int HighResolutionRecordingPreviewFpsCap = 15;
     private const int DroppedFrameTimestampSampleLimit = 12;
     private const int MeasureCaptureMs = 2200;
     private const int StreamLostConsecutiveFailures = 10;
@@ -1385,8 +1385,9 @@ public sealed class OpenCvPreviewController : IDisposable
         }
         else
         {
-            var measuredFps = await MeasureCaptureFpsAsync().ConfigureAwait(false);
-            recordFps = measuredFps > 0 ? Math.Clamp(measuredFps, 5, 60) : Math.Clamp(fps > 0 ? fps : _liveFps, 5, 60);
+            // Use live preview FPS (tracked continuously during preview) for immediate recording start.
+            // MeasureCaptureFpsAsync() previously blocked up to 3 s; _liveFps already reflects the real rate.
+            recordFps = Math.Clamp(_liveFps > 0 ? _liveFps : (fps > 0 ? fps : 30.0), 5, 60);
         }
 
         _lastRecordWriterFps = recordFps;

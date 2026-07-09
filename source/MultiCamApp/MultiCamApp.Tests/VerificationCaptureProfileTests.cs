@@ -34,7 +34,7 @@ public sealed class VerificationCaptureProfileTests
     [Theory]
     [InlineData("1920x1080", "1080p")]
     [InlineData("1280x720", "720p")]
-    [InlineData("640x480", "360p")]
+    [InlineData("640x480", "480p")] // relabelled from "360p" in v1.2.40 — 640x480 is VGA/480p (4:3), not true 360p (640x360, 16:9)
     [InlineData("1080p", "1080p")]
     [InlineData(null, "-")]
     public void FormatDisplayLabel_returns_preset_labels(string? text, string expected)

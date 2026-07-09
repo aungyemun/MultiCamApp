@@ -6,9 +6,15 @@ namespace MultiCamApp.Utils;
 
 public static class FontHelper
 {
+    // "MS Gothic" is a legacy bitmap font (no ClearType/scaling) — replaced with a modern
+    // CJK-aware fallback chain. WPF parses a comma-separated FontFamily string as an ordered
+    // fallback list, so if "Yu Gothic UI" is unavailable it tries Meiryo, then Segoe UI/Arial.
+    private const string JapaneseFontFamily = "Yu Gothic UI, Meiryo UI, Meiryo, Segoe UI, Arial";
+    private const string EnglishFontFamily  = "Segoe UI, Arial";
+
     public static void ApplyLanguageFont(DependencyObject root, string languageCode)
     {
-        var family = languageCode == "ja" ? "MS Gothic" : "Arial";
+        var family = languageCode == "ja" ? JapaneseFontFamily : EnglishFontFamily;
         ApplyRecursive(root, family);
     }
 

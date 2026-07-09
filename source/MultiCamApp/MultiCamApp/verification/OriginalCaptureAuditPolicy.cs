@@ -1,3 +1,5 @@
+using MultiCamApp.Localization;
+
 namespace MultiCamApp.Verification;
 
 public static class OriginalCaptureAuditPolicy
@@ -17,4 +19,12 @@ public static class OriginalCaptureAuditPolicy
 
     public const string SessionInterpretation =
         "Original Capture Mode: Real frames only; no duplicates/placeholders. Frame counts may differ because cameras delivered real frames at different measured FPS. Use timestamp CSV for timing-sensitive analysis.";
+
+    /// <summary>Localized form of <see cref="StableDifferentFpsNote"/>; falls back to the English constant.</summary>
+    public static string GetStableDifferentFpsNote(LanguageManager? language) =>
+        language?["verifyNoteFrameCountDifference"] is { Length: > 0 } v ? v : StableDifferentFpsNote;
+
+    /// <summary>Localized form of <see cref="SessionInterpretation"/>; falls back to the English constant.</summary>
+    public static string GetSessionInterpretation(LanguageManager? language) =>
+        language?["verifyMsgSessionInterpretation"] is { Length: > 0 } v ? v : SessionInterpretation;
 }

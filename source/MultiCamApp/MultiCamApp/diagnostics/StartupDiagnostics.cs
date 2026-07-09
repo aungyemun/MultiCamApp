@@ -45,37 +45,29 @@ public sealed class StartupDiagnostics
         results.LocalizationExists = Directory.Exists(Path.Combine(_appDir, "localization")) && 
                                      Directory.GetFiles(Path.Combine(_appDir, "localization"), "*.json").Length > 0;
 
-        // 5. Test Native DLL Loading (Most critical for offline)
+        // 5. Test Native DLL Loading (advisory — V2 uses MediaFoundation, not OpenCV)
         try
         {
             if (results.OpenCvExternExists)
             {
-                // This will throw if VC++ redist is missing
                 System.Runtime.InteropServices.NativeLibrary.Load(Path.Combine(_appDir, "OpenCvSharpExtern.dll"));
+                results.NativeDllLoadOk = true;
+            }
+            else
+            {
+                // OpenCV DLL is not present; V2 pipeline does not require it.
                 results.NativeDllLoadOk = true;
             }
         }
         catch (Exception ex)
         {
+            // OpenCV load failed — log as advisory, do not block startup.
             results.NativeDllLoadError = ex.Message;
-            results.NativeDllLoadOk = false;
+            results.NativeDllLoadOk = true; // non-fatal: V2 pipeline does not need OpenCV
+            _log.Warn("startup", $"OpenCvSharpExtern.dll load failed (advisory): {ex.Message}");
         }
 
         SaveResults(results);
-
-        if (!results.NativeDllLoadOk)
-        {
-            if (!headless)
-                ShowCriticalError(string.Format(_language["startupNativeDependencyFailed"], results.NativeDllLoadError));
-            return false;
-        }
-
-        if (!results.OpenCvExternExists)
-        {
-            if (!headless)
-                ShowCriticalError(_language["startupCriticalDllMissing"]);
-            return false;
-        }
 
         if (!results.FfprobeExists)
         {

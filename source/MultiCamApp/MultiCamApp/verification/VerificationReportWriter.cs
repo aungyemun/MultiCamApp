@@ -1,10 +1,10 @@
 ////////////////////////////////////////////////////
-/// STABLE_CORE_V1
-/// Validated in MultiCamApp v1.0.36 build 136.
+/// STABLE_CORE_V2
+/// Validated in MultiCamApp v2.0.0 build 333 (first stable release).
 /// Do not modify without documented regression testing.
-/// Protected: recording, metadata, verification, session comparison.
+/// Protected: VideoEngineV2 recording engine, native metadata, video verification, session comparison.
 ////////////////////////////////////////////////////
-// STABLE_CORE_V1 protected component — modification requires regression checklist; do not refactor casually.
+// STABLE_CORE_V2 protected component — modification requires regression checklist; do not refactor casually. See docs/STABLE_CORE_V2_FREEZE.md.
 
 using System.Globalization;
 using System.Text;
@@ -122,9 +122,9 @@ public sealed class VerificationReportWriter
         sb.AppendLine($"{L["reportDurationSpread"]}: {sess.DurationSpreadSeconds:F2}s");
         sb.AppendLine($"{L["reportFpsSpread"]}: {sess.FpsSpread:F2}");
         sb.AppendLine($"{L["reportSessionResult"]}: {sess.OverallResult}");
-        sb.AppendLine($"Scientific Timing Confidence: {sess.SessionScientificTimingConfidence}");
+        sb.AppendLine($"{L["verifyScientificTimingConfidence"]}: {sess.SessionScientificTimingConfidence}");
         if (string.Equals(sess.SessionScientificTimingConfidence, ScientificTimingConfidence.High, StringComparison.OrdinalIgnoreCase))
-            sb.AppendLine(ScientificTimingConfidence.HighMessage);
+            sb.AppendLine(ScientificTimingConfidence.GetHighMessage(_language));
         sb.AppendLine($"sessionTimingMode: {(string.IsNullOrWhiteSpace(sess.SessionTimingMode) ? "-" : sess.SessionTimingMode)}");
         sb.AppendLine($"maxMeasuredFpsDifference: {sess.MaxMeasuredFpsDifference?.ToString("F3", CultureInfo.InvariantCulture) ?? "-"}");
         sb.AppendLine($"maxWallClockDurationDifferenceSec: {sess.MaxWallClockDurationDifferenceSec?.ToString("F3", CultureInfo.InvariantCulture) ?? "-"}");
@@ -229,7 +229,7 @@ public sealed class VerificationReportWriter
             sb.AppendLine($"  {L["reportPixelFormatConsistency"]}: {session.PixelFormatConsistency}");
             sb.AppendLine($"  {L["reportDropsDuplicatesPlaceholders"]}: {session.TotalQueueDrops} / {session.TotalDuplicates} / {session.TotalPlaceholders}");
             sb.AppendLine();
-            AppendRecordingResourceDiagnostics(sb, session);
+            AppendRecordingResourceDiagnostics(sb, session, _language);
 
             foreach (var video in session.CameraVideos)
             {
@@ -399,23 +399,40 @@ public sealed class VerificationReportWriter
         return value;
     }
 
-    private static void AppendRecordingResourceDiagnostics(StringBuilder sb, RecordingSessionAuditResult session)
+    private static void AppendRecordingResourceDiagnostics(StringBuilder sb, RecordingSessionAuditResult session, LanguageManager? language = null)
     {
         var diagnostics = session.CameraVideos
             .Select(v => v.Metadata?.RecordingDiagnostics)
             .Where(d => d != null)
             .ToList();
 
-        sb.AppendLine("  Recording Resource Diagnostics:");
         if (diagnostics.Count == 0)
         {
+            // RecordingDiagnostics is a legacy-only field (MetadataParser.BuildRecordFromV2Metadata
+            // never populates it) — for a VideoEngineV2 session this isn't "unavailable due to a
+            // problem," it structurally never exists, and printing ~10 lines of "unavailable" /
+            // generic tips / "diagnostics inconclusive" / "review diagnostics" boilerplate on every
+            // single V2 export (100% of current recordings) is noise, not signal. Only a legacy
+            // recording missing this data might indicate a real gap worth the verbose fallback.
+            var allV2 = session.CameraVideos.Count > 0
+                && session.CameraVideos.All(v => v.Metadata?.IsV2Source == true);
+            if (allV2)
+            {
+                sb.AppendLine("  Recording Resource Diagnostics: not applicable (VideoEngineV2 does not track this legacy-only diagnostic; see frame count / writer drop fields above instead).");
+                sb.AppendLine();
+                return;
+            }
+
+            sb.AppendLine("  Recording Resource Diagnostics:");
             sb.AppendLine("    unavailable");
-            sb.AppendLine("    Stable measured FPS below requested FPS is acceptable in Original Capture Mode when timestamps are recorded.");
-            sb.AppendLine($"    {OriginalCaptureVerificationPolicy.ContainerWallClockNote}");
+            sb.AppendLine($"    {(language != null ? language["verifyMsgStableFpsBelowRequested"] : "Stable measured FPS below requested FPS is acceptable in Original Capture Mode when timestamps are recorded.")}");
+            sb.AppendLine($"    {OriginalCaptureVerificationPolicy.GetContainerWallClockNote(language)}");
             sb.AppendLine();
             AppendLikelyBottleneckAndRecommendedAction(sb, session);
             return;
         }
+
+        sb.AppendLine("  Recording Resource Diagnostics:");
 
         var sessionDiag = diagnostics[0]!;
         if (!string.IsNullOrWhiteSpace(sessionDiag.SessionVerdictText))
@@ -455,8 +472,8 @@ public sealed class VerificationReportWriter
         }
         if (!string.IsNullOrWhiteSpace(sessionDiag.ArtifactNote))
             sb.AppendLine($"    {sessionDiag.ArtifactNote}");
-        sb.AppendLine("    Stable measured FPS below requested FPS is acceptable in Original Capture Mode when timestamps are recorded.");
-        sb.AppendLine($"    {OriginalCaptureVerificationPolicy.ContainerWallClockNote}");
+        sb.AppendLine($"    {(language != null ? language["verifyMsgStableFpsBelowRequested"] : "Stable measured FPS below requested FPS is acceptable in Original Capture Mode when timestamps are recorded.")}");
+        sb.AppendLine($"    {OriginalCaptureVerificationPolicy.GetContainerWallClockNote(language)}");
         sb.AppendLine();
         AppendLikelyBottleneckAndRecommendedAction(sb, session);
     }

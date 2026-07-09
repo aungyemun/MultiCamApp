@@ -8,7 +8,8 @@ public sealed class SystemCapabilityScanner
     public SystemProfile Scan(VersionInfo version)
     {
         var profile = SystemProfile.CreateEmpty(version);
-        profile.Notes.Add("Hardware diagnostics are advisory only. MultiCamApp does not block presets based on this scan.");
+        profile.Notes.Add(DiagnosticsLocalization.T("hwDiagNoteAdvisoryOnly",
+            "Hardware diagnostics are advisory only. MultiCamApp does not block presets based on this scan."));
 
         TryReadOperatingSystem(profile);
         TryReadCpu(profile);
@@ -16,9 +17,9 @@ public sealed class SystemCapabilityScanner
         AddAdapterWarningsAndHints(profile);
 
         if (profile.TotalPhysicalMemoryBytes == null)
-            profile.Warnings.Add("RAM information could not be read.");
+            profile.Warnings.Add(DiagnosticsLocalization.T("hwDiagWarnRamUnreadable", "RAM information could not be read."));
         if (profile.DisplayAdapters.Count == 0)
-            profile.Warnings.Add("Display adapter information could not be read.");
+            profile.Warnings.Add(DiagnosticsLocalization.T("hwDiagWarnDisplayAdapterUnreadable", "Display adapter information could not be read."));
 
         return profile;
     }
@@ -35,19 +36,19 @@ public sealed class SystemCapabilityScanner
 
         if (profile.HasMicrosoftBasicDisplayAdapter)
         {
-            profile.Warnings.Add(
-                "Microsoft Basic Display Adapter detected. Install the official Intel, NVIDIA, or AMD graphics driver for best preview and recording reliability.");
+            profile.Warnings.Add(DiagnosticsLocalization.T("hwDiagWarnBasicDisplayAdapter",
+                "Microsoft Basic Display Adapter detected. Install the official Intel, NVIDIA, or AMD graphics driver for best preview and recording reliability."));
         }
 
         if (profile.HasIntelDisplayAdapter)
-            profile.EncoderHints.Add("Intel graphics detected. Official Intel graphics drivers may improve preview stability.");
+            profile.EncoderHints.Add(DiagnosticsLocalization.T("hwDiagHintIntel", "Intel graphics detected. Official Intel graphics drivers may improve preview stability."));
         if (profile.HasNvidiaDisplayAdapter)
-            profile.EncoderHints.Add("NVIDIA graphics detected. Official NVIDIA drivers may improve display and encoding reliability.");
+            profile.EncoderHints.Add(DiagnosticsLocalization.T("hwDiagHintNvidia", "NVIDIA graphics detected. Official NVIDIA drivers may improve display and encoding reliability."));
         if (profile.HasAmdDisplayAdapter)
-            profile.EncoderHints.Add("AMD/Radeon graphics detected. Official AMD drivers may improve display and encoding reliability.");
+            profile.EncoderHints.Add(DiagnosticsLocalization.T("hwDiagHintAmd", "AMD/Radeon graphics detected. Official AMD drivers may improve display and encoding reliability."));
 
         if (!profile.HasIntelDisplayAdapter && !profile.HasNvidiaDisplayAdapter && !profile.HasAmdDisplayAdapter)
-            profile.EncoderHints.Add("No Intel/NVIDIA/AMD display adapter was identified. This may be normal on some systems.");
+            profile.EncoderHints.Add(DiagnosticsLocalization.T("hwDiagHintNoKnownAdapter", "No Intel/NVIDIA/AMD display adapter was identified. This may be normal on some systems."));
     }
 
     public static bool IsMicrosoftBasicDisplayAdapter(string? name) =>
@@ -73,7 +74,7 @@ public sealed class SystemCapabilityScanner
         }
         catch (Exception ex) when (IsSafeWmiFailure(ex))
         {
-            profile.Warnings.Add($"OS/RAM WMI scan unavailable: {ex.GetType().Name}");
+            profile.Warnings.Add(string.Format(DiagnosticsLocalization.T("hwDiagWarnOsRamWmiUnavailable", "OS/RAM WMI scan unavailable: {0}"), ex.GetType().Name));
         }
     }
 
@@ -90,7 +91,7 @@ public sealed class SystemCapabilityScanner
         }
         catch (Exception ex) when (IsSafeWmiFailure(ex))
         {
-            profile.Warnings.Add($"CPU WMI scan unavailable: {ex.GetType().Name}");
+            profile.Warnings.Add(string.Format(DiagnosticsLocalization.T("hwDiagWarnCpuWmiUnavailable", "CPU WMI scan unavailable: {0}"), ex.GetType().Name));
         }
     }
 
@@ -114,7 +115,7 @@ public sealed class SystemCapabilityScanner
         }
         catch (Exception ex) when (IsSafeWmiFailure(ex))
         {
-            profile.Warnings.Add($"Display adapter WMI scan unavailable: {ex.GetType().Name}");
+            profile.Warnings.Add(string.Format(DiagnosticsLocalization.T("hwDiagWarnDisplayWmiUnavailable", "Display adapter WMI scan unavailable: {0}"), ex.GetType().Name));
         }
     }
 

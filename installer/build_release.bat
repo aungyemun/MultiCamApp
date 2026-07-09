@@ -5,8 +5,12 @@ cd /d "%~dp0.."
 if errorlevel 1 exit /b 1
 
 set "PS_EXE=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
-if not exist "%PS_EXE%" set "PS_EXE=powershell"
-set "ISCC_EXE=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
+if not exist "%PS_EXE%" (
+    where pwsh >nul 2>&1 && set "PS_EXE=pwsh" || set "PS_EXE=powershell"
+)
+set "ISCC_EXE=%ProgramFiles%\Inno Setup 7\ISCC.exe"
+if not exist "%ISCC_EXE%" set "ISCC_EXE=%ProgramFiles(x86)%\Inno Setup 7\ISCC.exe"
+if not exist "%ISCC_EXE%" set "ISCC_EXE=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
 if not exist "%ISCC_EXE%" set "ISCC_EXE=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
 if not exist "%ISCC_EXE%" set "ISCC_EXE=%CD%\tools\inno\ISCC.exe"
 
@@ -34,21 +38,27 @@ if not exist "%ISCC_EXE%" (
     exit /b 1
 )
 
-echo Building installer Setup.exe with AppVersion=%VER%...>>"%SUMMARY_FILE%"
+if not exist "installer\vc_redist.x64.exe" (
+    echo WARNING: installer\vc_redist.x64.exe not found. VC++ runtime will be skipped during installation.>>"%SUMMARY_FILE%"
+    echo WARNING: installer\vc_redist.x64.exe missing - VC++ runtime will NOT be bundled.
+)
+
+set "SETUP_OUT=installer\MultiCamApp_%VER%_Setup.exe"
+echo Building %SETUP_OUT% with AppVersion=%VER%...>>"%SUMMARY_FILE%"
 "%ISCC_EXE%" /DAppVersion="%VER%" /DPublishDir="..\dist" "%~dp0MultiCamApp.iss" >>"%SUMMARY_FILE%" 2>&1
 if errorlevel 1 (
     echo ISCC failed. See %SUMMARY_FILE%
     exit /b 1
 )
 
-if not exist "installer\Setup.exe" (
-    echo Setup.exe not produced>>"%SUMMARY_FILE%"
+if not exist "%SETUP_OUT%" (
+    echo %SETUP_OUT% not produced>>"%SUMMARY_FILE%"
     exit /b 1
 )
 
 set "TMP_SETUP_VER=installer\.build_setupver.tmp"
 if exist "%TMP_SETUP_VER%" del /q "%TMP_SETUP_VER%"
-"%PS_EXE%" -NoProfile -ExecutionPolicy Bypass -File "installer\extract_file_productversion.ps1" "installer\Setup.exe" "%TMP_SETUP_VER%" >>"%SUMMARY_FILE%" 2>&1
+"%PS_EXE%" -NoProfile -ExecutionPolicy Bypass -File "installer\extract_file_productversion.ps1" "%SETUP_OUT%" "%TMP_SETUP_VER%" >>"%SUMMARY_FILE%" 2>&1
 if errorlevel 1 exit /b 1
 for /f "usebackq delims=" %%s in ("%TMP_SETUP_VER%") do set "SETUP_VER=%%s"
 if exist "%TMP_SETUP_VER%" del /q "%TMP_SETUP_VER%"
@@ -58,7 +68,7 @@ if /I not "%SETUP_VER%"=="%VER%" (
     exit /b 1
 )
 
-echo Setup.exe product version=%SETUP_VER%>>"%SUMMARY_FILE%"
+echo %SETUP_OUT% product version=%SETUP_VER%>>"%SUMMARY_FILE%"
 
 echo Building installer\installer.zip...>>"%SUMMARY_FILE%"
 "%PS_EXE%" -NoProfile -ExecutionPolicy Bypass -File "scripts\packaging\create_release_zip.ps1" -DestinationZip "installer\installer.zip" >>"%SUMMARY_FILE%" 2>&1

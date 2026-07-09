@@ -130,38 +130,7 @@
                                                Foreground="{StaticResource AppForegroundBrush}" Margin="0,0,0,6"/>
                                     <ComboBox x:Name="FpsBox" Style="{StaticResource InputComboBoxStyle}"
                                               SelectionChanged="VideoSettings_Changed"/>
-                                    <CheckBox x:Name="HighStabilityRecordingModeCheckBox"
-                                              Margin="0,8,0,0"
-                                              Foreground="{StaticResource AppForegroundBrush}"
-                                              FontWeight="SemiBold"
-                                              Content="High-Stability Recording Mode"
-                                              IsChecked="True"
-                                              Click="HighStabilityRecordingModeCheckBox_Click"
-                                              ToolTip="Recommended for clean timing, stable FPS, and original-frame recording. Enables adaptive preview FPS and elevated writer thread priority."/>
-                                    <TextBlock Style="{StaticResource BodyText}"
-                                               FontSize="12" Margin="0,4,0,0"
-                                               TextWrapping="Wrap"
-                                               Foreground="{StaticResource AppSecondaryTextBrush}"
-                                               Text="Recommended for clean timing, stable FPS, and original-frame recording."/>
-                                    <TextBlock Text="Preview FPS during recording"
-                                               Style="{StaticResource BodyText}"
-                                               Foreground="{StaticResource AppForegroundBrush}"
-                                               Margin="0,8,0,4"/>
-                                    <ComboBox x:Name="RecordingPreviewFpsModeBox"
-                                              Style="{StaticResource InputComboBoxStyle}"
-                                              Margin="0,0,0,4"
-                                              SelectionChanged="RecordingPreviewFpsModeBox_SelectionChanged">
-                                        <ComboBoxItem Content="Smooth (higher preview FPS)" Tag="Smooth"/>
-                                        <ComboBoxItem Content="Balanced (recommended)" Tag="Balanced" IsSelected="True"/>
-                                        <ComboBoxItem Content="Maximum Stability (lower preview FPS)" Tag="MaxStability"/>
-                                    </ComboBox>
-                                    <TextBlock Style="{StaticResource BodyText}"
-                                               FontSize="12" Margin="0,2,0,8"
-                                               TextWrapping="Wrap"
-                                               Foreground="{StaticResource AppSecondaryTextBrush}"
-                                               Text="Balanced: 20/15/12/10 fps for 1/2/3/4 cameras. Preview stays on during recording for focus and brightness monitoring."/>
                                     <Expander x:Name="AdvancedCameraControlsExpander"
-                                              Header="Advanced Camera Controls"
                                               Margin="0,10,0,0"
                                               Foreground="{StaticResource AppForegroundBrush}"
                                               IsExpanded="False">
@@ -171,10 +140,10 @@
                                                 Padding="10"
                                                 Margin="0,6,0,0">
                                             <StackPanel>
-                                                <TextBlock Text="Camera Target" Style="{StaticResource BodyText}"
+                                                <TextBlock x:Name="CameraTargetHeaderText" Style="{StaticResource BodyText}"
                                                            Foreground="{StaticResource AppForegroundBrush}"
                                                            FontWeight="SemiBold" Margin="0,0,0,2"/>
-                                                <TextBlock Text="Adjust settings for:"
+                                                <TextBlock x:Name="AdjustSettingsForText"
                                                            Style="{StaticResource BodyText}"
                                                            Foreground="{StaticResource AppSecondaryTextBrush}"
                                                            FontSize="12" Margin="0,0,0,4"/>
@@ -182,18 +151,16 @@
                                                           Style="{StaticResource InputComboBoxStyle}"
                                                           Margin="0,0,0,8"
                                                           SelectionChanged="FocusCameraTargetBox_SelectionChanged"/>
-                                                <TextBlock Style="{StaticResource BodyText}"
+                                                <TextBlock x:Name="FocusExposureScopeNoteText"
+                                                           Style="{StaticResource BodyText}"
                                                            FontSize="12" Margin="0,0,0,8"
                                                            TextWrapping="Wrap"
-                                                           Foreground="{StaticResource AppSecondaryTextBrush}"
-                                                           Text="Focus and exposure settings apply to the selected camera only.&#x0a;Each camera can have independent values."/>
+                                                           Foreground="{StaticResource AppSecondaryTextBrush}"/>
                                                 <CheckBox x:Name="AdvancedAutoFocusCheckBox"
                                                           Margin="0,8,0,0"
                                                           Foreground="{StaticResource AppSecondaryTextBrush}"
-                                                          Content="Auto focus"
-                                                          ToolTip="Some cameras ignore software autofocus commands. If focus still changes, disable autofocus in the camera body or vendor software."
                                                           Click="AdvancedAutoFocusCheckBox_Click"/>
-                                                <TextBlock Text="Manual focus value" Style="{StaticResource BodyText}"
+                                                <TextBlock x:Name="ManualFocusValueLabelText" Style="{StaticResource BodyText}"
                                                            Foreground="{StaticResource AppForegroundBrush}" Margin="0,8,0,4"/>
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
@@ -219,20 +186,23 @@
                                                            TextWrapping="Wrap"
                                                            Margin="0,6,0,0"
                                                            Foreground="{StaticResource AppSecondaryTextBrush}"/>
-                                                <CheckBox x:Name="ReapplyFocusBeforeRecordingCheckBox"
-                                                          Margin="0,8,0,0"
-                                                          Foreground="{StaticResource AppSecondaryTextBrush}"
-                                                          Content="Re-apply focus before recording"
-                                                          IsChecked="True"
-                                                          Click="ReapplyFocusBeforeRecordingCheckBox_Click"/>
                                                 <Button x:Name="ApplyFocusSettingButton"
-                                                        Content="Apply Focus Setting"
                                                         Margin="0,10,0,0"
                                                         Style="{StaticResource NeutralButtonStyle}"
                                                         Click="ApplyFocusSettingButton_Click"/>
+                                                <Button x:Name="DefaultFocusButton"
+                                                        Margin="0,6,0,0"
+                                                        Style="{StaticResource NeutralButtonStyle}"
+                                                        Click="DefaultFocusButton_Click"/>
+                                                <TextBlock x:Name="FocusRestoreStatusText"
+                                                           Style="{StaticResource BodyText}"
+                                                           FontSize="12"
+                                                           TextWrapping="Wrap"
+                                                           Margin="0,4,0,0"
+                                                           Foreground="{StaticResource AppSecondaryTextBrush}"/>
 
                                                 <Separator Margin="0,12,0,8" Background="{StaticResource BorderBrushMain}"/>
-                                                <TextBlock Text="Exposure Controls"
+                                                <TextBlock x:Name="ExposureControlsHeaderText"
                                                            Style="{StaticResource BodyText}"
                                                            Foreground="{StaticResource AppForegroundBrush}"
                                                            FontWeight="SemiBold"
@@ -240,11 +210,9 @@
                                                 <CheckBox x:Name="AdvancedAutoExposureCheckBox"
                                                           Margin="0,4,0,0"
                                                           Foreground="{StaticResource AppSecondaryTextBrush}"
-                                                          Content="Auto exposure"
                                                           IsChecked="False"
-                                                          ToolTip="Request auto exposure from the camera. Uncheck to apply a fixed manual exposure value."
                                                           Click="AdvancedAutoExposureCheckBox_Click"/>
-                                                <TextBlock Text="Manual exposure value (0–255)"
+                                                <TextBlock x:Name="ManualExposureIndexLabelText"
                                                            Style="{StaticResource BodyText}"
                                                            Foreground="{StaticResource AppForegroundBrush}"
                                                            Margin="0,8,0,4"/>
@@ -266,41 +234,90 @@
                                                              Style="{StaticResource InputTextBoxStyle}"
                                                              TextChanged="ManualExposureValueBox_TextChanged"/>
                                                 </Grid>
-                                                <TextBlock Style="{StaticResource BodyText}"
+                                                <TextBlock x:Name="ManualExposureBestEffortNoteText"
+                                                           Style="{StaticResource BodyText}"
                                                            FontSize="12"
                                                            TextWrapping="Wrap"
                                                            Margin="0,6,0,0"
-                                                           Foreground="{StaticResource AppSecondaryTextBrush}"
-                                                           Text="Manual exposure is best-effort. Some cameras may ignore it.&#x0a;For motion studies, use bright even lighting and fixed exposure."/>
-                                                <CheckBox x:Name="DisableLowLightCompensationCheckBox"
-                                                          Margin="0,8,0,0"
-                                                          Foreground="{StaticResource AppSecondaryTextBrush}"
-                                                          Content="Disable low-light compensation"
-                                                          IsChecked="True"
-                                                          ToolTip="Low-light compensation may increase motion blur.&#x0a;Turn it off when recording fast movement."
-                                                          Click="DisableLowLightCompensationCheckBox_Click"/>
-                                                <TextBlock Style="{StaticResource BodyText}"
-                                                           FontSize="12"
-                                                           TextWrapping="Wrap"
-                                                           Margin="0,4,0,0"
-                                                           Foreground="{StaticResource AppSecondaryTextBrush}"
-                                                           Text="Low-light compensation may increase motion blur.&#x0a;Turn it off when recording fast movement."/>
-                                                <CheckBox x:Name="ReapplyExposureBeforeRecordingCheckBox"
-                                                          Margin="0,8,0,0"
-                                                          Foreground="{StaticResource AppSecondaryTextBrush}"
-                                                          Content="Re-apply exposure at recording start"
-                                                          IsChecked="True"
-                                                          Click="ReapplyExposureBeforeRecordingCheckBox_Click"/>
+                                                           Foreground="{StaticResource AppSecondaryTextBrush}"/>
                                                 <Button x:Name="ApplyExposureSettingButton"
-                                                        Content="Apply Exposure Setting"
                                                         Margin="0,10,0,0"
                                                         Style="{StaticResource NeutralButtonStyle}"
                                                         Click="ApplyExposureSettingButton_Click"/>
+                                                <Button x:Name="DefaultExposureButton"
+                                                        Margin="0,6,0,0"
+                                                        Style="{StaticResource NeutralButtonStyle}"
+                                                        Click="DefaultExposureButton_Click"/>
                                                 <TextBlock x:Name="ExposureStatusText"
                                                            Style="{StaticResource BodyText}"
                                                            FontSize="12"
                                                            TextWrapping="Wrap"
                                                            Margin="0,6,0,0"
+                                                           Foreground="{StaticResource AppSecondaryTextBrush}"/>
+
+                                                <!-- White Balance panel — shown only when WB control is supported -->
+                                                <StackPanel x:Name="WbCalibrationPanel" Visibility="Collapsed">
+                                                    <Separator Margin="0,12,0,8" Background="{StaticResource BorderBrushMain}"/>
+                                                    <TextBlock x:Name="WhiteBalanceHeaderText"
+                                                               Style="{StaticResource BodyText}"
+                                                               Foreground="{StaticResource AppForegroundBrush}"
+                                                               FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                                    <TextBlock x:Name="WhiteBalanceKelvinNoteText"
+                                                               Style="{StaticResource BodyText}"
+                                                               FontSize="12" TextWrapping="Wrap"
+                                                               Foreground="{StaticResource AppSecondaryTextBrush}"
+                                                               Margin="0,0,0,4"/>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="70"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Slider x:Name="WbSlider"
+                                                                Grid.Column="0"
+                                                                Minimum="2000"
+                                                                Maximum="9000"
+                                                                TickFrequency="100"
+                                                                IsSnapToTickEnabled="True"
+                                                                IsEnabled="False"
+                                                                PreviewMouseLeftButtonUp="WbSlider_CommitValue"
+                                                                LostFocus="WbSlider_CommitValue"/>
+                                                        <TextBox x:Name="WbValueBox"
+                                                                 Grid.Column="1"
+                                                                 Margin="8,0,0,0"
+                                                                 Style="{StaticResource InputTextBoxStyle}"
+                                                                 IsEnabled="False"
+                                                                 TextChanged="WbValueBox_TextChanged"/>
+                                                    </Grid>
+                                                    <TextBlock x:Name="WbStatusText"
+                                                               Style="{StaticResource BodyText}"
+                                                               FontSize="12" TextWrapping="Wrap"
+                                                               Margin="0,4,0,0"
+                                                               Foreground="{StaticResource AppSecondaryTextBrush}"/>
+                                                </StackPanel>
+
+                                                <!-- Environmental Lock section -->
+                                                <Separator Margin="0,12,0,8" Background="{StaticResource BorderBrushMain}"/>
+                                                <TextBlock x:Name="EnvironmentalLockHeaderText"
+                                                           Style="{StaticResource BodyText}"
+                                                           Foreground="{StaticResource AppForegroundBrush}"
+                                                           FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                                <TextBlock x:Name="EnvironmentalLockDescriptionText"
+                                                           Style="{StaticResource BodyText}"
+                                                           FontSize="12" TextWrapping="Wrap"
+                                                           Foreground="{StaticResource AppSecondaryTextBrush}"
+                                                           Margin="0,0,0,8"/>
+                                                <Button x:Name="LockEnvironmentButton"
+                                                        Margin="0,0,0,6"
+                                                        Style="{StaticResource EnvLockButtonStyle}"
+                                                        Click="LockEnvironmentButton_Click"/>
+                                                <Button x:Name="OneShotCalibrateButton"
+                                                        Margin="0,0,0,6"
+                                                        Style="{StaticResource EnvLockButtonStyle}"
+                                                        Click="OneShotCalibrateButton_Click"/>
+                                                <TextBlock x:Name="CalibrationStatusLabel"
+                                                           Style="{StaticResource BodyText}"
+                                                           FontSize="12" TextWrapping="Wrap"
+                                                           Margin="0,4,0,0"
                                                            Foreground="{StaticResource AppSecondaryTextBrush}"/>
                                             </StackPanel>
                                         </Border>
@@ -402,8 +419,11 @@
                                     <TextBlock x:Name="MultiCamUsbWarningText" Style="{StaticResource BodyText}"
                                                FontSize="12" TextWrapping="Wrap" Margin="0"
                                                Foreground="{StaticResource AccentVideoBrush}"/>
+
                                 </StackPanel>
                             </Border>
+
+
                         </StackPanel>
                     </ScrollViewer>
                 </Border>

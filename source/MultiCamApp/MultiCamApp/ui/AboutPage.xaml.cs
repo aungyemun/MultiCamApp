@@ -21,7 +21,8 @@ public partial class AboutPage : UserControl
         VersionText.Text = $"MultiCamApp v{version.Version}";
         BuildText.Text = $"{lang["buildNumber"]}: {version.Build}";
         StageText.Text = $"{lang["releaseStage"]}: {version.Stage}";
-        ReleaseText.Text = $"Released: {(!string.IsNullOrWhiteSpace(version.ReleaseDate) ? version.ReleaseDate : "Not specified")}";
+        var releasedLabel = lang["releasedLabel"];
+        ReleaseText.Text = $"{releasedLabel}: {(!string.IsNullOrWhiteSpace(version.ReleaseDate) ? version.ReleaseDate : "—")}";
 
         CopyVersionBtn.Content = lang["copyVersionInfo"];
 
@@ -43,9 +44,9 @@ public partial class AboutPage : UserControl
         AttributionAungBody.Text = lang["attributionAungBody"];
 
         ThirdPartyNoticesTitle.Text = lang["thirdPartyNoticesTitle"];
-        ThirdPartyNoticesBody.Text = "This application includes third-party components. After installation, see THIRD_PARTY_NOTICES.md and runtime/ffmpeg/FFMPEG_LICENSE.txt for license, attribution, and source-code reference information.";
+        ThirdPartyNoticesBody.Text = lang["thirdPartyNoticesBody"];
         ThirdPartyNoticesBtn.Content = lang["viewThirdPartyNotices"];
-        FfmpegLicenseBtn.Content = "View FFmpeg License (FFMPEG_LICENSE.txt)";
+        FfmpegLicenseBtn.Content = lang["viewFfmpegLicense"];
         ProjectHomepageTitle.Text = lang["projectHomepage"];
         HomepageLink.Text = "https://github.com/aungyemun/MultiCamApp";
         FontHelper.ApplyLanguageFont(this, lang.CurrentLanguage);
@@ -75,7 +76,7 @@ public partial class AboutPage : UserControl
 
     private static string BuildCitationBody(VersionInfo version, LanguageManager lang)
     {
-        return $"Mun AY, Koketsu S. MultiCamApp: Offline multi-camera synchronized recording and verification platform for behavioral analysis. Version v{version.Version}. 2026.";
+        return $"Mun AY, Koketsu S. MultiCamApp: Offline multi-camera recording, metadata capture, and video verification platform for research and educational workflows. Version v{version.Version}. 2026.";
     }
 
     private void TryCopy(string text, Button btn)

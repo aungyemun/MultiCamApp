@@ -56,7 +56,7 @@ function Check-Item {
         # Execution check if it's an exe
         if ($RelativePath.EndsWith(".exe")) {
             try {
-                if ($Name -eq "ffprobe") {
+                if ($Name -eq "ffprobe" -or $Name -eq "ffmpeg") {
                     $out = & $FullPath -version 2>&1 | Select-Object -First 1
                     $script:Report += "      Output: $out"
                 } elseif ($Name -eq "python") {
@@ -93,6 +93,7 @@ Check-Item "App Icon" "assets\icons\MultiCamApp.ico"
 
 # Bundled Runtimes
 Check-Item "ffprobe" "runtime\ffmpeg\ffprobe.exe"
+Check-Item "ffmpeg" "runtime\ffmpeg\ffmpeg.exe"
 Check-Item "python" "runtime\python\python.exe" $false
 Check-Item "python-lib" "runtime\python\Lib\site-packages" $false $true
 Check-Item "Rscript" "runtime\R\bin\Rscript.exe" $false

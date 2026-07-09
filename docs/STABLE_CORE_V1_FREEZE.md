@@ -1,18 +1,26 @@
 # STABLE_CORE_V1 — Freeze Declaration
 
-> **Historical note:** This document was originally created during v1.0.36 stabilization and has been reviewed and updated for v1.1.0 Stable (2026-06-23). The freeze remains ACTIVE. Post-freeze approved exceptions are logged in [STABLE_CORE_V1_EXCEPTIONS.md](STABLE_CORE_V1_EXCEPTIONS.md) and summarised in the sections below.
+> **Historical note:** This document was originally created during v1.0.36 stabilization and has been reviewed and updated for v1.1.0 Stable (2026-06-23). Post-freeze approved exceptions are logged in [STABLE_CORE_V1_EXCEPTIONS.md](STABLE_CORE_V1_EXCEPTIONS.md) and summarised in the sections below.
+
+> **🔓 FREEZE LIFTED (2026-07-09, v1.2.104) — project owner directive.** The project owner explicitly asked to lift the freeze across **all** STABLE_CORE_V1 components (not just Video Verification Logic, per the v1.2.104 exception), with the intent of freezing a new, updated baseline later once the VideoEngineV2-era fixes settle. All 44 files carrying the `STABLE_CORE_V1` banner are open for modification without going through the exception-trigger process below until that new freeze is declared. Banners are left in place per policy (do not remove without a deliberate version bump) so the pre-lift baseline stays identifiable; **do not treat "Do not modify without documented regression testing" in a banner as still binding** — regression-test changes on their merits instead, same as any other code. This note supersedes the "still ACTIVE" line below until removed.
+>
+> **🔒 NEW FREEZE DECLARED — [STABLE_CORE_V2](STABLE_CORE_V2_FREEZE.md) (2026-07-10, v2.0.0, first stable release).** This is the new baseline the note above anticipated. It protects the *actively-used* production pipeline — VideoEngineV2 recording engine, native V2 metadata, video verification, session comparison — which is a different (and mostly non-overlapping) file set from what STABLE_CORE_V1 originally protected. **STABLE_CORE_V1 itself remains lifted** and now applies only to the dormant legacy OpenCV/DirectShow engine (see engine scope note below) — that subtree is not part of the new freeze, kept only as a dormant safety net per the project owner's 2026-07-09 decision. Any file promoted to `STABLE_CORE_V2` had its `STABLE_CORE_V1` banner replaced (not stacked); this document remains the historical record for those files up to 2026-07-10.
+
+> **⚠️ IMPORTANT — engine scope note (added 2026-07-02, v1.2.30-alpha):** This freeze was validated against the **legacy OpenCV/DirectShow recording pipeline** (`recording/RecordingSession.cs` → `metadata/MetadataWriter.cs`, PascalCase field schema, e.g. `FramesCaptured`/`MeasuredCameraFps`/`CaptureIntervalMeanMs`). As of **v1.2.22-alpha**, **VideoEngineV2** (`capture/video_engine_v2/`, WinRT `MediaCapture` + Media Foundation H.264) is the **default and primary** recording engine for all camera types; the legacy OpenCV path described by this freeze is now reachable only as a fallback (e.g. when WinRT cannot open a selected device, or via explicit `previewEngine`/`recordingEngine` config). VideoEngineV2's recording/metadata code (`MainWindow.xaml.cs` V2 metadata writer, `capture/video_engine_v2/*`, `verification/V2MetadataReader.cs`/`V2VerificationRunner.cs`) was already outside this freeze even before the 2026-07-09 lift. Confirm which engine produced a given recording via `recordingEngine.engine` in its metadata JSON before assuming legacy-pipeline behavior applies to it.
+>
+> **Practical note on the legacy OpenCV engine specifically (2026-07-09 audit):** `RecordingSession` (the legacy recording orchestrator) is not instantiated anywhere in the current `MainWindow.xaml.cs` — confirmed by a direct code search, not an assumption — and `VideoEngineFallbackPolicy` only drops to `Tier4_LegacyOpenCv` when Media Foundation is entirely unavailable on the host machine, which every real recording audited this cycle contradicts (`MediaFoundationH264` hardware encoder, every session). A structural scan of `capture/`, `recording/`, and the legacy `metadata/MetadataWriter.cs` found no TODO/FIXME markers or obvious defects, but no code changes were made there this cycle: with the legacy engine unreachable on this machine, there is no real recording to regression-test a change against, so any edit would be unverifiable by construction. Treat that subtree as lower priority for the next audit pass unless a specific legacy-engine bug is reported.
 
 **Freeze name:** `STABLE_CORE_V1`  
 **Original freeze version:** MultiCamApp **v1.0.36** (build **136**), 2026-06-11  
-**Current release:** MultiCamApp **v1.1.0** (build **193**), 2026-06-23 — freeze still ACTIVE; see post-freeze exceptions  
-**Lock file:** [STABLE_CORE_V1.lock](../STABLE_CORE_V1.lock)  
+**Current app release:** MultiCamApp **v2.0.1** (build **334**, Stable), 2026-07-10 — see FREEZE LIFTED note above; post-freeze exceptions below remain the historical record of changes made while still frozen  
+**Lock file:** `STABLE_CORE_V1.lock` — referenced historically; does not exist in this repo and is not required (gitignored, machine-local marker only)  
 **Compile marker:** `core/StableCoreV1.cs`
 
 ---
 
 ## Purpose
 
-**STABLE_CORE_V1 remains frozen by default.** Do not modify stable-core systems unless a [freeze exception](STABLE_CORE_V1_EXCEPTIONS.md) is triggered.
+**STABLE_CORE_V1 was frozen by default** for the legacy OpenCV recording/metadata/verification pipeline it was validated against (see engine scope note above) — **lifted 2026-07-09 by explicit project-owner directive, pending a new freeze declaration.** Historically, modification required a [freeze exception](STABLE_CORE_V1_EXCEPTIONS.md); that process is suspended for now but the exception log is still maintained as a historical record and good practice for documenting *why* a change was made.
 
 The following systems are **validated and production-stable**. They must not be modified except under the formal [exception conditions](STABLE_CORE_V1_EXCEPTIONS.md#freeze-exception-conditions), with the smallest targeted fix, and after completing the [STABLE_CORE_V1 regression checklist](STABLE_CORE_V1_REGRESSION_CHECKLIST.md).
 
@@ -23,7 +31,7 @@ The following systems are **validated and production-stable**. They must not be 
 | **Video Verification Logic** | Scan, ffprobe, metadata checks, verdicts, exports; PASS / PASS_WITH_WARNING / FAIL classification |
 | **Session Comparison Logic** | Intra-session multi-camera sync and consistency; inter-camera offset, frame-diff, wall-clock diff |
 
-Future work should focus on **installer**, **UI polish**, **reports**, **documentation**, and **OFLA analysis** unless a stable-core bug is proven.
+Future work should focus on **installer**, **UI polish**, **reports**, **documentation**, **OFLA analysis**, and **VideoEngineV2** (which sits outside this freeze) unless a legacy-pipeline stable-core bug is proven.
 
 ---
 
@@ -177,6 +185,8 @@ Before merging changes:
 - MaxTotalQueueDrops aggregation fix (v1.1.0)
 - PASS_WITH_WARNING offset range addition (v1.1.0)
 - Focus metadata wording / FinalFocusMode (v1.1.0)
+- Japanese localization of Video Verification log/report text — explicit owner override, not a standard trigger (v1.2.92)
+- Native VideoEngineV2 metadata schema support in MetadataParser/VideoVerificationService (v1.2.104)
 
 ---
 
@@ -188,7 +198,7 @@ Every protected file begins with:
 ////////////////////////////////////////////////////
 /// STABLE_CORE_V1
 /// Validated in MultiCamApp v1.0.36 build 136.
-/// Post-freeze exceptions approved through v1.1.0 build 193.
+/// Post-freeze exceptions approved through v1.1.21 build 214.
 /// Do not modify without documented regression testing.
 /// Protected: recording, metadata, verification, session comparison.
 ////////////////////////////////////////////////////
@@ -200,8 +210,9 @@ Refresh banners: `python scripts/maintenance/tag_stable_core_v1.py`
 
 ## Related documents
 
-- [STABLE_CORE_V1_EXCEPTIONS.md](STABLE_CORE_V1_EXCEPTIONS.md) — freeze exception policy and approved exception log
-- [STABLE_CORE_V1_REGRESSION_CHECKLIST.md](STABLE_CORE_V1_REGRESSION_CHECKLIST.md) — stable-core regression checklist
+- [STABLE_CORE_V2_FREEZE.md](STABLE_CORE_V2_FREEZE.md) — the current freeze, covering the actively-used VideoEngineV2 + verification pipeline
+- [STABLE_CORE_V1_EXCEPTIONS.md](STABLE_CORE_V1_EXCEPTIONS.md) — freeze exception policy and approved exception log (legacy engine, historical)
+- [STABLE_CORE_V1_REGRESSION_CHECKLIST.md](STABLE_CORE_V1_REGRESSION_CHECKLIST.md) — stable-core regression checklist (legacy engine)
 - [user_guide/video_verification.md](user_guide/video_verification.md) — interpreting verification results
 
 ---

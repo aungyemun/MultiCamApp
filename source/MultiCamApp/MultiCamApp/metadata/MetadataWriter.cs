@@ -213,6 +213,18 @@ public sealed class MetadataWriter
         yield return $"- Low-light compensation off requested: {FriendlyBool(stats.LowLightCompensationOffRequested)}";
         yield return $"- Low-light compensation off confirmed: {FormatLlcConfirmation(stats.LowLightCompensationOffConfirmed)}";
         yield return $"- White balance: {ValueOrUnavailable(stats.AutoWhiteBalanceStatus)}";
+        if (stats.EnvironmentalLockActive)
+        {
+            yield return $"- Environmental lock: ACTIVE (hardware parameters frozen at recording start for dataset purity)";
+            if (stats.FocusHardwareLocked)    yield return $"  - Focus locked at: {stats.FocusLockedAtSteps} steps";
+            if (stats.ExposureHardwareLocked) yield return $"  - Exposure locked at: {stats.ExposureLockedAtSeconds:F6} s";
+            if (stats.WhiteBalanceHardwareLocked) yield return $"  - White balance locked at: {stats.WhiteBalanceLockedAtK} K";
+            if (stats.IsoHardwareLocked)      yield return $"  - ISO/gain: locked (fixed)";
+        }
+        else
+        {
+            yield return $"- Environmental lock: not active (camera auto modes may have adapted during recording)";
+        }
         if (!string.IsNullOrWhiteSpace(stats.ExposureWarning))
             yield return $"- Exposure warning: {stats.ExposureWarning}";
         if (activeCameraCount > 1)
@@ -343,7 +355,15 @@ public sealed class MetadataWriter
             LowLightCompensationOffConfirmed = meta.LowLightCompensationOffConfirmed,
             ExposureWarning = meta.ExposureWarning,
             AutoWhiteBalanceStatus = meta.AutoWhiteBalanceStatus,
-            WhiteBalanceReadbackValue = meta.WhiteBalanceReadbackValue
+            WhiteBalanceReadbackValue = meta.WhiteBalanceReadbackValue,
+            EnvironmentalLockActive = meta.EnvironmentalLockActive,
+            FocusHardwareLocked = meta.FocusHardwareLocked,
+            FocusLockedAtSteps = meta.FocusLockedAtSteps,
+            ExposureHardwareLocked = meta.ExposureHardwareLocked,
+            ExposureLockedAtSeconds = meta.ExposureLockedAtSeconds,
+            WhiteBalanceHardwareLocked = meta.WhiteBalanceHardwareLocked,
+            WhiteBalanceLockedAtK = meta.WhiteBalanceLockedAtK,
+            IsoHardwareLocked = meta.IsoHardwareLocked,
         };
 
         return BuildStatsSummaryLines(stats, cameraFolder);

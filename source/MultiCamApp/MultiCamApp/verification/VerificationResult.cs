@@ -1,10 +1,10 @@
 ////////////////////////////////////////////////////
-/// STABLE_CORE_V1
-/// Validated in MultiCamApp v1.0.36 build 136.
+/// STABLE_CORE_V2
+/// Validated in MultiCamApp v2.0.0 build 333 (first stable release).
 /// Do not modify without documented regression testing.
-/// Protected: recording, metadata, verification, session comparison.
+/// Protected: VideoEngineV2 recording engine, native metadata, video verification, session comparison.
 ////////////////////////////////////////////////////
-// STABLE_CORE_V1 protected component — modification requires regression checklist; do not refactor casually.
+// STABLE_CORE_V2 protected component — modification requires regression checklist; do not refactor casually. See docs/STABLE_CORE_V2_FREEZE.md.
 
 using MultiCamApp.Experiment;
 

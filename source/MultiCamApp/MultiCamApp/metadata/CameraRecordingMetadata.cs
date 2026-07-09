@@ -181,6 +181,15 @@ public sealed class CameraRecordingMetadata
     public string ExposureWarning { get; set; } = "";
     public string AutoWhiteBalanceStatus { get; set; } = "Unavailable";
     public string WhiteBalanceReadbackValue { get; set; } = "Unavailable";
+    // Environmental lock — set at recording start when user has locked camera hardware parameters.
+    public bool EnvironmentalLockActive { get; set; }
+    public bool FocusHardwareLocked { get; set; }
+    public uint FocusLockedAtSteps { get; set; }
+    public bool ExposureHardwareLocked { get; set; }
+    public double ExposureLockedAtSeconds { get; set; }
+    public bool WhiteBalanceHardwareLocked { get; set; }
+    public uint WhiteBalanceLockedAtK { get; set; }
+    public bool IsoHardwareLocked { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public bool PrivacyMode { get; set; } = true;
     public bool HiddenRecordingAllowed { get; set; }

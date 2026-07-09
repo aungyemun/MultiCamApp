@@ -756,6 +756,21 @@ OPEN_OK:
                 };
             }
 
+            // Applies regardless of auto/manual exposure mode below — LLC disable was previously
+            // nested only inside the manual-exposure branch, so checking "Disable Low-Light
+            // Compensation" while Auto Exposure was also checked silently did nothing, even
+            // though the returned status still claimed it was requested.
+            bool? llcOffConfirmed = null;
+            if (config.DisableLowLightCompensation)
+            {
+                var backlightControl = controller.BacklightCompensation;
+                if (backlightControl?.Capabilities.Supported == true)
+                {
+                    backlightControl.TrySetValue(0);
+                    llcOffConfirmed = backlightControl.TryGetValue(out var llcVal) ? llcVal < 0.5 : null;
+                }
+            }
+
             if (config.AutoExposureEnabled)
             {
                 await Task.WhenAny(exposureControl.SetAutoAsync(true).AsTask(), Task.Delay(500)).ConfigureAwait(false);
@@ -769,6 +784,7 @@ OPEN_OK:
                     ManualExposureRequestedValue = config.ManualExposureValue,
                     ManualExposureReadbackValue = manualReadback,
                     LowLightCompensationOffRequested = config.DisableLowLightCompensation,
+                    LowLightCompensationOffConfirmed = llcOffConfirmed,
                     ExposureControlMode = "auto_exposure"
                 };
             }
@@ -784,17 +800,6 @@ OPEN_OK:
                     await Task.WhenAny(exposureControl.SetValueAsync(clamped).AsTask(), Task.Delay(500)).ConfigureAwait(false);
                     if (exposureDeviceControl.TryGetValue(out var afterValue))
                         manualReadback = afterValue.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
-                }
-
-                bool? llcOffConfirmed = null;
-                if (config.DisableLowLightCompensation)
-                {
-                    var backlightControl = controller.BacklightCompensation;
-                    if (backlightControl?.Capabilities.Supported == true)
-                    {
-                        backlightControl.TrySetValue(0);
-                        llcOffConfirmed = backlightControl.TryGetValue(out var llcVal) ? llcVal < 0.5 : null;
-                    }
                 }
 
                 return new CameraExposureControlStatus
@@ -1284,17 +1289,26 @@ OPEN_OK:
 
         try
         {
-            var slotFocusConfig = config.WithSlotFocusSettings(SlotIndex);
+            var slotFocusConfig    = config.WithSlotFocusSettings(SlotIndex);
             var slotExposureConfig = config.WithSlotExposureSettings(SlotIndex);
             _lastExposureControlStatus = PreserveExposureRequestState(_lastExposureControlStatus, slotExposureConfig);
             await _modeSelector.ApplyRecordModeAsync(_capture, SelectedMode);
-            _lastFocusControlStatus = await WithCameraControlTimeoutAsync(
-                ApplyFocusModeAsync(slotFocusConfig), 1500,
-                _lastFocusControlStatus ?? CameraFocusControlStatus.NotAttempted(slotFocusConfig.AutoFocusEnabled)).ConfigureAwait(false);
-            if (slotExposureConfig.ReapplyExposureBeforeRecording)
-                _lastExposureControlStatus = await WithCameraControlTimeoutAsync(
-                    TryApplyExposureModeBestEffortAsync(slotExposureConfig), 1500,
-                    PreserveExposureRequestState(_lastExposureControlStatus, slotExposureConfig)).ConfigureAwait(false);
+
+            // Run focus and exposure apply in parallel with a 300 ms timeout each.
+            // Sequential 1500 ms × 2 was the main source of pre-recording latency.
+            // For cameras that do not support these controls the tasks complete in < 50 ms.
+            var focusTask = WithCameraControlTimeoutAsync(
+                ApplyFocusModeAsync(slotFocusConfig), 300,
+                _lastFocusControlStatus ?? CameraFocusControlStatus.NotAttempted(slotFocusConfig.AutoFocusEnabled));
+            var exposureTask = slotExposureConfig.ReapplyExposureBeforeRecording
+                ? WithCameraControlTimeoutAsync(
+                    TryApplyExposureModeBestEffortAsync(slotExposureConfig), 300,
+                    PreserveExposureRequestState(_lastExposureControlStatus, slotExposureConfig))
+                : Task.FromResult(PreserveExposureRequestState(_lastExposureControlStatus, slotExposureConfig));
+
+            await Task.WhenAll(focusTask, exposureTask).ConfigureAwait(false);
+            _lastFocusControlStatus    = focusTask.Result;
+            _lastExposureControlStatus = exposureTask.Result;
         }
         catch (Exception ex)
         {

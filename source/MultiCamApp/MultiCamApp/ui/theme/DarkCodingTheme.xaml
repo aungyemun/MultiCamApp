@@ -236,15 +236,36 @@
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
         <Setter Property="Cursor" Value="Hand"/>
-        <Style.Triggers>
-            <Trigger Property="IsEnabled" Value="False">
-                <Setter Property="Background" Value="{StaticResource DisabledControlBackgroundBrush}"/>
-                <Setter Property="Foreground" Value="{StaticResource DisabledControlTextBrush}"/>
-                <Setter Property="BorderBrush" Value="{StaticResource DisabledControlBorderBrush}"/>
-                <Setter Property="Cursor" Value="Arrow"/>
-                <Setter Property="Opacity" Value="1"/>
-            </Trigger>
-        </Style.Triggers>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Opacity" Value="0.82"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bd" Property="Opacity" Value="0.65"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="bd" Property="Background" Value="{StaticResource DisabledControlBackgroundBrush}"/>
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource DisabledControlBorderBrush}"/>
+                            <Setter Property="Foreground" Value="{StaticResource DisabledControlTextBrush}"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                            <Setter Property="Opacity" Value="1"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style x:Key="PreviewButtonStyle" TargetType="Button" BasedOn="{StaticResource PanelButtonBase}">
@@ -379,6 +400,38 @@
                 <Setter Property="BorderBrush" Value="Transparent"/>
             </Trigger>
         </Style.Triggers>
+    </Style>
+
+
+    <!-- Dark ToolTip style — keeps tooltips readable in dark theme -->
+    <Style TargetType="ToolTip">
+        <Setter Property="Background" Value="#1E293B"/>
+        <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderBrushMain}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8,5"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="MaxWidth" Value="320"/>
+    </Style>
+
+    <!-- Env-lock action button — amber border signals a state-changing hardware action -->
+    <Style x:Key="EnvLockButtonStyle" TargetType="Button" BasedOn="{StaticResource NeutralButtonStyle}">
+        <Setter Property="BorderBrush" Value="#B45309"/>
+        <Setter Property="Foreground" Value="#FDE68A"/>
+    </Style>
+
+    <!-- Compact Slider style tuned for dark panel backgrounds -->
+    <Style TargetType="Slider">
+        <Setter Property="Foreground" Value="{StaticResource AccentVideoBrush}"/>
+        <Setter Property="Background" Value="{StaticResource AppControlBackgroundBrush}"/>
+        <Setter Property="MinHeight" Value="22"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Scrollbar — slim dark track -->
+    <Style TargetType="ScrollBar">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Width" Value="8"/>
     </Style>
 
 </ResourceDictionary>

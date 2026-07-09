@@ -1,3 +1,5 @@
+using MultiCamApp.Localization;
+
 namespace MultiCamApp.Verification;
 
 public static class OriginalCaptureVerificationPolicy
@@ -9,6 +11,18 @@ public static class OriginalCaptureVerificationPolicy
         "Frame counts may differ because cameras delivered real frames at different measured FPS.";
     public const string ContainerWallClockNote =
         "Container duration differs from wall-clock time. Use timestamp CSV for scientific trimming and analysis.";
+
+    /// <summary>Localized form of <see cref="StopBoundaryAcceptedMessage"/>; falls back to the English constant.</summary>
+    public static string GetStopBoundaryAcceptedMessage(LanguageManager? language) =>
+        language?["verifyMsgStopBoundaryAccepted"] is { Length: > 0 } v ? v : StopBoundaryAcceptedMessage;
+
+    /// <summary>Localized form of <see cref="FrameCountDifferenceNote"/>; falls back to the English constant.</summary>
+    public static string GetFrameCountDifferenceNote(LanguageManager? language) =>
+        language?["verifyNoteFrameCountDifference"] is { Length: > 0 } v ? v : FrameCountDifferenceNote;
+
+    /// <summary>Localized form of <see cref="ContainerWallClockNote"/>; falls back to the English constant.</summary>
+    public static string GetContainerWallClockNote(LanguageManager? language) =>
+        language?["verifyContainerDurationWarning"] is { Length: > 0 } v ? v : ContainerWallClockNote;
 
     public static bool IsOriginalCapture(CameraMetadataRecord? metadata) =>
         metadata != null

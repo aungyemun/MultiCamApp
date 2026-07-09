@@ -4,8 +4,8 @@
 
 | Version | Status        |
 |---------|---------------|
-| 1.1.x   | Active        |
-| < 1.1.0 | Not supported |
+| 2.0.x   | Active        |
+| < 2.0.0 | Not supported |
 
 ## Reporting a Vulnerability
 
@@ -31,6 +31,7 @@ MultiCamApp is a fully offline desktop application for Windows. It does not conn
 |-----------|---------|-------|
 | ffprobe.exe | GPL v3 | Standalone exe; not linked into MultiCamApp.exe |
 | OpenCvSharp / OpenCV | Apache 2.0 | Native DLLs beside the app |
+| Vortice.Windows (Direct3D11, DXGI, MediaFoundation) | MIT | Managed bindings bundled inside the single-file apphost |
 | .NET 8 Runtime | MIT | Self-contained bundle |
 | Microsoft VC++ Redistributable | Microsoft License | Installed by Setup.exe |
 

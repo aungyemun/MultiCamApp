@@ -18,7 +18,7 @@ START_END_OFFSET_ACCEPTABLE_SEC = 0.1
 START_END_OFFSET_ACCEPTABLE_MS = START_END_OFFSET_ACCEPTABLE_SEC * 1000.0
 UNSTABLE_CAPTURE_INTERVAL_STD_MS = 10.0
 UNSTABLE_MAX_CONSECUTIVE_NO_FRAME = 2
-VISUAL_CHECK_FRAME_LIMIT = 300
+VISUAL_CHECK_FRAME_LIMIT = 10000
 VISUAL_CHECK_WIDTH = 64
 VISUAL_CHECK_HEIGHT = 36
 VISUAL_NEAR_IDENTICAL_MAD_THRESHOLD = 1.0
@@ -154,8 +154,77 @@ def load_metadata(cam_dir: Path) -> dict | None:
     meta_path = cam_dir / "metadata.json"
     if not meta_path.is_file():
         return None
-    with meta_path.open(encoding="utf-8") as f:
-        return json.load(f)
+    # Accept both canonical UTF-8 JSON and older .NET output that included a BOM.
+    with meta_path.open(encoding="utf-8-sig") as f:
+        return normalize_metadata(json.load(f))
+
+
+def normalize_metadata(meta: dict) -> dict:
+    """Expose current nested V2 metadata through the legacy audit field contract."""
+    timing = meta.get("timing")
+    cameras = meta.get("cameras")
+    if not isinstance(timing, dict) or not isinstance(cameras, list) or not cameras:
+        return meta
+
+    camera = cameras[0] if isinstance(cameras[0], dict) else {}
+    settings = meta.get("videoSettings") if isinstance(meta.get("videoSettings"), dict) else {}
+    verification = meta.get("verification") if isinstance(meta.get("verification"), dict) else {}
+    app_version = meta.get("appVersion") if isinstance(meta.get("appVersion"), dict) else {}
+    startup = meta.get("startupSettling") if isinstance(meta.get("startupSettling"), dict) else {}
+    timing_models = meta.get("timingModels") if isinstance(meta.get("timingModels"), dict) else {}
+    app_timing = timing_models.get("appTimestampTiming") if isinstance(timing_models.get("appTimestampTiming"), dict) else {}
+
+    selected_resolution = str(camera.get("selectedResolution") or "")
+    width = height = None
+    if "x" in selected_resolution.lower():
+        try:
+            width, height = (int(v) for v in selected_resolution.lower().split("x", 1))
+        except ValueError:
+            width = height = None
+
+    rows = int(timing.get("timestampCsvRows") or 0)
+    gap_count = int(timing.get("timestampGapCount") or 0)
+    interval_std = float(app_timing.get("intervalStdMs") or 0)
+    stable_after_warmup = bool(startup.get("stableAfterWarmup"))
+
+    aliases = {
+        "Width": width,
+        "Height": height,
+        "RequestedResolution": camera.get("requestedResolution") or settings.get("requestedResolution"),
+        "SelectedResolution": selected_resolution,
+        "RequestedFps": camera.get("requestedFps") or settings.get("requestedFps"),
+        "SelectedFps": camera.get("selectedFormatFps"),
+        "WriterFps": camera.get("writerFps"),
+        "MeasuredCameraFps": timing.get("estimatedFpsFromTimestamps"),
+        "FramesWritten": timing.get("framesWritten"),
+        "FramesCaptured": rows,
+        "FrameTimestampCsvWritten": bool(timing.get("timestampCsvWritten")),
+        "FrameTimestampCsvRowCount": rows,
+        "FrameTimestampCsvPath": timing.get("timestampCsvFile"),
+        "RecordingTimingMode": settings.get("recordingTimingMode") or "V2ParallelTimestampCapture",
+        "OriginalCaptureMode": False,
+        "ConstantFrameCountMode": False,
+        "WallClockDurationSeconds": timing.get("resolvedDurationS") or timing.get("monotonicDurationS"),
+        "CaptureIntervalCount": max(0, rows - 1),
+        "CaptureIntervalMeanMs": timing.get("meanFrameIntervalMs"),
+        "CaptureIntervalMedianMs": timing.get("medianFrameIntervalMs"),
+        "CaptureIntervalMinMs": timing.get("minFrameIntervalMs"),
+        "CaptureIntervalMaxMs": timing.get("maxFrameIntervalMs"),
+        "CaptureIntervalP95Ms": timing.get("p95FrameIntervalMs"),
+        "CaptureIntervalP99Ms": timing.get("p99FrameIntervalMs"),
+        "CaptureIntervalStdMs": interval_std,
+        "LongGapCount": gap_count,
+        "SevereLongGapCount": gap_count,
+        "FpsStabilityGrade": "Good" if stable_after_warmup and gap_count == 0 else "Borderline",
+        "ScientificTimingStatus": verification.get("timingConfidence"),
+        "ScientificTimingMessage": verification.get("sessionResult"),
+        "AppVersion": app_version.get("version"),
+        "BuildNumber": app_version.get("build"),
+    }
+    for key, value in aliases.items():
+        if value is not None and key not in meta:
+            meta[key] = value
+    return meta
 
 
 def _format_capture_interval_ms(meta: dict, key: str, legacy_key: str | None = None) -> str:
@@ -257,7 +326,7 @@ def visual_near_duplicate_check(ffmpeg: str | None, path: Path) -> dict:
         "-",
     ]
     try:
-        result = subprocess.run(cmd, capture_output=True, timeout=60)
+        result = subprocess.run(cmd, capture_output=True, timeout=180)
     except Exception as exc:
         return {"enabled": True, "error": str(exc)}
 
@@ -280,14 +349,27 @@ def visual_near_duplicate_check(ffmpeg: str | None, path: Path) -> dict:
     differences = []
     hash_differences = []
     near_identical = 0
+    exact_duplicates = 0
+    exact_run = near_run = 0
+    longest_exact_run = longest_near_run = 0
     previous = raw[0:frame_size]
     previous_hash = _average_hash(previous, VISUAL_CHECK_WIDTH, VISUAL_CHECK_HEIGHT)
     for index in range(1, frame_count):
         current = raw[index * frame_size:(index + 1) * frame_size]
         diff = sum(abs(a - b) for a, b in zip(previous, current)) / frame_size
         differences.append(diff)
+        if current == previous:
+            exact_duplicates += 1
+            exact_run += 1
+            longest_exact_run = max(longest_exact_run, exact_run)
+        else:
+            exact_run = 0
         if diff <= VISUAL_NEAR_IDENTICAL_MAD_THRESHOLD:
             near_identical += 1
+            near_run += 1
+            longest_near_run = max(longest_near_run, near_run)
+        else:
+            near_run = 0
         current_hash = _average_hash(current, VISUAL_CHECK_WIDTH, VISUAL_CHECK_HEIGHT)
         hash_differences.append(_hamming_distance(previous_hash, current_hash))
         previous = current
@@ -304,6 +386,9 @@ def visual_near_duplicate_check(ffmpeg: str | None, path: Path) -> dict:
         "perceptualHashDifference": round(mean_hash_difference, 6),
         "nearIdenticalConsecutiveFrameCount": near_identical,
         "nearIdenticalConsecutiveFrameRate": round(near_identical / comparisons, 6),
+        "exactConsecutiveDuplicateCount": exact_duplicates,
+        "longestExactDuplicateRun": longest_exact_run,
+        "longestNearIdenticalRun": longest_near_run,
     }
 
 
@@ -926,11 +1011,10 @@ def format_report(root: Path, results: list[dict]) -> str:
     total_placeholder_frames = sum(_meta_int(m, "PlaceholderFrames") for m in metas)
     total_app_created_placeholder_frames = sum(app_created_placeholder_frames(m) for m in metas)
     total_writer_queue_drops = sum(_meta_int(m, "WriterQueueDrops") for m in metas)
-    timestamp_presence = [_meta_bool(m, "FrameTimestampCsvWritten", "frameTimestampCsvWritten") for m in metas if original_capture_mode(m)]
+    timestamp_presence = [_meta_bool(m, "FrameTimestampCsvWritten", "frameTimestampCsvWritten") for m in metas]
     timestamp_rows_match = [
         _meta_int(m, "FrameTimestampCsvRowCount", "frameTimestampCsvRowCount") == _meta_int(m, "FramesWritten", "FrameCount")
         for m in metas
-        if original_capture_mode(m)
     ]
     measured_values = [measured_camera_fps(m) for m in metas if measured_camera_fps(m) > 0]
     start_offsets = [_as_float(_meta_value(m, "InterCameraStartOffsetMs", default=0)) for m in metas]
@@ -1061,6 +1145,9 @@ def format_report(root: Path, results: list[dict]) -> str:
                 lines.append(f"    perceptualHashDifference: {visual.get('perceptualHashDifference')}")
                 lines.append(f"    visualNearIdenticalFrames: {visual.get('nearIdenticalConsecutiveFrameCount')}")
                 lines.append(f"    visualNearIdenticalFrameRate: {visual.get('nearIdenticalConsecutiveFrameRate')}")
+                lines.append(f"    exactConsecutiveDuplicateFrames: {visual.get('exactConsecutiveDuplicateCount')}")
+                lines.append(f"    longestExactDuplicateRun: {visual.get('longestExactDuplicateRun')}")
+                lines.append(f"    longestNearIdenticalRun: {visual.get('longestNearIdenticalRun')}")
                 app_duplicates = app_created_duplicate_frames(m)
                 if int(visual.get("nearIdenticalConsecutiveFrameCount") or 0) > 0 and app_duplicates == 0:
                     lines.append(
@@ -1304,6 +1391,8 @@ def write_csv_report(out: Path, results: list[dict]) -> None:
         "enable_visual_near_duplicate_check",
         "app_created_duplicate_frames", "app_created_placeholder_frames",
         "visual_near_identical_frames", "visual_near_identical_frame_rate",
+        "visual_exact_duplicate_frames", "visual_longest_exact_duplicate_run",
+        "visual_longest_near_identical_run",
         "mean_absolute_pixel_difference", "grayscale_difference_mean",
         "perceptual_hash_difference", "visual_frames_sampled",
     ]))
@@ -1372,6 +1461,9 @@ def write_csv_report(out: Path, results: list[dict]) -> None:
                 "enable_visual_near_duplicate_check": bool(visual.get("enabled")),
                 "visual_near_identical_frames": visual.get("nearIdenticalConsecutiveFrameCount", ""),
                 "visual_near_identical_frame_rate": visual.get("nearIdenticalConsecutiveFrameRate", ""),
+                "visual_exact_duplicate_frames": visual.get("exactConsecutiveDuplicateCount", ""),
+                "visual_longest_exact_duplicate_run": visual.get("longestExactDuplicateRun", ""),
+                "visual_longest_near_identical_run": visual.get("longestNearIdenticalRun", ""),
                 "mean_absolute_pixel_difference": visual.get("meanAbsolutePixelDifference", ""),
                 "grayscale_difference_mean": visual.get("grayscaleDifferenceMean", ""),
                 "perceptual_hash_difference": visual.get("perceptualHashDifference", ""),

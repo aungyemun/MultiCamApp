@@ -1,15 +1,16 @@
 ////////////////////////////////////////////////////
-/// STABLE_CORE_V1
-/// Validated in MultiCamApp v1.0.36 build 136.
+/// STABLE_CORE_V2
+/// Validated in MultiCamApp v2.0.0 build 333 (first stable release).
 /// Do not modify without documented regression testing.
-/// Protected: recording, metadata, verification, session comparison.
+/// Protected: VideoEngineV2 recording engine, native metadata, video verification, session comparison.
 ////////////////////////////////////////////////////
-// STABLE_CORE_V1 protected component — modification requires regression checklist; do not refactor casually.
+// STABLE_CORE_V2 protected component — modification requires regression checklist; do not refactor casually. See docs/STABLE_CORE_V2_FREEZE.md.
 
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
 using MultiCamApp.Core;
+using MultiCamApp.Localization;
 
 namespace MultiCamApp.Verification;
 
@@ -25,6 +26,10 @@ public sealed class VideoProbeService
 
     public string? MissingToolMessage =>
         "Video verification tool is missing. Please reinstall MultiCamApp or check runtime/ffmpeg.";
+
+    /// <summary>Localized form of <see cref="MissingToolMessage"/>; falls back to the English text.</summary>
+    public string GetMissingToolMessage(LanguageManager? language) =>
+        language?["verifyFfprobeMissing"] is { Length: > 0 } v ? v : MissingToolMessage!;
 
     public async Task<VideoProbeData> ProbeAsync(string filePath, CancellationToken cancellationToken = default)
     {

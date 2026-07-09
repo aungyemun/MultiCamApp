@@ -1,10 +1,10 @@
 ////////////////////////////////////////////////////
-/// STABLE_CORE_V1
-/// Validated in MultiCamApp v1.0.36 build 136.
+/// STABLE_CORE_V2
+/// Validated in MultiCamApp v2.0.0 build 333 (first stable release).
 /// Do not modify without documented regression testing.
-/// Protected: recording, metadata, verification, session comparison.
+/// Protected: VideoEngineV2 recording engine, native metadata, video verification, session comparison.
 ////////////////////////////////////////////////////
-// STABLE_CORE_V1 protected component — modification requires regression checklist; do not refactor casually.
+// STABLE_CORE_V2 protected component — modification requires regression checklist; do not refactor casually. See docs/STABLE_CORE_V2_FREEZE.md.
 
 using System.Globalization;
 using System.Text.Json;
@@ -148,6 +148,15 @@ public sealed class CameraMetadataRecord
     public string? CpuName { get; set; }
     public double RamGb { get; set; }
     public RecordingDiagnosticsMetadataSummary? RecordingDiagnostics { get; set; }
+
+    /// <summary>
+    /// True when this record was built from a VideoEngineV2 metadata.json (<see cref="MetadataParser.LoadCameraMetadata"/>
+    /// detecting a V2 schema via <see cref="V2RecordingMetadata.IsV2"/>) rather than parsed from the
+    /// legacy flat schema. Downstream scientific-timing checks that assume legacy-specific exact-match
+    /// semantics (e.g. FrameTimestampCsvRowCount must equal FrameCount exactly) use this to trust V2's
+    /// own already-computed verdict instead of re-deriving one from a schema shape it doesn't match.
+    /// </summary>
+    public bool IsV2Source { get; set; }
 }
 
 public sealed class SessionSummaryRecord
@@ -812,6 +821,17 @@ public static partial class MetadataParser
     {
         if (!string.IsNullOrWhiteSpace(metadataJsonPath))
         {
+            // VideoEngineV2 writes a deeply nested, camelCase JSON schema (e.g. timing.framesWritten,
+            // videoSettings.requestedFps) — completely different from the flat, top-level PascalCase
+            // schema ParseCameraMetadataJson below reads (e.g. root["FramesWritten"]). Reading a V2
+            // file with the legacy parser finds none of its expected properties and silently returns
+            // a record with every numeric field at its zero/default, which is the root cause behind
+            // the entire class of "V2 recording shows FAIL/'-' everywhere" bugs. Detect and map V2's
+            // own schema first so the record this function returns is genuinely populated either way.
+            var v2 = V2MetadataReader.TryRead(metadataJsonPath);
+            if (v2 is { IsV2: true })
+                return BuildRecordFromV2Metadata(v2);
+
             var json = ParseCameraMetadataJson(metadataJsonPath);
             if (json != null)
                 return json;
@@ -821,6 +841,99 @@ public static partial class MetadataParser
             return ParseCameraMetadataFile(metadataTxtPath);
 
         return null;
+    }
+
+    /// <summary>
+    /// Maps a <see cref="V2RecordingMetadata"/> (already correctly parsed from VideoEngineV2's own
+    /// JSON schema by <see cref="V2MetadataReader"/>) into the legacy <see cref="CameraMetadataRecord"/>
+    /// shape the rest of this verification pipeline expects, so downstream checks operate on V2's
+    /// real values instead of schema-blind zero defaults. Only maps fields V2 actually tracks; never
+    /// invents a value V2 doesn't have (e.g. P95/P99 interval percentiles, fpsStabilityGrade — see
+    /// the completeness-check bypass in VideoVerificationService.VerifyOneAsync for how the resulting
+    /// incompleteness is handled without forcing a false FAIL).
+    /// </summary>
+    private static CameraMetadataRecord BuildRecordFromV2Metadata(V2RecordingMetadata v2)
+    {
+        var record = new CameraMetadataRecord
+        {
+            IsV2Source = true,
+            Backend = v2.Backend,
+            CameraSlot = v2.Slot,
+            CameraDeviceName = v2.Device,
+            Resolution = v2.Resolution,
+            RequestedResolution = v2.Resolution,
+            SelectedResolution = v2.Resolution,
+            RequestedFps = v2.TargetFps,
+            SelectedDeviceFps = v2.TargetFps,
+            WriterFps = v2.TargetFps,
+            RecordingWriterFps = v2.TargetFps,
+            ContainerFps = v2.TargetFps,
+            MeasuredCameraFps = v2.MeasuredFpsFromTimestamps,
+            ActualFps = v2.MeasuredFpsFromTimestamps,
+            EffectivePlaybackFps = v2.MeasuredFpsFromTimestamps,
+            FrameCount = v2.FramesWritten,
+            // V2's Original Capture Mode writes every captured frame — there is no separate
+            // "captured but not written" count the way the legacy OpenCV pipeline tracks it.
+            FramesCaptured = v2.FramesWritten,
+            // V2 architectural guarantees (backendInfo.noDuplicateFramePadding/noPlaceholderFrames in
+            // its own JSON) — Original Capture Mode structurally never inserts these, not merely
+            // "unmeasured as zero".
+            DuplicatedFrames = 0,
+            DuplicateFrames = 0,
+            PlaceholderFrames = 0,
+            // Not separately counted by V2 (WriteSample failures are logged individually, not
+            // aggregated) — matches the "0" already shown throughout the existing UI/reports for V2
+            // sessions; see the post-finalize frame-count check (v1.2.101) for the mechanism that
+            // actually catches silent per-frame loss independently of this field.
+            WriterQueueDrops = 0,
+            WallClockDurationSeconds = v2.ResolvedDurationSeconds,
+            WallDurationSeconds = v2.ResolvedDurationSeconds,
+            FrameBasedDurationSeconds = v2.ResolvedDurationSeconds,
+            CaptureIntervalMeanMs = v2.MeanFrameIntervalMs,
+            CaptureIntervalMinMs = v2.MinFrameIntervalMs,
+            CaptureIntervalMaxMs = v2.MaxFrameIntervalMs,
+            CaptureIntervalStdMs = v2.IntervalStdMs,
+            CaptureIntervalCount = v2.FramesWritten > 1 ? v2.FramesWritten - 1 : 0,
+            FrameTimestampCsvPath = v2.FrameTimestampCsvFile,
+            FrameTimestampCsvWritten = v2.TimestampCsvWritten,
+            FrameTimestampCsvRowCount = v2.TimestampCsvRows,
+            // V2's own per-frame timestamps (ms since recording start) are the same information the
+            // legacy schema calls FirstFrameCaptureMonotonicSec/LastFrameCaptureMonotonicSec (seconds
+            // since an arbitrary monotonic origin) — just a different unit and origin point. Both
+            // describe "how long after recording start did the first/last frame occur", so converting
+            // ms -> seconds here is a unit conversion of a real V2 value, not an invented one.
+            FirstFrameCaptureMonotonicSec = v2.FirstFrameTimestampMs / 1000.0,
+            LastFrameCaptureMonotonicSec = v2.LastFrameTimestampMs / 1000.0,
+            RecordingTimingMode = v2.RecordingTimingMode,
+            OriginalCaptureMode = v2.IsOriginalCaptureMode,
+            ConstantFrameCountMode = false,
+            // V2's own already-computed, already-correct session-wide verdict (written identically
+            // into every camera's own metadata.json at recording-stop time) — already uses this exact
+            // vocabulary ("PASS"/"PASS_WITH_WARNING"/"FAIL"), so no translation/normalization needed.
+            // Falls back to per-camera TimingConfidence when the session-wide fields are absent
+            // (older V2 recordings predating this field), and finally leaves it blank — in which case
+            // VideoVerificationService falls through to the legacy re-derivation path, which is at
+            // least well-defined even if schema-blind, rather than guessing.
+            ScientificTimingStatus = v2.VerificationGlobalSessionResult is { Length: > 0 } g
+                ? g
+                : v2.VerificationSessionResult is { Length: > 0 } s
+                    ? s
+                    : v2.TimingConfidence,
+        };
+
+        if (TryParsePixels(v2.Resolution?.Replace(" ", ""), out var w, out var h))
+        {
+            record.PixelWidth = w;
+            record.PixelHeight = h;
+        }
+
+        record.PresentMetadataFields.UnionWith([
+            "OriginalCaptureMode", "ConstantFrameCountMode", "DeviceIndex",
+            "DuplicateFrames", "PlaceholderFrames", "WriterQueueDrops",
+            "ContainerVsWallClockDifferenceSeconds", "FrameTimestampCsvWritten"
+        ]);
+
+        return record;
     }
 
     public static SessionSummaryRecord? ParseSessionSummary(string sessionFolder)

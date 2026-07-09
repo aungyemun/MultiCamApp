@@ -20,10 +20,10 @@ public sealed class CameraCapabilityScanner
             ScanTimeLocal = DateTime.Now
         };
 
-        report.Notes.Add("Camera capability diagnostics are advisory only and do not block recording.");
-        report.Notes.Add("This scanner does not run a long stress test and avoids opening cameras by default.");
-        report.Notes.Add("Focus control support is reported as unavailable unless the camera/driver exposes it through generic controls without disturbing active camera use.");
-        report.Notes.Add("Hardware diagnostics are privacy-safe and do not store hardware IDs or user/computer identifiers.");
+        report.Notes.Add(DiagnosticsLocalization.T("hwDiagNoteCameraAdvisoryOnly", "Camera capability diagnostics are advisory only and do not block recording."));
+        report.Notes.Add(DiagnosticsLocalization.T("hwDiagNoteNoStressTest", "This scanner does not run a long stress test and avoids opening cameras by default."));
+        report.Notes.Add(DiagnosticsLocalization.T("hwDiagNoteFocusUnavailable", "Focus control support is reported as unavailable unless the camera/driver exposes it through generic controls without disturbing active camera use."));
+        report.Notes.Add(DiagnosticsLocalization.T("hwDiagPrivacyNote", "Hardware diagnostics are privacy-safe and do not store hardware IDs or user/computer identifiers."));
 
         foreach (var camera in cameras.OrderBy(c => c.EnumerationIndex))
         {
@@ -43,20 +43,20 @@ public sealed class CameraCapabilityScanner
                     RequestedFps = 30,
                     BackendUsed = "NotProbed",
                     Result = "Unknown",
-                    Warning = "Not probed to avoid locking cameras or disturbing driver mappings. Unknown does not mean unsupported."
+                    Warning = DiagnosticsLocalization.T("hwDiagWarnPresetNotProbed", "Not probed to avoid locking cameras or disturbing driver mappings. Unknown does not mean unsupported.")
                 });
             }
 
             if (camera.Kind == CameraKind.Virtual)
-                entry.Warnings.Add("Virtual camera detected. Availability depends on its provider app and whether another app has locked it.");
+                entry.Warnings.Add(DiagnosticsLocalization.T("hwDiagWarnVirtualCamera", "Virtual camera detected. Availability depends on its provider app and whether another app has locked it."));
             if (camera.IsBuiltIn)
-                entry.Warnings.Add("Built-in camera detected. Use 360p first; use 720p only if stable. Do not use built-in fallback for 1080p stress.");
+                entry.Warnings.Add(DiagnosticsLocalization.T("hwDiagWarnBuiltInCamera", "Built-in camera detected. Use 360p first; use 720p only if stable. Do not use built-in fallback for 1080p stress."));
 
             report.Cameras.Add(entry);
         }
 
         if (report.Cameras.Count == 0)
-            report.Warnings.Add("No cameras were available to scan.");
+            report.Warnings.Add(DiagnosticsLocalization.T("hwDiagWarnNoCamerasToScan", "No cameras were available to scan."));
 
         return report;
     }

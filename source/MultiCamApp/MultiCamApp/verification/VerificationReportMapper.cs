@@ -1,10 +1,10 @@
 ////////////////////////////////////////////////////
-/// STABLE_CORE_V1
-/// Validated in MultiCamApp v1.0.36 build 136.
+/// STABLE_CORE_V2
+/// Validated in MultiCamApp v2.0.0 build 333 (first stable release).
 /// Do not modify without documented regression testing.
-/// Protected: recording, metadata, verification, session comparison.
+/// Protected: VideoEngineV2 recording engine, native metadata, video verification, session comparison.
 ////////////////////////////////////////////////////
-// STABLE_CORE_V1 protected component — modification requires regression checklist; do not refactor casually.
+// STABLE_CORE_V2 protected component — modification requires regression checklist; do not refactor casually. See docs/STABLE_CORE_V2_FREEZE.md.
 
 using System.Text;
 using MultiCamApp.Capture;
@@ -219,16 +219,16 @@ public static class VerificationReportMapper
             sb.AppendLine($"  recordingTimingMode: {ResolveTimingMode(m)}");
             sb.AppendLine($"  originalCaptureMode: {m.OriginalCaptureMode}");
             if (m.OriginalCaptureMode)
-                sb.AppendLine($"  {OriginalCaptureAuditPolicy.SessionInterpretation}");
+                sb.AppendLine($"  {OriginalCaptureAuditPolicy.GetSessionInterpretation(lang)}");
             else
                 sb.AppendLine($"  constantFrameCountMode: {m.ConstantFrameCountMode}");
             sb.AppendLine($"  {T(lang, "metaFieldRequestedFps", "Requested FPS")}: {m.RequestedFps:F3}");
             sb.AppendLine($"  {T(lang, "metaFieldSelectedDeviceFps", "Selected device FPS")}: {m.SelectedDeviceFps:F3}");
             sb.AppendLine($"  {T(lang, "metaFieldWriterFps", "Writer FPS")}: {(m.WriterFps > 0 ? m.WriterFps : m.RecordingWriterFps):F3}");
-            sb.AppendLine($"  Playback FPS: {containerFps:F3}");
-            sb.AppendLine($"  Real Capture FPS: {measuredCameraFps:F3}");
-            sb.AppendLine($"  Scientific timing FPS: {measuredCameraFps:F3}");
-            sb.AppendLine($"  Scientific timing source: Timestamp CSV");
+            sb.AppendLine($"  {T(lang, "verifyDetailPlaybackFps", "Playback FPS")}: {containerFps:F3}");
+            sb.AppendLine($"  {T(lang, "verifyDetailRealCaptureFps", "Real Capture FPS")}: {measuredCameraFps:F3}");
+            sb.AppendLine($"  {T(lang, "metaFieldScientificTimingFps", "Scientific timing FPS")}: {measuredCameraFps:F3}");
+            sb.AppendLine($"  {T(lang, "verifyDetailScientificTimingSource", "Scientific timing source")}: {T(lang, "verifyTimestampCsvSource", "Timestamp CSV")}");
             sb.AppendLine($"  {T(lang, "metaFieldFrameBasedDuration", "Frame-based duration")}: {(v.FrameBasedDurationSeconds.HasValue ? $"{v.FrameBasedDurationSeconds.Value:F2}s" : "-")}");
             sb.AppendLine($"  {T(lang, "metaFieldContainerDuration", "Container duration")}: {(v.ContainerDurationSeconds.HasValue ? $"{v.ContainerDurationSeconds.Value:F2}s" : "-")}");
             sb.AppendLine($"  {T(lang, "metaFieldWallClockDuration", "Wall-clock duration")}: {(v.WallDurationSeconds.HasValue ? $"{v.WallDurationSeconds.Value:F2}s" : "-")}");
@@ -267,7 +267,7 @@ public static class VerificationReportMapper
             }
             sb.AppendLine($"  {T(lang, "metaFieldTimingStatus", "Timing status")}: {v.TimingStatusDisplay}");
             sb.AppendLine();
-            AppendRecordingResourceDiagnostics(sb, m);
+            AppendRecordingResourceDiagnostics(sb, m, lang);
         }
 
         sb.AppendLine($"{T(lang, "metaSectionComparison", "Comparison")}:");
@@ -510,7 +510,7 @@ public static class VerificationReportMapper
             lang,
             CaptureIntervalMetadataFormatter.FormatCount(intervalCount, unavailableMessage));
 
-    private static void AppendRecordingResourceDiagnostics(StringBuilder sb, CameraMetadataRecord meta)
+    private static void AppendRecordingResourceDiagnostics(StringBuilder sb, CameraMetadataRecord meta, LanguageManager? language = null)
     {
         var diag = meta.RecordingDiagnostics;
         var camera = diag?.Camera;
@@ -555,8 +555,8 @@ public static class VerificationReportMapper
             sb.AppendLine("  Focus warning: autofocus OFF was requested but not confirmed.");
         if (!string.IsNullOrWhiteSpace(meta.FocusWarning))
             sb.AppendLine($"  {meta.FocusWarning}");
-        sb.AppendLine("  Stable measured FPS below requested FPS is acceptable in Original Capture Mode when timestamps are recorded.");
-        sb.AppendLine($"  {OriginalCaptureVerificationPolicy.ContainerWallClockNote}");
+        sb.AppendLine($"  {(language != null ? language["verifyMsgStableFpsBelowRequested"] : "Stable measured FPS below requested FPS is acceptable in Original Capture Mode when timestamps are recorded.")}");
+        sb.AppendLine($"  {OriginalCaptureVerificationPolicy.GetContainerWallClockNote(language)}");
         sb.AppendLine();
         sb.AppendLine("Likely Bottleneck:");
         foreach (var note in RecordingDiagnosticsInterpreter.BuildLikelyBottlenecks(meta))

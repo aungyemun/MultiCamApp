@@ -27,15 +27,15 @@ public sealed class UsbTopologyScanner
 
         if (report.SelectedCameras.Count >= 3)
         {
-            report.Notes.Add("USB topology unavailable.");
+            report.Notes.Add(DiagnosticsLocalization.T("hwDiagUsbUnavailable", "USB topology unavailable."));
         }
         else
         {
-            report.Notes.Add("USB topology advisory is most useful for 3/4-camera layouts.");
+            report.Notes.Add(DiagnosticsLocalization.T("hwDiagUsbAdvisoryFor34Cam", "USB topology advisory is most useful for 3/4-camera layouts."));
         }
 
-        report.Notes.Add("USB topology diagnostics are advisory only and do not change selected devices, opening order, or recording behavior.");
-        report.Notes.Add("Hardware diagnostics are privacy-safe and do not store hardware IDs or user/computer identifiers.");
+        report.Notes.Add(DiagnosticsLocalization.T("hwDiagUsbAdvisoryOnlyNote", "USB topology diagnostics are advisory only and do not change selected devices, opening order, or recording behavior."));
+        report.Notes.Add(DiagnosticsLocalization.T("hwDiagPrivacyNote", "Hardware diagnostics are privacy-safe and do not store hardware IDs or user/computer identifiers."));
         return report;
     }
 

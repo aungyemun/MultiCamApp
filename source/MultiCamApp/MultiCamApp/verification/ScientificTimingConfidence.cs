@@ -1,3 +1,4 @@
+using MultiCamApp.Localization;
 using MultiCamApp.Metadata;
 
 namespace MultiCamApp.Verification;
@@ -13,6 +14,10 @@ public static class ScientificTimingConfidence
 
     public const string HighMessage =
         "Real frames only; no duplicates/placeholders. Use timestamp CSV for timing-sensitive analysis.";
+
+    /// <summary>Localized form of <see cref="HighMessage"/>; falls back to the English constant when no language is supplied.</summary>
+    public static string GetHighMessage(LanguageManager? language) =>
+        language?["verifyHighConfidenceMessage"] is { Length: > 0 } v ? v : HighMessage;
 
     public static string FromSessionVideos(IReadOnlyList<VideoVerificationResult> videos)
     {

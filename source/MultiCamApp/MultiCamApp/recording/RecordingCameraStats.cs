@@ -171,6 +171,14 @@ public sealed record RecordingCameraStats
     public string ExposureWarning { get; init; } = "";
     public string AutoWhiteBalanceStatus { get; init; } = "Unavailable";
     public string WhiteBalanceReadbackValue { get; init; } = "Unavailable";
+    public bool EnvironmentalLockActive { get; init; }
+    public bool FocusHardwareLocked { get; init; }
+    public uint FocusLockedAtSteps { get; init; }
+    public bool ExposureHardwareLocked { get; init; }
+    public double ExposureLockedAtSeconds { get; init; }
+    public bool WhiteBalanceHardwareLocked { get; init; }
+    public uint WhiteBalanceLockedAtK { get; init; }
+    public bool IsoHardwareLocked { get; init; }
 
     public TimeSpan MonotonicDuration => TimeSpan.FromSeconds(DurationSeconds);
 

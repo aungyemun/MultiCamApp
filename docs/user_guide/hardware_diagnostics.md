@@ -103,21 +103,22 @@ Hardware Diagnostics must not store:
 ## Preset Guidance
 
 - 1/2-camera: normal presets are allowed when cameras support the chosen resolution/FPS.
-- 3-camera: start with 360p, use 720p if stable, and use 1080p with bandwidth and driver warnings.
-- 4-camera: start with 360p.
-- Built-in fallback: use 360p first, 720p if stable, and do not use built-in fallback for 1080p stress.
+- 3-camera: start with 480p, use 720p if stable, and use 1080p with bandwidth and driver warnings.
+- 4-camera: start with 480p.
+- Built-in fallback: use 480p first, 720p if stable, and do not use built-in fallback for 1080p stress.
 - Generic external cameras: 720p/1080p is allowed if capability, USB bandwidth, drivers, CPU/GPU, and disk can sustain it.
 
 ## Deferred Items
 
 The following remain intentionally outside the Hardware Diagnostics page:
 
-- WPF preview renderer replacement.
 - Zero-copy or BackBuffer preview.
 - Full watchdog recovery.
 - Placeholder frame salvage mode.
 - Automatic per-camera stop/recovery.
-- GPU usage or hardware encoder switching.
+- GPU usage or hardware encoder switching controls (the page reports advisory driver/adapter info only; it does not expose live GPU usage metrics or let users switch encoders).
+
+**Note:** a GPU-accelerated preview renderer (Direct3D11 swap-chain rendering via `Vortice.Windows`, with automatic fallback to the WPF `WriteableBitmap` path) shipped starting v1.2.59 — this replaced the item formerly listed here as a deferred "WPF preview renderer replacement." It is a separate feature from this page and is not configured or reported here.
 
 Existing startup, first-frame, stop summary, frame count, queue-drop, and scientific timing diagnostics remain the primary recording health evidence.
 

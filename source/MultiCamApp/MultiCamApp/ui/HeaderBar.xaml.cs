@@ -39,6 +39,12 @@ public partial class HeaderBar : UserControl
         AboutButton.Content = aboutButtonText;
     }
 
+    public void SetLanguageLockEnabled(bool enabled, string? lockedTooltip = null)
+    {
+        LanguageBox.IsEnabled = enabled;
+        LanguageBox.ToolTip = enabled ? null : (object)(lockedTooltip ?? "Language cannot be changed during recording.");
+    }
+
     public void SyncLanguage(string code)
     {
         for (var i = 0; i < LanguageBox.Items.Count; i++)

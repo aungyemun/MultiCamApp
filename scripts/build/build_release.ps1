@@ -25,7 +25,7 @@ function Get-ProductVersion([string]$Path) {
 Write-Host "Publishing v$appVersion -> $stage (installer bundle, self-contained single-file apphost)..."
 if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $stage | Out-Null
-& $dotnet publish $proj -c Release -r win-x64 --self-contained true -p:Version=$appVersion -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=false -p:EnableCompressionInSingleFile=false -p:DebugType=None -p:DebugSymbols=false -o $stage
+& $dotnet publish $proj -c Release -r win-x64 --self-contained true -p:Version=$appVersion -p:InformationalVersion=$appVersion -p:IncludeSourceRevisionInInformationalVersion=false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=false -p:EnableCompressionInSingleFile=false -p:DebugType=None -p:DebugSymbols=false -o $stage
 
 $stageExe = Join-Path $stage "MultiCamApp.exe"
 if (-not (Test-Path $stageExe)) { Write-Error "MultiCamApp.exe not found in $stage" }
@@ -34,15 +34,12 @@ if ($stageVersion -ne $appVersion) {
     Write-Error "Staged MultiCamApp.exe version mismatch: exe=$stageVersion json=$appVersion"
 }
 
-$badCs = Join-Path $stage "localization\LanguageManager.cs"
-if (Test-Path $badCs) { Remove-Item $badCs -Force }
-
 $thirdPartyNotices = Join-Path $root "THIRD_PARTY_NOTICES.md"
 if (Test-Path $thirdPartyNotices) {
     Copy-Item $thirdPartyNotices (Join-Path $stage "THIRD_PARTY_NOTICES.md") -Force
 }
 
-Write-Host "Staging runtime tools (ffprobe for Video Verification)..."
+Write-Host "Staging runtime tools (ffprobe for Video Verification, ffmpeg for Deep Verify)..."
 & (Join-Path $PSScriptRoot "stage_dist_runtime.ps1") -Root $root -Dist $stage
 
 Write-Host "Mirroring clean staged bundle -> dist\ ..."
@@ -63,7 +60,7 @@ if ($distVersion -ne $appVersion) {
 Write-Host "Publishing dev launcher -> project root MultiCamApp.exe (not shipped in installer)..."
 if (Test-Path $rootStaging) { Remove-Item $rootStaging -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $rootStaging | Out-Null
-& $dotnet publish $launcherProj -c Release -r win-x64 --self-contained true -p:Version=$appVersion -o $rootStaging
+& $dotnet publish $launcherProj -c Release -r win-x64 --self-contained true -p:Version=$appVersion -p:InformationalVersion=$appVersion -p:SourceRevisionId="" -o $rootStaging
 $launcherBuilt = Get-ChildItem $rootStaging -Filter "*.exe" | Select-Object -First 1
 if (-not $launcherBuilt) { Write-Error "Launcher exe not found in $rootStaging" }
 Copy-Item $launcherBuilt.FullName $rootExe -Force

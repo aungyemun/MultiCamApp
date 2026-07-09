@@ -37,13 +37,16 @@ source\MultiCamApp\
   MultiCamApp\              main WPF application
     assets\                 icons and app assets
     capture\                camera discovery, OpenCV/WinRT preview, device mapping
+      video_engine_v2\      WinRT/MediaFoundation V2 engine (VideoEngineV2, CameraPipelineV2,
+                            FrameTimestampMonitor, VideoEngineSettings, capability probe, etc.)
     config\                 app/version defaults (appsettings.json, version.json, etc.)
     core\                   STABLE_CORE_V1 freeze marker and shared constants
     diagnostics\            startup, hardware, performance, and timing diagnostics
     experiment\             experiment mode logic (non-default, gated)
     localization\           embedded and content-copied localization strings (en, ja)
     metadata\               per-camera metadata writers and session summary writers
-    recording\              recording sessions, writers, diagnostics monitor, Timestamp CSV
+    recording\              recording sessions, diagnostics monitor, Timestamp CSV
+      writers\              per-camera frame and MP4 writer implementations
     ui\                     WPF views and view models
     utils\                  shared utility helpers (privacy sanitizer, path helpers, etc.)
     verification\           Video Verification service and audit policy logic

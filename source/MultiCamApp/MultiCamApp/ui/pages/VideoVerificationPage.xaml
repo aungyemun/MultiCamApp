@@ -76,15 +76,14 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="120"/>
+                <RowDefinition Height="160" MinHeight="120"/>
             </Grid.RowDefinitions>
 
         <!-- Toolbar -->
         <Border Grid.Row="0" Style="{StaticResource SectionCardStyle}" Margin="0,0,0,4" Padding="10">
             <StackPanel>
                 <TextBlock x:Name="PageTitle" Style="{StaticResource SectionTitleLayout}" Text="VIDEO VERIFICATION" Margin="0,0,0,4"/>
-                <TextBlock x:Name="PageSubtitle" Style="{StaticResource BodyText}" Margin="0,0,0,8" TextWrapping="Wrap" FontSize="13" Opacity="0.9"
-                           ToolTip="Stable actual FPS, accurate elapsed time, synchronized camera timing, and continuous frames are more important than exact nominal FPS."/>
+                <TextBlock x:Name="PageSubtitle" Style="{StaticResource BodyText}" Margin="0,0,0,8" TextWrapping="Wrap" FontSize="13" Opacity="0.9"/>
                 
                 <Grid Margin="0,0,0,6">
                     <Grid.ColumnDefinitions>
@@ -97,10 +96,10 @@
                                   SelectionChanged="VerificationProfileBox_SelectionChanged"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                        <CheckBox x:Name="AutoScanCheck" Content="Auto-scan enabled" IsChecked="True" 
+                        <CheckBox x:Name="AutoScanCheck" IsChecked="True"
                                   VerticalAlignment="Center" Foreground="{StaticResource AppSecondaryTextBrush}" Margin="0,0,12,0" FontSize="13"/>
                         <TextBox x:Name="SearchBox" Width="200" Style="{StaticResource InputTextBoxStyle}" Height="30"
-                                 Tag="Search files..." TextChanged="SearchBox_TextChanged"/>
+                                 TextChanged="SearchBox_TextChanged"/>
                     </StackPanel>
                 </Grid>
 
@@ -111,27 +110,30 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <TextBox x:Name="FolderBox" Grid.Column="0" Style="{StaticResource InputTextBoxStyle}" IsReadOnly="True" Height="30" TextChanged="FolderBox_TextChanged"/>
-                    <Button x:Name="BrowseFolderBtn" Grid.Column="1" Content="Browse…" Margin="8,0,0,0" MinWidth="72" Height="30"
+                    <Button x:Name="BrowseFolderBtn" Grid.Column="1" Margin="8,0,0,0" MinWidth="72" Height="30"
                             Style="{StaticResource NeutralButtonStyle}" Click="BrowseFolderBtn_Click"/>
                     <Button x:Name="ScanBtn" Grid.Column="2" Margin="8,0,0,0" MinWidth="72" Height="30"
                             Style="{StaticResource PreviewButtonStyle}" Click="ScanBtn_Click"/>
                     <Button x:Name="VerifyBtn" Grid.Column="3" Margin="8,0,0,0" MinWidth="72" Height="30"
                             Style="{StaticResource VerifyButtonStyle}" Click="VerifyBtn_Click"/>
                     <Button x:Name="VerifyAllBtn" Grid.Column="4" Margin="8,0,0,0" MinWidth="88" Height="30"
-                            Style="{StaticResource RecordStartButtonStyle}" Click="VerifyAllBtn_Click"/>
+                            Style="{StaticResource VerifyButtonStyle}" Click="VerifyAllBtn_Click"/>
+                    <Button x:Name="DeepVerifyBtn" Grid.Column="5" Margin="8,0,0,0" MinWidth="100" Height="30"
+                            Style="{StaticResource NeutralButtonStyle}" Click="DeepVerifyBtn_Click"/>
                 </Grid>
                 <WrapPanel Margin="0,0,0,2">
-                    <Button x:Name="ClearBtn" Content="Clear results" MinWidth="88" Margin="0,0,8,4" Height="28" FontSize="12"
+                    <Button x:Name="ClearBtn" MinWidth="88" Margin="0,0,8,4" Height="28" FontSize="12"
                             Style="{StaticResource NeutralButtonStyle}" Click="ClearBtn_Click"/>
-                    <Button x:Name="ExportTxtBtn" Content="Export TXT" MinWidth="88" Margin="0,0,8,4" Height="28" FontSize="12"
+                    <Button x:Name="ExportTxtBtn" MinWidth="88" Margin="0,0,8,4" Height="28" FontSize="12"
                             Style="{StaticResource NeutralButtonStyle}" Click="ExportTxtBtn_Click"/>
-                    <Button x:Name="ExportJsonBtn" Content="Export JSON" MinWidth="96" Margin="0,0,8,4" Height="28" FontSize="12"
+                    <Button x:Name="ExportJsonBtn" MinWidth="96" Margin="0,0,8,4" Height="28" FontSize="12"
                             Style="{StaticResource NeutralButtonStyle}" Click="ExportJsonBtn_Click"/>
-                    <Button x:Name="ExportCsvBtn" Content="Export CSV" MinWidth="88" Margin="0,0,8,4" Height="28" FontSize="12"
+                    <Button x:Name="ExportCsvBtn" MinWidth="88" Margin="0,0,8,4" Height="28" FontSize="12"
                             Style="{StaticResource NeutralButtonStyle}" Click="ExportCsvBtn_Click"/>
-                    <Button x:Name="ExportAllBtn" Content="Export all to folder" MinWidth="130" Margin="0,0,0,4" Height="28" FontSize="12"
+                    <Button x:Name="ExportAllBtn" MinWidth="130" Margin="0,0,0,4" Height="28" FontSize="12"
                             Style="{StaticResource NeutralButtonStyle}" Click="ExportAllBtn_Click"/>
                 </WrapPanel>
                 <StackPanel Orientation="Horizontal">
@@ -146,23 +148,20 @@
         <!-- Summary cards -->
         <Border Grid.Row="1" Style="{StaticResource SectionCardStyle}" Margin="0,0,0,4" Padding="8,6">
             <StackPanel>
-                <TextBlock Text="Stable timing and continuous real frames are required for scientific analysis."
-                           ToolTip="Stable actual FPS, accurate elapsed time, synchronized camera timing, and continuous frames are more important than exact nominal FPS."
+                <TextBlock x:Name="StableTimingNoteText"
                            Style="{StaticResource BodyText}" FontSize="13" TextWrapping="Wrap" Opacity="0.92" Margin="2,0,2,10"/>
                 <Border x:Name="OriginalCaptureExplanationBox" Background="#0B1220" BorderBrush="{StaticResource BorderBrushMain}"
                         BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="2,0,2,8">
-                    <TextBlock Style="{StaticResource BodyText}" FontSize="13" TextWrapping="Wrap" Opacity="0.95"
-                               Text="Original Capture Mode preserves real camera frames only. Frame counts may differ because cameras delivered real frames at different measured FPS. Real frames only; no duplicates/placeholders."/>
+                    <TextBlock x:Name="OriginalCaptureExplanationText" Style="{StaticResource BodyText}" FontSize="13" TextWrapping="Wrap" Opacity="0.95"/>
                 </Border>
                 <Border x:Name="ContainerDurationWarningBox" Background="#2A1F08" BorderBrush="#EAB308"
                         BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="2,0,2,8" Visibility="Collapsed">
-                    <TextBlock Style="{StaticResource BodyText}" FontSize="13" TextWrapping="Wrap" Foreground="#FDE68A"
-                               Text="Container duration differs from wall-clock time. Use timestamp CSV for scientific trimming and analysis."/>
+                    <TextBlock x:Name="ContainerDurationWarningText" Style="{StaticResource BodyText}" FontSize="13" TextWrapping="Wrap" Foreground="#FDE68A"/>
                 </Border>
                 <WrapPanel x:Name="SummaryCardsPanel">
                     <Border Style="{StaticResource SummaryGroupBorder}">
                         <StackPanel>
-                            <TextBlock Text="Verification Summary" Style="{StaticResource SummaryGroupTitle}"/>
+                            <TextBlock x:Name="VerificationSummaryGroupTitle" Style="{StaticResource SummaryGroupTitle}"/>
                             <WrapPanel>
                                 <Border Style="{StaticResource SummaryCardBorder}">
                                     <StackPanel>
@@ -200,7 +199,7 @@
 
                     <Border Style="{StaticResource SummaryGroupBorder}">
                         <StackPanel>
-                            <TextBlock Text="Timing Quality" Style="{StaticResource SummaryGroupTitle}"/>
+                            <TextBlock x:Name="TimingQualityGroupTitle" Style="{StaticResource SummaryGroupTitle}"/>
                             <WrapPanel>
                                 <Border Style="{StaticResource SummaryCardBorder}" MinWidth="150">
                                     <StackPanel>
@@ -222,21 +221,19 @@
                                 </Border>
                                 <Border Style="{StaticResource SummaryCardBorder}" MinWidth="170">
                                     <StackPanel>
-                                        <TextBlock Text="Scientific Timing Confidence" Style="{StaticResource SummaryCardLabel}"
-                                                   ToolTip="Stable actual FPS, accurate elapsed time, synchronized camera timing, and continuous frames are more important than exact nominal FPS."/>
-                                        <TextBlock x:Name="CardTimingConfidenceValue" Style="{StaticResource SummaryCardValue}"
-                                                   ToolTip="Stable actual FPS, accurate elapsed time, synchronized camera timing, and continuous frames are more important than exact nominal FPS."/>
+                                        <TextBlock x:Name="ScientificTimingConfidenceLabel" Style="{StaticResource SummaryCardLabel}"/>
+                                        <TextBlock x:Name="CardTimingConfidenceValue" Style="{StaticResource SummaryCardValue}"/>
                                     </StackPanel>
                                 </Border>
                                 <Border Style="{StaticResource SummaryCardBorder}" MinWidth="155">
                                     <StackPanel>
-                                        <TextBlock Text="Recording Mode" Style="{StaticResource SummaryCardLabel}"/>
+                                        <TextBlock x:Name="RecordingModeLabel" Style="{StaticResource SummaryCardLabel}"/>
                                         <TextBlock x:Name="CardTimingModeValue" Style="{StaticResource SummaryCardValue}"/>
                                     </StackPanel>
                                 </Border>
                                 <Border Style="{StaticResource SummaryCardBorder}" MinWidth="170">
                                     <StackPanel>
-                                        <TextBlock Text="Scientific Timing Source" Style="{StaticResource SummaryCardLabel}"/>
+                                        <TextBlock x:Name="ScientificTimingSourceLabel" Style="{StaticResource SummaryCardLabel}"/>
                                         <TextBlock x:Name="CardTrimSourceValue" Style="{StaticResource SummaryCardValue}" TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Border>
@@ -246,40 +243,76 @@
 
                     <Border Style="{StaticResource SummaryGroupBorder}">
                         <StackPanel>
-                            <TextBlock Text="Frame Integrity" Style="{StaticResource SummaryGroupTitle}"/>
+                            <TextBlock x:Name="FrameIntegrityGroupTitle" Style="{StaticResource SummaryGroupTitle}"/>
                             <WrapPanel>
                                 <Border Style="{StaticResource SummaryCardBorder}" MinWidth="145">
                                     <StackPanel>
-                                        <TextBlock Text="Frame Integrity" Style="{StaticResource SummaryCardLabel}"
-                                                   ToolTip="The app records real camera frames only. It does not insert duplicate or placeholder frames. Measured FPS, timestamps, frame counts, and diagnostics are saved in metadata and audit reports."/>
-                                        <TextBlock x:Name="CardOriginalFramesValue" Style="{StaticResource SummaryCardValue}"
-                                                   ToolTip="The app records real camera frames only. It does not insert duplicate or placeholder frames. Measured FPS, timestamps, frame counts, and diagnostics are saved in metadata and audit reports."/>
+                                        <TextBlock x:Name="FrameIntegrityLabel" Style="{StaticResource SummaryCardLabel}"/>
+                                        <TextBlock x:Name="CardOriginalFramesValue" Style="{StaticResource SummaryCardValue}"/>
                                     </StackPanel>
                                 </Border>
                                 <Border Style="{StaticResource SummaryCardBorder}">
                                     <StackPanel>
-                                        <TextBlock Text="Duplicate Frames" Style="{StaticResource SummaryCardLabel}"/>
+                                        <TextBlock x:Name="DuplicateFramesLabel" Style="{StaticResource SummaryCardLabel}"/>
                                         <TextBlock x:Name="CardDuplicateFramesValue" Style="{StaticResource SummaryCardValue}"/>
                                     </StackPanel>
                                 </Border>
                                 <Border Style="{StaticResource SummaryCardBorder}" MinWidth="145">
                                     <StackPanel>
-                                        <TextBlock Text="Placeholder Frames" Style="{StaticResource SummaryCardLabel}"/>
+                                        <TextBlock x:Name="PlaceholderFramesLabel" Style="{StaticResource SummaryCardLabel}"/>
                                         <TextBlock x:Name="CardPlaceholderFramesValue" Style="{StaticResource SummaryCardValue}"/>
                                     </StackPanel>
                                 </Border>
                                 <Border Style="{StaticResource SummaryCardBorder}" MinWidth="140">
                                     <StackPanel>
-                                        <TextBlock Text="Writer Drops" Style="{StaticResource SummaryCardLabel}"
-                                                   ToolTip="Frames that could not be written because the recording queue became full. Writer drops may affect scientific timing quality."/>
-                                        <TextBlock x:Name="CardQueueDropsValue" Style="{StaticResource SummaryCardValue}"
-                                                   ToolTip="Frames that could not be written because the recording queue became full. Writer drops may affect scientific timing quality."/>
+                                        <TextBlock x:Name="WriterDropsLabel" Style="{StaticResource SummaryCardLabel}"/>
+                                        <TextBlock x:Name="CardQueueDropsValue" Style="{StaticResource SummaryCardValue}"/>
                                     </StackPanel>
                                 </Border>
                                 <Border Style="{StaticResource SummaryCardBorder}" MinWidth="155">
                                     <StackPanel>
-                                        <TextBlock Text="Timestamp CSV Status" Style="{StaticResource SummaryCardLabel}"/>
+                                        <TextBlock x:Name="TimestampCsvStatusLabel" Style="{StaticResource SummaryCardLabel}"/>
                                         <TextBlock x:Name="CardTimestampCsvValue" Style="{StaticResource SummaryCardValue}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource SummaryCardBorder}" MinWidth="155">
+                                    <StackPanel>
+                                        <TextBlock x:Name="HardwareCalibrationLockLabel" Style="{StaticResource SummaryCardLabel}"/>
+                                        <TextBlock x:Name="CardEnvLockValue" Style="{StaticResource SummaryCardValue}"/>
+                                    </StackPanel>
+                                </Border>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource SummaryGroupBorder}">
+                        <StackPanel>
+                            <TextBlock x:Name="DeepVerifyGroupTitle" Style="{StaticResource SummaryGroupTitle}"/>
+                            <TextBlock x:Name="DeepVerifyExplanationText" Style="{StaticResource BodyText}"
+                                       FontSize="12" Opacity="0.85" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                            <WrapPanel>
+                                <Border Style="{StaticResource SummaryCardBorder}" MinWidth="130">
+                                    <StackPanel>
+                                        <TextBlock x:Name="DeepVerifyStatusLabel" Style="{StaticResource SummaryCardLabel}"/>
+                                        <TextBlock x:Name="CardDeepVerifyStatusValue" Style="{StaticResource SummaryCardValue}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource SummaryCardBorder}" MinWidth="120">
+                                    <StackPanel>
+                                        <TextBlock x:Name="DeepVerifyFilesLabel" Style="{StaticResource SummaryCardLabel}"/>
+                                        <TextBlock x:Name="CardDeepVerifyFilesValue" Style="{StaticResource SummaryCardValue}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource SummaryCardBorder}" MinWidth="150">
+                                    <StackPanel>
+                                        <TextBlock x:Name="DeepVerifyDuplicatesLabel" Style="{StaticResource SummaryCardLabel}"/>
+                                        <TextBlock x:Name="CardDeepVerifyDuplicatesValue" Style="{StaticResource SummaryCardValue}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource SummaryCardBorder}" MinWidth="200">
+                                    <StackPanel>
+                                        <TextBlock x:Name="DeepVerifyWorstFileLabel" Style="{StaticResource SummaryCardLabel}"/>
+                                        <TextBlock x:Name="CardDeepVerifyWorstFileValue" Style="{StaticResource SummaryCardValue}" TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Border>
                             </WrapPanel>
@@ -302,20 +335,21 @@
                 CornerRadius="6" Padding="6">
             <DockPanel LastChildFill="True">
                 <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="4,0,4,8" VerticalAlignment="Center">
-                    <TextBlock Text="Verification table:" Style="{StaticResource BodyText}" FontSize="12"
+                    <TextBlock x:Name="VerificationTableLabel" Style="{StaticResource BodyText}" FontSize="12"
                                VerticalAlignment="Center" Margin="0,0,10,0"/>
-                    <RadioButton x:Name="SimpleViewRadio" Content="Simple View" IsChecked="True"
+                    <RadioButton x:Name="SimpleViewRadio" IsChecked="True"
                                  GroupName="VerificationTableView" Foreground="{StaticResource AppForegroundBrush}"
                                  VerticalAlignment="Center" Margin="0,0,12,0"
                                  Checked="TableViewRadio_Checked"/>
-                    <RadioButton x:Name="DetailedViewRadio" Content="Detailed View"
+                    <RadioButton x:Name="DetailedViewRadio"
                                  GroupName="VerificationTableView" Foreground="{StaticResource AppForegroundBrush}"
                                  VerticalAlignment="Center" Margin="0,0,12,0"
                                  Checked="TableViewRadio_Checked"/>
                 </StackPanel>
                 <TextBlock x:Name="ScopeNoteText" DockPanel.Dock="Top" Style="{StaticResource BodyText}"
                            TextWrapping="Wrap" FontSize="12" Opacity="0.9" Margin="4,0,4,8"/>
-                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                <ScrollViewer x:Name="SessionResultsScrollViewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                              PreviewMouseWheel="SessionResultsScrollViewer_PreviewMouseWheel">
                     <ItemsControl x:Name="SessionResultsList"/>
                 </ScrollViewer>
             </DockPanel>
@@ -332,9 +366,14 @@
             </Border>
         </Grid>
 
-        <TextBlock x:Name="FfprobeWarning" Grid.Row="3" Style="{StaticResource BodyText}"
-                   Foreground="{StaticResource VerdictFailBrush}" TextWrapping="Wrap"
-                   Margin="0,0,0,4" Visibility="Collapsed" FontSize="12"/>
+        <StackPanel Grid.Row="3">
+            <TextBlock x:Name="FfprobeWarning" Style="{StaticResource BodyText}"
+                       Foreground="{StaticResource VerdictFailBrush}" TextWrapping="Wrap"
+                       Margin="0,0,0,4" Visibility="Collapsed" FontSize="12"/>
+            <TextBlock x:Name="FfmpegWarning" Style="{StaticResource BodyText}"
+                       Foreground="{StaticResource VerdictFailBrush}" TextWrapping="Wrap"
+                       Margin="0,0,0,4" Visibility="Collapsed" FontSize="12"/>
+        </StackPanel>
 
         <Border Grid.Row="4" Style="{StaticResource SectionCardStyle}" Padding="8,6" Margin="0">
             <DockPanel LastChildFill="True">
