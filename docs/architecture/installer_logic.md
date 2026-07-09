@@ -8,7 +8,7 @@ MultiCamApp uses a self-contained, offline-first Windows installation strategy. 
 
 Key components:
 
-- **Inno Setup 6:** Builds `Setup.exe`.
+- **Inno Setup 7:** Builds `Setup.exe`.
 - **VC++ Redistributable:** Bundled and installed silently because native camera/video components need it.
 - **OpenCV native runtime:** `OpenCvSharpExtern.dll` and related native video libraries.
 - **FFmpeg tools:** Bundled under `runtime\ffmpeg`; `ffprobe.exe` is used by Video Verification.
@@ -36,10 +36,12 @@ dist\
       ffprobe.exe
 
 installer\
-  Output\
-    Setup.exe
+  MultiCamApp_{version}_Setup.exe
+  installer.zip
   build_release_summary.txt
 ```
+
+`OutputDir` in `MultiCamApp.iss` is `.` — the compiled installer is written directly to `installer\`, not to an `Output\` subfolder, and is named `MultiCamApp_{version}_Setup.exe` (e.g. `MultiCamApp_2.0.1.334_Setup.exe`), not a bare `Setup.exe`.
 
 ## Installation Flow
 

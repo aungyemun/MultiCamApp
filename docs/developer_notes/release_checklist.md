@@ -5,8 +5,8 @@ Use before distributing MultiCamApp to end users.
 ## Build
 
 - [ ] Run `scripts\setup_tools.bat` on a clean dev machine (once)
-- [ ] Run `installer\build_release.bat` (publishes `dist\`, builds `installer\Setup.exe`, and validates the release)
-- [ ] Confirm `dist\MultiCamApp.exe`, `dist\runtime\ffmpeg\ffprobe.exe`, and `installer\Setup.exe` exist
+- [ ] Run `installer\build_release.bat` (publishes `dist\`, builds `installer\MultiCamApp_{version}_Setup.exe`, and validates the release)
+- [ ] Confirm `dist\MultiCamApp.exe`, `dist\runtime\ffmpeg\ffprobe.exe`, and `installer\MultiCamApp_{version}_Setup.exe` exist
 - [ ] Confirm `dist\config\version.json` contains the intended app version and build number
 
 ## Metadata and policy
@@ -20,7 +20,7 @@ Use before distributing MultiCamApp to end users.
 ## Signing (public release)
 
 - [ ] Set `MULTICAMAPP_SIGN_PFX` or `MULTICAMAPP_SIGN_THUMBPRINT`
-- [ ] `scripts\packaging\sign_release.ps1` signs `dist\MultiCamApp.exe`, key DLLs, and `installer\Setup.exe`
+- [ ] `scripts\packaging\sign_release.ps1` signs `dist\MultiCamApp.exe`, key DLLs, and `installer\MultiCamApp_{version}_Setup.exe`
 - [ ] Signature verifies as **Valid** on release machine
 
 ## Antivirus (build machine)
@@ -30,7 +30,7 @@ Use before distributing MultiCamApp to end users.
 
 ## Clean Windows test
 
-- [ ] Install via `installer\Setup.exe` (not raw folder copy)
+- [ ] Install via `installer\MultiCamApp_{version}_Setup.exe` (not raw folder copy)
 - [ ] Installer final verification reports PASS or WARNING, not false failure
 - [ ] Installer UX reviewed against general mature Windows installer behavior
 - [ ] Start Menu folder exists after install (MultiCamApp group)
@@ -69,6 +69,6 @@ Use before distributing MultiCamApp to end users.
 
 ## Distribution
 
-- [ ] Ship `installer\Setup.exe` or `installer\installer.zip` (signed for production)
+- [ ] Ship `installer\MultiCamApp_{version}_Setup.exe` or `installer\installer.zip` (signed for production)
 - [ ] Do **not** ask users to disable antivirus or add exclusions
 - [ ] Include `LICENSE.md` and version in About tab

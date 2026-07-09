@@ -46,14 +46,19 @@ if (-not $signtool) {
     return
 }
 
-$setupExe = Join-Path $Root "installer\Setup.exe"
-$legacySetup = Join-Path $Root "installer\setup.exe"
 $targets = @(
     (Join-Path $Root "dist\MultiCamApp.exe")
 ) | Where-Object { Test-Path $_ }
 
-if (Test-Path $setupExe) { $targets += $setupExe }
-elseif (Test-Path $legacySetup) { $targets += $legacySetup }
+# The build (installer\MultiCamApp.iss, OutputBaseFilename) always names the compiled installer
+# MultiCamApp_{version}_Setup.exe (e.g. MultiCamApp_2.0.1.334_Setup.exe) — a literal "Setup.exe"
+# or "setup.exe" has never existed in the actual build output, so signing would previously have
+# silently skipped the installer executable entirely once a certificate was configured.
+$installerDir = Join-Path $Root "installer"
+$setupExe = if (Test-Path $installerDir) {
+    Get-ChildItem $installerDir -Filter "*_Setup.exe" -File | Select-Object -First 1 -ExpandProperty FullName
+} else { $null }
+if ($setupExe) { $targets += $setupExe }
 
 $distDir = Join-Path $Root "dist"
 if (Test-Path $distDir) {
