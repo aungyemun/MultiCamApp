@@ -2,11 +2,11 @@
 ; Fully offline, self-contained bundle. Supports in-place upgrade without manual uninstall.
 #define AppName "MultiCamApp"
 #ifndef AppVersion
-#define AppVersion "2.0.2"
+#define AppVersion "2.0.3"
 #endif
 #define AppPublisher "Aung Ye Mun"
 ; Numeric-only version for Windows VersionInfoVersion (no alpha/beta suffix allowed)
-#define AppVersionNumeric "2.0.2.335"
+#define AppVersionNumeric "2.0.3.336"
 #define AppExeName "MultiCamApp.exe"
 #ifndef PublishDir
 #define PublishDir "..\dist"
@@ -74,10 +74,10 @@ Source: "{#LicenseFile}"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: igno
 Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "run_external4_preview_stress.bat,*.pdb,*.pyc,*.cache,*.tmp,*.bak,*.log,*.user,*.orig,*.mp4,*.avi,*.mov,*.mkv,*.wmv,*.webm,*.m4v,logs,backup_before_update,user_settings,config_user,debug,test,tests,tmp,temp,__pycache__"
 
 [Icons]
-Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#AppExeName}"
-Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"; IconFilename: "{app}\{#AppExeName}"
-Name: "{group}\{#AppName} Diagnostic Launch"; Filename: "{app}\runtime\run_app_debug.bat"; WorkingDir: "{app}"; IconFilename: "{app}\{#AppExeName}"
-Name: "{group}\{#AppName} Offline Diagnostic"; Filename: "{app}\runtime\run_offline_diagnostic.bat"; WorkingDir: "{app}"; IconFilename: "{app}\{#AppExeName}"
+Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#AppExeName}"; Tasks: startmenuicon
+Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"; IconFilename: "{app}\{#AppExeName}"; Tasks: startmenuicon
+Name: "{group}\{#AppName} Diagnostic Launch"; Filename: "{app}\runtime\run_app_debug.bat"; WorkingDir: "{app}"; IconFilename: "{app}\{#AppExeName}"; Tasks: startmenuicon
+Name: "{group}\{#AppName} Offline Diagnostic"; Filename: "{app}\runtime\run_offline_diagnostic.bat"; WorkingDir: "{app}"; IconFilename: "{app}\{#AppExeName}"; Tasks: startmenuicon
 Name: "{userdesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#AppExeName}"; Tasks: desktopicon; BeforeInstall: RemoveExistingDesktopShortcuts
 
 [Run]
@@ -116,12 +116,11 @@ Type: files; Name: "{app}\{#AppExeName}"; Check: IsUpgradeInstall
 Type: files; Name: "{app}\createdump.exe"; Check: IsUpgradeInstall
 
 [UninstallDelete]
-Type: filesandordirs; Name: "{app}\*.dll"
-Type: filesandordirs; Name: "{app}\*.exe"
-Type: filesandordirs; Name: "{app}\*.json"
-Type: filesandordirs; Name: "{app}\runtime"
-Type: filesandordirs; Name: "{app}\logs"
-Type: dirifempty; Name: "{app}"
+; Full removal: the entire app folder (all files and subfolders) is deleted recursively,
+; including the folder itself. Recorded videos are never stored under {app} — they default
+; to %USERPROFILE%\Videos or a user-chosen folder (see OutputFolderManager) — so this cannot
+; touch user recordings, regardless of where the user pointed the output folder.
+Type: filesandordirs; Name: "{app}"
 
 [Code]
 var
@@ -134,10 +133,12 @@ var
 
 function FinalChecksPass(): Boolean; forward;
 function IsVCRedistSuccess(Code: Integer): Boolean; forward;
+function IsVCRedistAlreadyInstalled(): Boolean; forward;
 procedure RunVCRedistBeforeRuntime(); forward;
 function ShouldRunRuntimeSetup(): Boolean; forward;
 function ReadRuntimeSetupExitCode(): Integer; forward;
 procedure RemoveExistingDesktopShortcuts(); forward;
+procedure RemoveExistingStartMenuGroup(); forward;
 
 procedure RemoveExistingDesktopShortcuts();
 var
@@ -150,6 +151,17 @@ begin
   ShortcutPath := ExpandConstant('{commondesktop}\{#AppName}.lnk');
   if FileExists(ShortcutPath) then
     DeleteFile(ShortcutPath);
+end;
+
+procedure RemoveExistingStartMenuGroup();
+var
+  GroupDir: string;
+begin
+  { Called only when the startmenuicon task is not selected, so a deselected
+    upgrade doesn't leave stale/broken Start Menu shortcuts from a prior install. }
+  GroupDir := ExpandConstant('{group}');
+  if DirExists(GroupDir) then
+    DelTree(GroupDir, True, True, True);
 end;
 
 procedure AppendToFile(const LogPath, Text: string);
@@ -366,6 +378,12 @@ procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssInstall then
   begin
+    { Always clear any shortcut from a prior install first. The [Icons] entries
+      below will recreate them only if their task is currently selected, so a
+      deselected task on an upgrade doesn't leave a stale/broken shortcut behind. }
+    RemoveExistingDesktopShortcuts();
+    if not WizardIsTaskSelected('startmenuicon') then
+      RemoveExistingStartMenuGroup();
     if UpgradeMode then
       AppendToUpdateLog('Copying new version {#AppVersion} files...');
   end
@@ -383,12 +401,31 @@ begin
   Result := (Code = 0) or (Code = 3010) or (Code = 1638);
 end;
 
+function IsVCRedistAlreadyInstalled(): Boolean;
+var
+  InstalledValue: Cardinal;
+begin
+  { VC++ 2015-2022 x64 runtime registers this key/value when present. Checking it
+    up front avoids launching the ~25 MB bootstrapper at all on machines that
+    already have an equal or newer runtime (no duplicate install). }
+  Result := False;
+  if RegQueryDWordValue(HKLM64, 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\X64', 'Installed', InstalledValue) then
+    Result := (InstalledValue = 1);
+end;
+
 procedure RunVCRedistBeforeRuntime();
 var
   ResultCode: Integer;
 begin
   if not EnsureInstallLogDir() then
     Exit;
+  if IsVCRedistAlreadyInstalled() then
+  begin
+    VCRedistExitCode := 1638;
+    AppendToInstallLog('VC++ Redistributable already installed (registry check); skipping duplicate install.');
+    AppendToUpdateLog('VC++ Redistributable already installed (registry check); skipping duplicate install.');
+    Exit;
+  end;
   if not FileExists(ExpandConstant('{tmp}\vc_redist.x64.exe')) then
   begin
     VCRedistExitCode := 0;

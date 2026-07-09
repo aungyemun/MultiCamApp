@@ -88,7 +88,7 @@ public sealed class VideoEngineRegistry : IDisposable
         return new BackendMetadata
         {
             RecordingBackend               = BackendIds.VideoEngineV2Stable,
-            BackendVersion                 = "2.0.2",
+            BackendVersion                 = "2.0.3",
             BackendMode                    = "Stable",
             BackendFallbackUsed            = false,
             BackendFallbackReason          = "",

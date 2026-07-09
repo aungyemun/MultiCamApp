@@ -45,13 +45,17 @@ installer\
 
 ## Installation Flow
 
-1. **Wizard initialization:** Shows the license flow and install location.
-2. **VC++ runtime:** Extracts and runs `vc_redist.x64.exe /quiet /norestart`, then logs the result.
-3. **File extraction:** Installs the app executable, native DLLs, config, localization, and runtime tools.
-4. **Runtime setup:** Runs `setup_runtime.bat` to verify OpenCV and FFmpeg files.
-5. **Final validation:** Confirms `MultiCamApp.exe`, critical native DLLs, `ffprobe.exe`, and runtime logs. Then runs `MultiCamApp.exe --smoke-test`.
+1. **Wizard initialization:** Shows the license flow and install location. If an existing install is detected at the target folder, the wizard shows an upgrade notice on the Ready page.
+2. **Upgrade cleanup (upgrade only):** Backs up `config\version.json`, `appsettings.json`, and installer logs to `{app}\backup_before_update\<timestamp>\`, then removes the previous version's managed folders/files (`[InstallDelete]`) before new files are copied. Logs, `backup_before_update\`, `user_settings\`, `config_user\`, and any video files are preserved.
+3. **VC++ runtime:** Checks the registry (`HKLM64\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\X64`, `Installed`) for an existing VC++ 2015-2022 x64 runtime first. If already present, the bundled `vc_redist.x64.exe` is **not launched at all** (no duplicate install). Otherwise it runs `vc_redist.x64.exe /quiet /norestart` and logs the result (exit 1638 = already installed, also treated as success).
+4. **File extraction:** Installs the app executable, native DLLs, config, localization, and runtime tools.
+5. **Shortcuts:** Any existing Desktop shortcut is always removed first, then recreated only if the `desktopicon` task is selected. If the `startmenuicon` task is deselected, any pre-existing Start Menu group is removed; otherwise its shortcuts (app, uninstaller, diagnostic launchers) are (re)created — so upgrading always leaves shortcuts consistent with the currently selected tasks, never a stale/broken leftover from a prior version.
+6. **Runtime setup:** Runs `setup_runtime.bat` to verify OpenCV and FFmpeg files.
+7. **Final validation:** Confirms `MultiCamApp.exe`, critical native DLLs, `ffprobe.exe`/`ffmpeg.exe`, and runtime logs. Then runs `MultiCamApp.exe --smoke-test`.
 
 The installer should wait for runtime setup and validation before showing success. Shortcuts should target `{app}\MultiCamApp.exe` and use `{app}` as the working directory.
+
+No other system-level installer runs alongside Setup.exe — the .NET 8 runtime is bundled into the self-contained app (no separate .NET install), and the VC++ Redistributable above is the only external runtime dependency.
 
 ## Installed Components
 
@@ -88,19 +92,16 @@ Common causes:
 
 ## Uninstallation
 
-Uninstallation is user-data safe.
+Uninstallation is user-data safe: the entire `{app}` install folder is removed recursively (`[UninstallDelete]`: `Type: filesandordirs; Name: "{app}"`), including the folder itself, plus the Start Menu group and Desktop shortcut.
 
 Removed:
 
-- App binaries and native DLLs
-- Bundled runtime tools
-- App shortcuts
-- App-local logs
+- Every file and subfolder under the install folder — app binaries, native DLLs, config, localization, bundled runtime tools, logs, and the install folder itself
+- App shortcuts (Desktop and Start Menu)
 
 Preserved:
 
-- Recorded videos
-- Recording session folders
+- Recorded videos and recording session folders (default `%USERPROFILE%\Videos`, or a user-chosen folder — see `OutputFolderManager.ResolveBaseFolder`/`PathHelper.DefaultVideosFolder`, never under `{app}`)
 - Exported CSV/JSON/TXT reports
 - User project folders
 

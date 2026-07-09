@@ -2,6 +2,30 @@
 
 All notable changes to MultiCamApp will be documented in this file.
 
+## [v2.0.3] - 2026-07-10 (build 336)
+
+> **User asked for a full audit of `installer/MultiCamApp.iss` against seven specific installer-behavior requirements**: skip the VC++ Redistributable install if already present (no duplicate install) and keep it updated; check whether any other runtime `.exe` is needed; clean-replace old files/folders on upgrade; replace Desktop/Start Menu shortcuts on upgrade; only create the Desktop shortcut if its task is selected; default the Start Menu task to checked but keep it deselectable; ship an uninstaller in the Start Menu that fully removes the app (including its own folder) without touching user video folders.
+>
+> Read the full 673-line `.iss` script end-to-end against each requirement. Most of the upgrade-cleanup/backup logic already existed and was sound. Found and fixed four real gaps:
+>
+> 1. **VC++ Redistributable launched unconditionally.** It relied on the bootstrapper's own exit code (1638) to detect "already installed" — functionally correct but always spent a few seconds launching the ~25 MB bootstrapper even when unnecessary. Added an explicit registry check (`HKLM64\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\X64`, `Installed`) so `RunVCRedistBeforeRuntime` now skips launching it at all when an equal/newer runtime is already present. Also downloaded the current `aka.ms/vs/17/release/vc_redist.x64.exe` and diffed it against the bundled copy — byte-identical (same SHA256), so no binary refresh was needed.
+> 2. **Start Menu shortcuts were never gated by their own task.** The `[Icons]` entries for the app, uninstaller, and diagnostic-launcher shortcuts had no `Tasks:` filter at all, so deselecting "Create Start Menu shortcuts" in the wizard did nothing — they were created every time regardless. Added `Tasks: startmenuicon` to all four group entries.
+> 3. **Orphaned shortcuts on a deselected upgrade.** If a shortcut task was deselected on an upgrade, the old shortcut from the prior install was never removed (it was only ever removed as part of recreating it, which is skipped when the task is off). Added an unconditional `RemoveExistingDesktopShortcuts` call plus a new `RemoveExistingStartMenuGroup` (removes `{group}` when `startmenuicon` is deselected) in `CurStepChanged(ssInstall)`, so shortcuts always end up consistent with the currently selected tasks.
+> 4. **Uninstall left most of the app folder behind.** `[UninstallDelete]` only removed top-level `*.dll`/`*.exe`/`*.json` plus `runtime\` and `logs\`, then tried `dirifempty` on `{app}` — but config, localization, assets, `lib`, `platform`, `resources`, the .NET satellite-resource locale folders, `tools`, `scripts`, `_internal`, and the upgrade-backup folders were never listed, so the install folder was never actually empty and never got removed. Replaced the whole section with a single recursive `Type: filesandordirs; Name: "{app}"`, which fully removes the folder and everything in it. Confirmed safe: recordings default to `%USERPROFILE%\Videos` (or wherever the user pointed the output folder) via `OutputFolderManager`/`PathHelper.DefaultVideosFolder` — never under `{app}` — so this cannot delete user recordings.
+>
+> Also confirmed: no other system-level installer is needed alongside `vc_redist.x64.exe` — the app is a self-contained .NET 8 single-file publish, so no separate .NET runtime install is required.
+>
+> Updated `docs/architecture/installer_logic.md`'s Installation Flow and Uninstallation sections and `INSTALLATION.md`'s End-User Installation/Uninstallation sections to describe the corrected behavior accurately, and fixed a stale `installer\Setup.exe` example path in `INSTALLATION.md` (should be `installer\MultiCamApp_{version}_Setup.exe`, matching the same fix already made elsewhere this session).
+
+### Fixed
+* **`installer/MultiCamApp.iss`** — VC++ Redistributable now skipped via registry check when already installed; Start Menu shortcuts now correctly gated by the `startmenuicon` task; Desktop/Start Menu shortcuts are cleared before reinstall so a deselected task never leaves an orphaned shortcut; uninstall now fully removes the entire app folder instead of leaving several subfolders behind.
+
+### Changed
+* **`docs/architecture/installer_logic.md`, `INSTALLATION.md`** — Installation Flow / Uninstallation sections rewritten to match the corrected installer behavior; stale `installer\Setup.exe` path fixed in `INSTALLATION.md`.
+
+### Tests
+* Updated `BackendVersion` constant (`VideoEngineRegistry.cs`) and its test assertion to `2.0.3`. 295 tests passing (unchanged baseline). Installer changes verified via a full ISCC compile (`MultiCamApp_2.0.3.336_Setup.exe`, successful).
+
 ## [v2.0.2] - 2026-07-10 (build 335)
 
 > **User was running the actual v2.0.1.334 Setup.exe and asked me to check the installer's License Agreement page for staleness.** Traced `docs/license/LICENSE.txt` (fixed for its stale v1.1.0 citation in an earlier pass this session) and discovered it is not just a repo documentation file — `MultiCamApp.iss` uses it directly as `LicenseFile` (compiled into the installer's License Agreement wizard page) and also copies it into the installed app folder as `LICENSE.txt`. That earlier fix was treated as "documentation-only, no rebuild needed" at the time, which was wrong for this specific file: the already-built and already-shared v2.0.1.334 `Setup.exe` still had the old, stale citation baked into its License Agreement page, since it was compiled before the fix.

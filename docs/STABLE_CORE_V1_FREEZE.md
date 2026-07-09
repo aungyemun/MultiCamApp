@@ -12,7 +12,7 @@
 
 **Freeze name:** `STABLE_CORE_V1`  
 **Original freeze version:** MultiCamApp **v1.0.36** (build **136**), 2026-06-11  
-**Current app release:** MultiCamApp **v2.0.2** (build **335**, Stable), 2026-07-10 — see FREEZE LIFTED note above; post-freeze exceptions below remain the historical record of changes made while still frozen  
+**Current app release:** MultiCamApp **v2.0.3** (build **336**, Stable), 2026-07-10 — see FREEZE LIFTED note above; post-freeze exceptions below remain the historical record of changes made while still frozen  
 **Lock file:** `STABLE_CORE_V1.lock` — referenced historically; does not exist in this repo and is not required (gitignored, machine-local marker only)  
 **Compile marker:** `core/StableCoreV1.cs`
 

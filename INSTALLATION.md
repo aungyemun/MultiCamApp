@@ -26,13 +26,15 @@ The installer is the recommended release artifact. It includes the app bundle, n
 
 Setup.exe does the following:
 
-1. Installs or verifies the VC++ Runtime from the bundled `vc_redist.x64.exe`.
+1. Checks the registry for an existing VC++ 2015-2022 x64 runtime; if one is already installed, the bundled `vc_redist.x64.exe` is skipped entirely (no duplicate install). Otherwise it runs silently (`/quiet /norestart`).
 2. Copies the self-contained `MultiCamApp.exe` app bundle and required native DLLs.
-3. Copies `runtime\ffmpeg\ffprobe.exe` for offline Video Verification.
+3. Copies `runtime\ffmpeg\ffprobe.exe` and `ffmpeg.exe` for offline Video Verification / Deep Verify.
 4. Copies config, localization, icons, license, and third-party notices.
 5. Runs `runtime\setup_runtime.bat`.
 6. Runs `MultiCamApp.exe --smoke-test` for offline compatibility validation.
-7. Creates Desktop and Start Menu shortcuts.
+7. Creates a Desktop shortcut only if the "Create a Desktop shortcut" task is checked; creates Start Menu shortcuts (including the uninstaller) only if "Create Start Menu shortcuts" is checked (checked by default, deselectable).
+
+Upgrading over an existing installation removes the previous version's application files first, then installs the new version, and replaces the Desktop/Start Menu shortcuts (or removes them if their task is now deselected). Recorded videos, exported reports, and user settings backups are never touched by this process.
 
 No internet connection is required during installation or normal app use.
 
@@ -42,14 +44,12 @@ Use **Uninstall MultiCamApp** from the Start Menu or Windows Control Panel.
 
 Removed:
 
-- Application executable and native DLLs
-- Bundled runtime tools
-- App shortcuts
-- App-local logs
+- The entire application install folder, including all application executables, DLLs, config, localization, and bundled runtime tools
+- Desktop and Start Menu shortcuts
 
 Preserved:
 
-- Recorded videos
+- Recorded videos (default `%USERPROFILE%\Videos`, or wherever the user pointed the output folder — never inside the install folder)
 - Recording session folders
 - Exported CSV/JSON/TXT reports
 - User project folders
@@ -148,7 +148,7 @@ dist\MultiCamApp.exe
 dist\OpenCvSharpExtern.dll
 dist\opencv_videoio_ffmpeg4100_64.dll
 dist\runtime\ffmpeg\ffprobe.exe
-installer\Setup.exe
+installer\MultiCamApp_{version}_Setup.exe
 installer\build_release_summary.txt
 ```
 
@@ -189,7 +189,7 @@ Do not ask users to disable antivirus. If a tool flags the app, verify signature
 
 If you use MultiCamApp in research, education, or published work, please cite:
 
-Mun AY, Koketsu S. **MultiCamApp: Offline multi-camera recording, metadata capture, and video verification platform for research and educational workflows.** Version v2.0.2. 2026.
+Mun AY, Koketsu S. **MultiCamApp: Offline multi-camera recording, metadata capture, and video verification platform for research and educational workflows.** Version v2.0.3. 2026.
 
 ## Attribution
 
