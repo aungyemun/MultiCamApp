@@ -41,7 +41,7 @@ installer\
   build_release_summary.txt
 ```
 
-`OutputDir` in `MultiCamApp.iss` is `.` — the compiled installer is written directly to `installer\`, not to an `Output\` subfolder, and is named `MultiCamApp_{version}_Setup.exe` (e.g. `MultiCamApp_2.0.1.334_Setup.exe`), not a bare `Setup.exe`.
+`OutputDir` in `MultiCamApp.iss` is `.` — the compiled installer is written directly to `installer\`, not to an `Output\` subfolder, and is named `MultiCamApp_{version}_Setup.exe` (e.g. `MultiCamApp_2.0.5.338_Setup.exe`), not a bare `Setup.exe`.
 
 ## Installation Flow
 
