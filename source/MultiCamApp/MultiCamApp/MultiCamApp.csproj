@@ -12,9 +12,9 @@
     <ApplicationTitle>MultiCamApp</ApplicationTitle>
     <AssemblyName>MultiCamApp</AssemblyName>
     <ApplicationIcon>assets\icons\MultiCamApp.ico</ApplicationIcon>
-    <Version>2.0.4</Version>
-    <FileVersion>2.0.4.337</FileVersion>
-    <InformationalVersion>2.0.4</InformationalVersion>
+    <Version>2.0.5</Version>
+    <FileVersion>2.0.5.338</FileVersion>
+    <InformationalVersion>2.0.5</InformationalVersion>
     <Product>MultiCamApp</Product>
     <ProductName>MultiCamApp</ProductName>
     <Company>Aung Ye Mun</Company>

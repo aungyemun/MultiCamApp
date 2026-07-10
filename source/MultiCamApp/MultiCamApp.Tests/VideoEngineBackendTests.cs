@@ -58,7 +58,7 @@ public sealed class VideoEngineBackendTests
         var meta   = registry.BuildMetadata(result, measuredRealFps: 29.68, previewMeasuredFps: 15.0, previewTargetFps: 30.0);
 
         Assert.Equal(BackendIds.VideoEngineV2Stable, meta.RecordingBackend);
-        Assert.Equal("2.0.4",                        meta.BackendVersion);
+        Assert.Equal("2.0.5",                        meta.BackendVersion);
         Assert.Equal("Stable",                       meta.BackendMode);
         Assert.False(meta.BackendFallbackUsed);
         Assert.Equal("",                             meta.BackendFallbackReason);

@@ -2,6 +2,43 @@
 
 All notable changes to MultiCamApp will be documented in this file.
 
+## [v2.0.5] - 2026-07-10 (build 338)
+
+> **User re-ran the actual v2.0.4.337 `Setup.exe` on the same machine used for development** (not a different tester's PC this time — the install target, `C:\Users\<user>\AppData\Local\Programs\MultiCamApp`, was directly readable) and reported the same "installation did not complete correctly" error. Because the install target was directly accessible, `logs\install_update.log` could be read directly instead of relying on a screenshot — this is what actually cracked the case.
+>
+> The log showed the VC++ Redistributable step now succeeding ("VC++ Redistributable already installed (registry check); skipping duplicate install." / "OK") — the v2.0.4 elevation fix works. The real failures were:
+> ```
+> FAIL: run_offline_diagnostic.bat missing
+> FAIL: runtime_initialized.flag missing
+> FAIL: runtime_paths.env missing
+> FAIL: config\version.json does not match installer version 2.0.4.337
+> FAIL: runtime_setup.log missing
+> ```
+>
+> **Root cause #1 — `runtime\setup_runtime.bat`, `run_app_debug.bat`, `run_offline_diagnostic.bat` never existed.** Confirmed via `git log --all` against the GitHub clone: zero history, never committed, ever. `installer/MultiCamApp.iss`'s `[Run]` entry, two `[Icons]` shortcuts, and `FinalChecksPass`'s hard-fail checks have referenced these three files for an unknown number of past releases, but the actual scripts were never authored (or were deleted at some point with no record) — `scripts/build/stage_dist_runtime.ps1` treats them as *optional* (`if (Test-Path $srcSetup) { Copy-Item ... }`), silently no-op'ing when absent, which is why the build never errored even though the installer validation hard-requires them. Authored all three from scratch:
+>   - `runtime/setup_runtime.bat` — verifies bundled `ffprobe.exe`/`ffmpeg.exe`, writes `runtime_initialized.flag`, `runtime_paths.env`, and `logs\runtime_setup.log`/`runtime_setup_exit.txt`.
+>   - `runtime/run_app_debug.bat`, `runtime/run_offline_diagnostic.bat` — Start Menu launcher scripts with a visible console so startup errors are visible, pointing at `logs\startup_diagnostics.json`/`crash.log` per the existing troubleshooting docs.
+>   - Verified both the success and failure paths of `setup_runtime.bat` in isolation before wiring it back in, and caught a classic batch bug along the way: `echo 1> "file"` is parsed by `cmd.exe` as "echo nothing, redirected via file descriptor 1" (the digit immediately before `>` is consumed as part of the redirect operator), not literal text `"1"` — fixed by adding a space (`echo 1 > "file"`).
+>
+> **Root cause #2 — the version.json check compares against the wrong macro.** `build_release.bat` always passes the *full* `"X.Y.Z.build"` string into `{#AppVersion}` via `/DAppVersion` (correct for the wizard title and `OutputBaseFilename`), but `config/version.json` stores `version` ("X.Y.Z") and `build` (an integer) as **separate** fields — never concatenated — so `VersionJsonMatchesInstaller()`'s `Pos('"2.0.4.337"', Content)` check could never match and always failed. Added a dedicated `AppVersionShort` macro (kept in sync with the short semantic version on every bump, alongside `AppVersion`/`AppVersionNumeric`) and switched the check to use it.
+>
+> **Validated end-to-end this time, not just via ISCC compile**: uninstalled the broken install, rebuilt with both fixes, ran the real compiled `Setup.exe` silently (`/VERYSILENT`) on this machine, and confirmed a genuinely clean result:
+> ```
+> OK: config\version.json matches 2.0.5.338
+> OK: runtime_setup.log verified success.
+> OK: VC++ Redistributable already installed (exit 1638).
+> OK: Smoke test PASSED.
+> === Fresh install completed successfully: 2.0.5.338 ===
+> ```
+> Confirmed all 4 Start Menu shortcuts (app, uninstaller, Diagnostic Launch, Offline Diagnostic) and the full uninstall (entire folder removed) both work correctly.
+
+### Fixed
+* **`runtime/setup_runtime.bat`, `runtime/run_app_debug.bat`, `runtime/run_offline_diagnostic.bat`** — these files never existed in the repository despite being hard-required by the installer's final validation and referenced by two Start Menu shortcuts. Authored all three; `setup_runtime.bat` verifies bundled FFmpeg tools and writes the runtime-initialized marker files the installer checks for.
+* **`installer/MultiCamApp.iss`** — `VersionJsonMatchesInstaller()` now compares against a new `AppVersionShort` macro instead of `AppVersion`, since `AppVersion` is always the full `X.Y.Z.build` string at actual build time (via `/DAppVersion`) and can never match `version.json`'s separate `version`/`build` fields.
+
+### Tests
+* Updated `BackendVersion` constant (`VideoEngineRegistry.cs`) and its test assertion to `2.0.5`. 295 tests passing (unchanged baseline). Additionally validated end-to-end: uninstalled the prior broken install and ran the real compiled `MultiCamApp_2.0.5.338_Setup.exe` silently on this machine, confirming a fully clean install (all checks OK, smoke test passed) rather than relying on ISCC compile success alone.
+
 ## [v2.0.4] - 2026-07-10 (build 337)
 
 > **User tested the real v2.0.3.336 `Setup.exe` on an actual fresh PC** and reported: the app installed successfully (Start Menu shortcuts and uninstaller both confirmed working), but the wizard still showed "MultiCamApp installation did not complete correctly. Reason: Critical dependency, version mismatch, or setup failure." during the "Configuring bundled runtimes..." step.

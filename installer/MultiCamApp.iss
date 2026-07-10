@@ -2,11 +2,16 @@
 ; Fully offline, self-contained bundle. Supports in-place upgrade without manual uninstall.
 #define AppName "MultiCamApp"
 #ifndef AppVersion
-#define AppVersion "2.0.4"
+#define AppVersion "2.0.5"
 #endif
 #define AppPublisher "Aung Ye Mun"
 ; Numeric-only version for Windows VersionInfoVersion (no alpha/beta suffix allowed)
-#define AppVersionNumeric "2.0.4.337"
+#define AppVersionNumeric "2.0.5.338"
+; Short semantic version ("X.Y.Z", no build suffix) matching config/version.json's "version"
+; field exactly. build_release.bat always passes the FULL "X.Y.Z.build" string into AppVersion
+; via /DAppVersion (needed for AppVerName/OutputBaseFilename), so AppVersion itself can never be
+; used to check version.json's separate version/build fields — use this instead.
+#define AppVersionShort "2.0.5"
 #define AppExeName "MultiCamApp.exe"
 #ifndef PublishDir
 #define PublishDir "..\dist"
@@ -499,11 +504,15 @@ var
   Content: AnsiString;
   VersionPath: string;
 begin
+  { version.json stores "version" ("X.Y.Z") and "build" (an integer) as separate fields,
+    never concatenated. {#AppVersion} is the FULL "X.Y.Z.build" string at this point (always
+    overridden via /DAppVersion by build_release.bat), so it can never match version.json's
+    content directly — use {#AppVersionShort} ("X.Y.Z" only) instead. }
   Result := False;
   VersionPath := ExpandConstant('{app}\config\version.json');
   if not FileExists(VersionPath) then Exit;
   if LoadStringFromFile(VersionPath, Content) then
-    Result := (Pos('"' + '{#AppVersion}' + '"', Content) > 0);
+    Result := (Pos('"' + '{#AppVersionShort}' + '"', Content) > 0);
 end;
 
 function FinalChecksPass(): Boolean;
