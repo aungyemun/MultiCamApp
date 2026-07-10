@@ -4,7 +4,7 @@
 
 MultiCamApp is a Windows desktop application designed to support reproducible video-based workflows. It allows users to record from 1–4 cameras, capture metadata, generate per-frame timestamp files, and verify recorded videos after acquisition.
 
-Current release: **v2.0.3** (Stable)
+Current release: **v2.0.4** (Stable)
 
 ---
 
@@ -266,7 +266,7 @@ The uninstaller removes application files and bundled runtime components while p
 
 If you use MultiCamApp in research, education, or published work, please cite:
 
-Mun AY, Koketsu S. **MultiCamApp: Offline multi-camera recording, metadata capture, and video verification platform for research and educational workflows.** Version v2.0.3. 2026.
+Mun AY, Koketsu S. **MultiCamApp: Offline multi-camera recording, metadata capture, and video verification platform for research and educational workflows.** Version v2.0.4. 2026.
 
 ---
 

@@ -2,6 +2,22 @@
 
 All notable changes to MultiCamApp will be documented in this file.
 
+## [v2.0.4] - 2026-07-10 (build 337)
+
+> **User tested the real v2.0.3.336 `Setup.exe` on an actual fresh PC** and reported: the app installed successfully (Start Menu shortcuts and uninstaller both confirmed working), but the wizard still showed "MultiCamApp installation did not complete correctly. Reason: Critical dependency, version mismatch, or setup failure." during the "Configuring bundled runtimes..." step.
+>
+> **Root cause found**: `MultiCamApp.iss` has `PrivilegesRequired=lowest`, so Setup commonly runs non-elevated by default (confirmed by the user's screenshot showing the per-user destination `C:\Users\<user>\AppData\Local\Programs\MultiCamApp`, not `Program Files`). The real `vc_redist.x64.exe` bootstrapper has `requireAdministrator` in its own manifest. `RunVCRedistBeforeRuntime` (added/adjusted in v2.0.3 to add the "skip if already installed" registry check) launched it with a plain `Exec()`, which uses `CreateProcess` — this does **not** auto-elevate a child process. On a genuinely fresh machine with no VC++ runtime already present (correctly detected as "not installed" by the new v2.0.3 registry check, so it proceeded to actually launch the bootstrapper), `Exec()` failed outright with no UAC prompt at all, returned exit code `-1`, and `FinalChecksPass` correctly reported it as a failure — even though the rest of the app (files, shortcuts, uninstaller) installs independently of this check and worked fine regardless, matching what the user observed.
+>
+> This is a real, pre-existing architectural gap (not something introduced by the v2.0.3 registry-check change itself, though that change is what allowed a genuinely-fresh machine to reach the actual `Exec()` call rather than always short-circuiting via the old always-attempt-then-check-exit-code path) — it just took a real fresh-machine test to surface it.
+>
+> **Fix**: switched to `ShellExec('runas', ExpandConstant('{tmp}\vc_redist.x64.exe'), '/quiet /norestart', ...)` instead of plain `Exec(...)`. `ShellExec` with the `'runas'` verb requests elevation via `ShellExecuteEx` specifically for this one step — shows a UAC consent prompt if Setup isn't already elevated, no extra prompt if it is — so the VC++ Redistributable can now actually install on a genuinely fresh machine even when the app itself installs per-user without admin rights.
+
+### Fixed
+* **`installer/MultiCamApp.iss`** — VC++ Redistributable install now uses `ShellExec('runas', ...)` instead of plain `Exec(...)`, so it can actually elevate and install on a fresh machine with no prior VC++ runtime, instead of silently failing with exit code `-1` under `PrivilegesRequired=lowest` (per-user, non-elevated Setup).
+
+### Tests
+* Updated `BackendVersion` constant (`VideoEngineRegistry.cs`) and its test assertion to `2.0.4`. 295 tests passing (unchanged baseline). Verified via a full ISCC compile (`MultiCamApp_2.0.4.337_Setup.exe`, successful) — UAC elevation behavior itself cannot be exercised headlessly and should be confirmed on the next real-machine install.
+
 ## [v2.0.3] - 2026-07-10 (build 336)
 
 > **User asked for a full audit of `installer/MultiCamApp.iss` against seven specific installer-behavior requirements**: skip the VC++ Redistributable install if already present (no duplicate install) and keep it updated; check whether any other runtime `.exe` is needed; clean-replace old files/folders on upgrade; replace Desktop/Start Menu shortcuts on upgrade; only create the Desktop shortcut if its task is selected; default the Start Menu task to checked but keep it deselectable; ship an uninstaller in the Start Menu that fully removes the app (including its own folder) without touching user video folders.

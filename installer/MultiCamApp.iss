@@ -2,11 +2,11 @@
 ; Fully offline, self-contained bundle. Supports in-place upgrade without manual uninstall.
 #define AppName "MultiCamApp"
 #ifndef AppVersion
-#define AppVersion "2.0.3"
+#define AppVersion "2.0.4"
 #endif
 #define AppPublisher "Aung Ye Mun"
 ; Numeric-only version for Windows VersionInfoVersion (no alpha/beta suffix allowed)
-#define AppVersionNumeric "2.0.3.336"
+#define AppVersionNumeric "2.0.4.337"
 #define AppExeName "MultiCamApp.exe"
 #ifndef PublishDir
 #define PublishDir "..\dist"
@@ -436,7 +436,15 @@ begin
   WizardForm.StatusLabel.Caption := 'Installing Microsoft Visual C++ Runtime (offline bundle)...';
   AppendToInstallLog('Starting VC++ Redistributable installation...');
   AppendToUpdateLog('Starting VC++ Redistributable installation...');
-  if Exec(ExpandConstant('{tmp}\vc_redist.x64.exe'), '/quiet /norestart', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+  { PrivilegesRequired=lowest means Setup itself commonly runs non-elevated (per-user
+    install). vc_redist.x64.exe's own manifest requires admin; a plain Exec() (which
+    uses CreateProcess) does not auto-elevate a child process and fails outright with
+    no prompt at all on a machine where the runtime isn't already present. ShellExec
+    with the 'runas' verb requests elevation via ShellExecuteEx for this one step
+    (shows a UAC consent prompt if Setup isn't already elevated; no extra prompt if it
+    is), so the redistributable can still install even when the app itself is being
+    installed per-user without admin rights. }
+  if ShellExec('runas', ExpandConstant('{tmp}\vc_redist.x64.exe'), '/quiet /norestart', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
   begin
     VCRedistExitCode := ResultCode;
     AppendToInstallLog('VC++ Redistributable finished with exit code: ' + IntToStr(ResultCode));
@@ -458,8 +466,8 @@ begin
   else
   begin
     VCRedistExitCode := -1;
-    AppendToInstallLog('VC++ Redistributable failed to start.');
-    AppendToUpdateLog('VC++ Redistributable failed to start.');
+    AppendToInstallLog('VC++ Redistributable failed to start (elevation prompt declined or blocked by policy).');
+    AppendToUpdateLog('VC++ Redistributable failed to start (elevation prompt declined or blocked by policy).');
   end;
 end;
 
