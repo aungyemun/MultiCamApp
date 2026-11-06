@@ -194,7 +194,30 @@ For each video, Deep Verify also measures, on the first 30 seconds:
 - **Brightness flashes** — frames whose mean brightness jumps more than 4 % from the surrounding frames.
 - **Temporal noise** — median frame-to-frame brightness difference (8-bit levels); higher means more sensor or compression noise (typical well-lit webcam: 0.5–1.5).
 
-Measured example (same scene, 120 Hz light flicker): C922 1.30 % at 50 Hz, 0.095 % at 60 Hz, 0.076 % at Auto. These checks never change the PASS/FAIL timing verdicts; they are visual-quality warnings.
+Measured example (same scene, 120 Hz light flicker): C922 1.30 % at 50 Hz, 0.095 % at 60 Hz, 0.076 % at Auto. These figures were measured before the scale correction described below and are about 10–25 % higher than the current method gives. These checks never change the PASS/FAIL timing verdicts; they are visual-quality warnings.
+
+#### Visual stability: accuracy and limits
+
+Validated for the 2.1.0 release with lossless synthetic videos of known content (`scripts/autotest/synth_visual.py`, run by `scripts/autotest/visual_validate.ps1`) and by comparing with a separate Python implementation (`scripts/autotest/visual_audit.py`) on real recordings.
+
+| Quantity | Result on synthetic video |
+| --- | --- |
+| Band strength | within 1.5 % of the true value (1 %, 2 %, 3 %, 0.5 % with noise; limited and full range; constant and variable frame rate) |
+| Bands per frame, drift direction | correct in every case with bands present |
+| Drift rate | within half a search step; the step is 1 / analysed duration (0.1 Hz for 10 s, 0.033 Hz for 30 s) |
+| Brightness flashes, brightness range | exact (3 of 3, 2 of 2; 10 % and 8 % range) |
+| Temporal noise (YDIF) | exact (2.257 for σ = 2, 1.13 for σ = 1) |
+
+What the numbers mean and where they stop being reliable:
+
+- **"% of brightness"** is the percentage of the luma signal above black level (Y′ for full-range video such as this app's recordings, Y′ − 16 for limited-range video). It is gamma-encoded video level, not linear light, and it is not a perceptual measure.
+- **Timing:** drift is measured on the video's own timestamp CSV (`camN_timestamps.csv` next to `camN.mp4`). The CSV is used only if its row count equals the video's frame count and its duration agrees within 5 %; otherwise the container timestamps are used. The MP4 timeline of these recordings runs up to about 1 % short of the capture clock, so drift rates from container timestamps can be off by that much.
+- **No bands:** when band strength is near 0 %, the reported bands-per-frame, drift rate and direction describe noise and should be ignored.
+- **Scene motion and camera auto-exposure** add to band strength and can count as flashes. The median over frames limits this, but the audit assumes a mostly static scene.
+- **Noise floor:** sensor noise alone gives a small band strength (0.05 % for σ = 2 levels), well below the 0.3 % guide.
+- **Highlights:** in full-range video, pixels brighter than Y′ 235 are clipped by the decoder conversion, so bands inside highlights are under-read.
+- **Thresholds** (0.3 % faint, 1 % visible, 4 % flash) are practical guides, not standards. They have not been calibrated against observers.
+- Only the first 30 seconds of each video are analysed.
 
 ## Release ZIP contents
 

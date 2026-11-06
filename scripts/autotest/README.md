@@ -56,6 +56,15 @@ The Video Verification page test scans the whole default output folder. Sessions
 | `analyze.py <session> <w> <h> <fps> [--quality]` | Independent per-file checks (ffprobe, framemd5, CSV) |
 | `visual_audit.py <file.mp4> [--seconds N] [--kymo]` | Independent light-flicker band / flash / noise audit |
 | `va_batch.ps1`, `summ_runs.py` | Batch helpers and summaries |
+| `pages_func.ps1 [-Sessions <patterns>]` | Video Verification and Hardware Diagnostics functions on copies of known sessions (verify, deep verify, exports, dialogs, hardware scan); uses the app test hook `MULTICAMAPP_TEST_VERIFY_FOLDER` |
+| `verify_texts.ps1 -Folder <dir> -Lang en\|ja` | Every text on the Video Verification page after scan, Verify All and Deep Verify, saved as UTF-8 JSON |
+| `screenshots.ps1 -Folder <dir>` | README screenshots with preview off (no camera images) |
+| `synth_visual.py`, `visual_validate.ps1` | Lossless synthetic videos with known bands, drift, flashes and noise (limited/full range, CFR/VFR); compares the app's audit and `visual_audit.py` with the known values and on real recordings |
+| `big_verify.ps1 -Folder <dir>` | Verify All on a large folder; reports the app's UI-freeze log lines and `VERIFY_UI_PHASE_TIMING` |
+| `scroll_check.ps1 -Folder <dir> [-SkipDeep]` | After Verify All (and Deep Verify): scroll ranges, last session reachable, texts of failed sessions (UI Automation only, no mouse input) |
+| `installtest.ps1` | Installer test with a separate AppId and app name: upgrade of a copy of the installed folder, offline launch, uninstall, user-data preservation; checks the real installation is unchanged. Aborts if MultiCamApp is running |
+| `privacy_scan.ps1` | Personal data, credentials, private paths, AI attribution and generated files in everything Git would commit |
+| `final_checks.ps1` | Release integration pass: build, unit tests, EN/JA recordings with independent analysis, page functions and exports, texts, visual validation, large-folder freeze |
 | `AuditCheck\` | CLI that runs the app's own `VisualStabilityAuditService` (used to cross-check `visual_audit.py`) |
 | `FormatProbe\` | Low-level camera probe: modes, frame timing, UVC exposure/focus/anti-flicker. Exposure, anti-flicker and the autofocus test restore the camera's settings afterwards. `aftest <value>` deliberately moves the lens; `reset` returns the camera to auto |
 

@@ -109,7 +109,7 @@ def audit(path, seconds=60):
     # -fps_mode passthrough: one output row-profile per real frame (the default CFR mode duplicates or
     # drops frames for VFR camera files, which breaks the frame <-> PTS pairing the analysis relies on).
     rc, raw, err = _run([FFMPEG, "-nostdin", "-v", "error", "-i", path, "-t", str(seconds), "-fps_mode", "passthrough", "-vf",
-                         f"format=gray16le,scale=1:{ROWS}:flags=area", "-f", "rawvideo", "-pix_fmt", "gray16le", "-"],
+                         f"extractplanes=y,scale=1:{ROWS}:flags=area:in_range=full:out_range=full,format=gray16le", "-f", "rawvideo", "-pix_fmt", "gray16le", "-"],
                         max(300, 4 * seconds), binary=True)
     n = len(raw) // (2 * ROWS)
     if n < 30:
@@ -119,7 +119,13 @@ def audit(path, seconds=60):
         return {"file": os.path.basename(path), "error": "no packet timestamps"}
     if len(t) != n:                      # never invent a clock: analyse only frames with a real PTS
         n = min(n, len(t)); t = t[:n]
-    prof = [struct.unpack_from(f"<{ROWS}H", raw, i * 2 * ROWS) for i in range(n)]
+    # ffmpeg's gray16 conversion returns 65535/219*(Y-16) for limited AND full range input; for full-range
+    # video (black = 0) add the offset back so the profile is proportional to the luma above black.
+    rc2, info, _ = _run([FFPROBE, "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=pix_fmt,color_range",
+                         "-of", "csv=p=0", path], 60)
+    pf, cr = (info.strip() + ",,").split(",")[:2]
+    black = 16 * 65535 / 219 if (cr.strip() in ("pc", "full") or pf.startswith("yuvj")) else 0.0
+    prof = [tuple(v + black for v in struct.unpack_from(f"<{ROWS}H", raw, i * 2 * ROWS)) for i in range(n)]
     g = [sum(p) / ROWS for p in prof]
     out = {"file": os.path.basename(path), "framesAnalysed": n, "seconds": round(t[-1], 2)}
     out["rollingBands"] = rolling_bands(prof, t, g)

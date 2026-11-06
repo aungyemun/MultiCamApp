@@ -69,7 +69,8 @@
         </Style>
     </UserControl.Resources>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <ScrollViewer x:Name="PageScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                  SizeChanged="PageScrollViewer_SizeChanged">
         <Grid Margin="6,4,6,6">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>

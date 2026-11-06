@@ -121,11 +121,21 @@ Type: files; Name: "{app}\{#AppExeName}"; Check: IsUpgradeInstall
 Type: files; Name: "{app}\createdump.exe"; Check: IsUpgradeInstall
 
 [UninstallDelete]
-; Full removal: the entire app folder (all files and subfolders) is deleted recursively,
-; including the folder itself. Recorded videos are never stored under {app} — they default
-; to %USERPROFILE%\Videos or a user-chosen folder (see OutputFolderManager) — so this cannot
-; touch user recordings, regardless of where the user pointed the output folder.
-Type: filesandordirs; Name: "{app}"
+; 2.1.0 release check: removes only what Setup and the app create. Files Setup installed are
+; removed by the uninstaller itself; the folders below hold files the app or Setup create at run
+; time. The install folder is removed only if it is then empty. Previously the whole {app} folder
+; was deleted recursively, which also deleted anything else in it: a recording folder the user had
+; chosen inside the install folder (the app does not prevent that), or the existing contents of a
+; non-empty folder the user typed as the install location.
+Type: filesandordirs; Name: "{app}\logs"
+Type: filesandordirs; Name: "{app}\backup_before_update"
+Type: filesandordirs; Name: "{app}\user_settings"
+Type: filesandordirs; Name: "{app}\config_user"
+Type: filesandordirs; Name: "{app}\runtime"
+Type: filesandordirs; Name: "{app}\assets"
+Type: filesandordirs; Name: "{app}\config"
+Type: filesandordirs; Name: "{app}\localization"
+Type: dirifempty; Name: "{app}"
 
 [Code]
 var

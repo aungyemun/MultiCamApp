@@ -76,6 +76,10 @@ public partial class VideoVerificationPage : UserControl
             var frameIntegrity = realFramesOnly
                 ? T("verifyRealFramesOnlyText", "Real frames only; no duplicates/placeholders")
                 : T("verifyReviewFrameIntegrityText", "review frame integrity details");
+            // 2.1.0 release check: without any camera metadata the writer-drop count is unknown, not 0
+            // (interrupted recordings showed "Writer drops: 0").
+            var noMetadata = audit.CameraVideos.Count > 0 && audit.CameraVideos.All(v => !v.Entry.MetadataJsonFound && !v.Entry.MetadataFound);
+            var writerDrops = noMetadata ? T("verifyUnknownNoMetadata", "unknown (no metadata)") : audit.TotalQueueDrops.ToString();
 
             return string.Join(Environment.NewLine, new[]
             {
@@ -84,7 +88,7 @@ public partial class VideoVerificationPage : UserControl
                 string.Format(T("verifyCamerasLabel", "Cameras: {0}"), cameraCount),
                 string.Format(T("verifyRecordingModeLabelColon", "Recording mode: {0}"), mode),
                 string.Format(T("verifyFrameIntegrityLabelColon", "Frame integrity: {0}"), frameIntegrity),
-                string.Format(T("verifyWriterDropsLabelColon", "Writer drops: {0}"), audit.TotalQueueDrops),
+                string.Format(T("verifyWriterDropsLabelColon", "Writer drops: {0}"), writerDrops),
                 string.Format(T("verifyTimingSourceLabelColon", "Timing source: {0}"), timingSource),
                 string.Format(T("verifyNoteLabel", "Note: {0}"), FriendlySessionNote(audit))
             });
@@ -113,7 +117,16 @@ public partial class VideoVerificationPage : UserControl
             if (audit.FrameCountDifferenceAcceptedBecauseOriginalMode)
                 return T("verifyNoteFrameCountDifference", OriginalCaptureVerificationPolicy.FrameCountDifferenceNote);
             if (audit.Failures.Count > 0)
-                return T("verifyNoteFailedInspect", "verification failed; inspect details.");
+            {
+                // 2.1.0 release check: name the recorded reasons instead of only "inspect details".
+                var reasons = audit.Failures
+                    .Where(f => !f.Contains("individual camera audit failed", StringComparison.OrdinalIgnoreCase))
+                    .Select(f => { var i = f.IndexOf(": ", StringComparison.Ordinal); return i > 0 && i < 8 ? f[(i + 2)..] : f; })
+                    .Distinct(StringComparer.OrdinalIgnoreCase).Take(3).ToList();
+                return reasons.Count == 0
+                    ? T("verifyNoteFailedInspect", "verification failed; inspect details.")
+                    : string.Format(T("verifyNoteFailedReasons", "verification failed: {0}."), string.Join("; ", reasons));
+            }
             if (audit.Warnings.Count > 0)
                 return T("verifyNoteWarningsPresent", "warnings present; inspect details.");
             if (audit.InterpretationNotes.Count > 0)
@@ -218,6 +231,7 @@ public partial class VideoVerificationPage : UserControl
 
         private static string ShortTimingSource(string value) =>
             string.Equals(value, "PerFrameCaptureTimestamps", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "timestamp CSV", StringComparison.OrdinalIgnoreCase)
                 ? T("verifyTimestampCsvSource", "Timestamp CSV")
                 : value;
     }
@@ -458,6 +472,21 @@ public partial class VideoVerificationPage : UserControl
         {
             RoutedEvent = UIElement.MouseWheelEvent
         });
+    }
+
+    /// <summary>
+    /// 2.1.0 release check: the page scrolls as a whole, so the "*" rows of the results grid get
+    /// unlimited height and the session list and detail box grew to their full length — with 64
+    /// sessions the page became ~30 screens tall and the session list's own scrolling never engaged.
+    /// Both are now limited to the visible height; the list scrolls inside itself and hands the wheel
+    /// to the page at its top and bottom (<see cref="SessionResultsScrollViewer_PreviewMouseWheel"/>).
+    /// </summary>
+    private void PageScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var viewport = PageScrollViewer.ViewportHeight > 0 ? PageScrollViewer.ViewportHeight : e.NewSize.Height;
+        if (viewport <= 0) return;
+        SessionResultsScrollViewer.MaxHeight = Math.Max(320, viewport - 140);
+        DetailBox.MaxHeight = Math.Max(240, viewport * 0.6);
     }
 
     private static ScrollViewer? FindAncestorScrollViewer(DependencyObject d)
@@ -768,6 +797,7 @@ public partial class VideoVerificationPage : UserControl
 
         RebuildSessionItemTemplate();
         LocalizeCardTexts();
+        AnnotateOverallFail();
         PopulateVerificationProfiles();
         SelectVerificationProfile(_verificationProfile);
         UpdateFfprobeWarning();
@@ -1163,18 +1193,31 @@ public partial class VideoVerificationPage : UserControl
                 var profile = _verificationProfile;
                 _lastReport = await Task.Run(() => _service.VerifyAsync(
                     folder, entries, _config, progress, token, profile, _language), token);
+                AppDiagnosticLogger.Runtime("VERIFY_UI_PHASE_TIMING verifyReturned");
 
                 if (_lastReport != null)
                 {
+                    // 2.1.0 release check: per-phase timing of the UI-thread work after a run, to find
+                    // the end-of-run freeze on large folders (diagnostic log only).
+                    var phase = System.Diagnostics.Stopwatch.StartNew();
+                    long applyMs = 0, enrichMs = 0, reconcileMs = 0, resaveMs = 0;
                     ApplyFullReport(_lastReport);
+                    applyMs = phase.ElapsedMilliseconds;
                     // Enrich rows for V2 sessions detected alongside ffprobe results
                     if (_lastV2Groups.Count > 0)
                     {
+                        phase.Restart();
                         EnrichV2SessionGroups();
                         EnrichV2VideoMetadata();
+                        enrichMs = phase.ElapsedMilliseconds; phase.Restart();
                         ReconcileV2Summary(entries.Count);
+                        reconcileMs = phase.ElapsedMilliseconds; phase.Restart();
                         await ResaveAuditReportAfterEnrichment(folder);
+                        resaveMs = phase.ElapsedMilliseconds;
                     }
+                    AppDiagnosticLogger.Runtime($"VERIFY_UI_PHASE_TIMING files={entries.Count} sessions={_sessionGroups.Count} " +
+                        $"logLines={_lastReport.LogLines.Count} applyReportMs={applyMs} (logAppendMs={_lastLogAppendMs}) " +
+                        $"enrichMs={enrichMs} reconcileMs={reconcileMs} resaveMs={resaveMs}");
                 }
             }
             else if (_lastV2Groups.Count > 0)
@@ -1192,7 +1235,7 @@ public partial class VideoVerificationPage : UserControl
         }
         finally
         {
-            if (_lastReport != null || _lastV2Groups.Count > 0) LocalizeCardTexts();
+            if (_lastReport != null || _lastV2Groups.Count > 0) { LocalizeCardTexts(); AnnotateOverallFail(); }
             SetBusy(false, "");
         }
     }
@@ -1788,7 +1831,12 @@ public partial class VideoVerificationPage : UserControl
         try
         {
             var auditReportPath = Path.Combine(folder, "video_audit_report.txt");
-            await new VerificationReportWriter(_language).ExportVideoAuditReportAsync(_lastReport, auditReportPath);
+            // 2.1.0 release check: built and written off the UI thread (0.84 s of UI freeze on 121 files).
+            // The writer only reads the report and the language strings; the page is busy (inputs
+            // disabled) until this completes, so nothing modifies the report meanwhile.
+            var report = _lastReport;
+            var writer = new VerificationReportWriter(_language);
+            await Task.Run(() => writer.ExportVideoAuditReportAsync(report, auditReportPath));
         }
         catch (Exception ex)
         {
@@ -1866,12 +1914,23 @@ public partial class VideoVerificationPage : UserControl
 
         ApplyFilter();
 
+        // 2.1.0 release check: one append for the whole report log. Appending line by line (each
+        // AppendText + ScrollToEnd re-lays out the whole text box) took 4.0 s of UI freeze for 1,140
+        // lines on a 121-file folder.
+        var logWatch = System.Diagnostics.Stopwatch.StartNew();
+        var reportLog = new System.Text.StringBuilder();
         foreach (var line in report.LogLines)
         {
             if (_simpleTableView && IsRawAuditDebugLine(line))
                 continue;
-            AppendLog(line, stamp: false);
+            reportLog.Append(line).Append(Environment.NewLine);
         }
+        if (reportLog.Length > 0)
+        {
+            LogBox.AppendText(reportLog.ToString());
+            LogBox.ScrollToEnd();
+        }
+        _lastLogAppendMs = logWatch.ElapsedMilliseconds;
 
         ApplySummary(report);
     }
@@ -1913,6 +1972,22 @@ public partial class VideoVerificationPage : UserControl
         DetailBox.Text = BuildSummaryText(report);
     }
 
+    /// <summary>
+    /// 2.1.0 release check: "Overall result: FAIL" did not say where the failure is. One failed video
+    /// makes the whole folder FAIL (unchanged rule), so in a folder with many sessions the card now
+    /// names how many sessions failed and lists them in the tooltip. Display only.
+    /// </summary>
+    private void AnnotateOverallFail()
+    {
+        var text = CardOverallValue.Text ?? "";
+        if (!text.StartsWith("FAIL", StringComparison.Ordinal)) { CardOverallValue.ToolTip = null; return; }
+        var failed = _sessionGroups.Where(g => SessionGroupViewModel.NormalizeSessionResult(g.Audit.SessionStatus) == "FAIL").ToList();
+        if (failed.Count == 0 || _sessionGroups.Count < 2) { CardOverallValue.Text = "FAIL"; CardOverallValue.ToolTip = null; return; }
+        CardOverallValue.Text = string.Format(_language["verifyOverallFailSessions"], failed.Count, _sessionGroups.Count);
+        CardOverallValue.ToolTip = string.Join(Environment.NewLine, failed.Take(15).Select(g => g.Audit.SessionLabel))
+            + (failed.Count > 15 ? Environment.NewLine + "…" : "");
+    }
+
     private static string FriendlyVerdict(VerificationVerdict verdict) => verdict switch
     {
         VerificationVerdict.Pass => "PASS",
@@ -1925,6 +2000,7 @@ public partial class VideoVerificationPage : UserControl
 
     private static string ShortTimingSource(string value) =>
         string.Equals(value, "PerFrameCaptureTimestamps", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(value, "timestamp CSV", StringComparison.OrdinalIgnoreCase)
             ? (CurrentLanguage?["verifyTimestampCsvShort"] is { Length: > 0 } v ? v : "Timestamp CSV")
             : value;
 
@@ -2271,6 +2347,8 @@ public partial class VideoVerificationPage : UserControl
         // Before any verification, the idle line tells how many videos were found and what to do next.
         ProgressText.Text = !busy && string.IsNullOrEmpty(message) && _lastReport == null ? _scanHint : message;
     }
+
+    private long _lastLogAppendMs;
 
     private void AppendLog(string line, bool stamp = true)
     {

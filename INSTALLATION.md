@@ -44,12 +44,15 @@ Use **Uninstall MultiCamApp** from the Start Menu or Windows Control Panel.
 
 Removed:
 
-- The entire application install folder, including all application executables, DLLs, config, localization, and bundled runtime tools
+- Everything Setup installed (executables, DLLs, config, localization, bundled runtime tools)
+- Folders the app and Setup create inside the install folder: `logs`, `backup_before_update`, `user_settings`, `config_user`, `runtime`, `assets`, `config`, `localization`
+- The install folder itself, if it is then empty
 - Desktop and Start Menu shortcuts
 
 Preserved:
 
-- Recorded videos (default `%USERPROFILE%\Videos`, or wherever the user pointed the output folder — never inside the install folder)
+- Any other file or folder inside the install folder (since 2.1.0). Earlier versions deleted the whole install folder, including anything else stored in it.
+- Recorded videos (default `%USERPROFILE%\Videos`, or wherever the user pointed the output folder). Choosing an output folder inside the install folder is not recommended.
 - Recording session folders
 - Exported CSV/JSON/TXT reports
 - User project folders
