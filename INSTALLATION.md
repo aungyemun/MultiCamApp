@@ -20,7 +20,7 @@ Recording engine: **VideoEngineV2 / Windows MediaFoundation.** No discrete GPU i
 
 ## End-User Installation
 
-Download `Setup.exe` or `installer.zip` from the [GitHub Releases](../../releases) page. Installer binaries are not committed to the source repository.
+Download `MultiCamApp_<version>_Setup.exe` (for v2.1.0: `MultiCamApp_2.1.0.339_Setup.exe`) or `installer.zip` from the [latest GitHub Release](https://github.com/aungyemun/MultiCamApp/releases/latest). Each release lists the SHA-256 checksums in `SHA256SUMS.txt`; check the download with `Get-FileHash <file> -Algorithm SHA256`. Installer binaries are not committed to the source repository.
 
 The installer is the recommended release artifact. It includes the app bundle, native camera/video dependencies, FFmpeg `ffprobe`, config/localization files, third-party notices, license text, runtime setup scripts, and the Microsoft Visual C++ Redistributable.
 
