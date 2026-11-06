@@ -55,6 +55,7 @@ public sealed class VideoProbeService
         if (ffprobe == null)
         {
             result.Error = MissingToolMessage;
+            result.ToolUnavailable = true;
             return result;
         }
 
@@ -74,12 +75,32 @@ public sealed class VideoProbeService
             if (proc == null)
             {
                 result.Error = "Could not start ffprobe";
+                result.ToolUnavailable = true;
                 return result;
             }
 
-            var stdout = await proc.StandardOutput.ReadToEndAsync(cancellationToken);
-            var stderr = await proc.StandardError.ReadToEndAsync(cancellationToken);
-            await proc.WaitForExitAsync(cancellationToken);
+            // STABLE_CORE_V2 exception #4: bounded wait. This probe also runs inside every slot's
+            // Stop Recording (post-finalize frame check) — a hung ffprobe (AV scan lock, broken
+            // file, network share) previously hung Stop Recording and app close indefinitely.
+            // Both pipes are drained concurrently so a full stderr buffer can never block ffprobe.
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(ProbeTimeout);
+            string stdout, stderr;
+            try
+            {
+                var stdoutTask = proc.StandardOutput.ReadToEndAsync(timeoutCts.Token);
+                var stderrTask = proc.StandardError.ReadToEndAsync(timeoutCts.Token);
+                await proc.WaitForExitAsync(timeoutCts.Token);
+                stdout = await stdoutTask;
+                stderr = await stderrTask;
+            }
+            catch (OperationCanceledException)
+            {
+                try { if (!proc.HasExited) proc.Kill(entireProcessTree: true); } catch { /* already exited */ }
+                if (cancellationToken.IsCancellationRequested) throw;
+                result.Error = $"ffprobe timed out after {ProbeTimeout.TotalSeconds:F0}s";
+                return result;
+            }
 
             if (proc.ExitCode != 0)
             {
@@ -88,6 +109,10 @@ public sealed class VideoProbeService
             }
 
             ParseFfprobeJson(stdout, result);
+            // STABLE_CORE_V2 exception #15: fragmented MP4 (crash-safe recording) and some other muxers
+            // carry no nb_frames header; count the video packets instead (demux only, no decoding).
+            if (result.HasVideoStream && result.FrameCount is null)
+                result.FrameCount = await CountVideoPacketsAsync(ffprobe, filePath, cancellationToken);
             result.Success = result.HasVideoStream && result.DurationSeconds > 0;
             if (!result.HasVideoStream)
                 result.Error = "No video stream found";
@@ -99,6 +124,45 @@ public sealed class VideoProbeService
 
         return result;
     }
+
+    private static async Task<long?> CountVideoPacketsAsync(string ffprobe, string filePath, CancellationToken ct)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = ffprobe,
+                Arguments = $"-v quiet -select_streams v:0 -count_packets -show_entries stream=nb_read_packets -of csv=p=0 \"{filePath}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            using var proc = Process.Start(psi);
+            if (proc == null) return null;
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(ProbeTimeout);
+            try
+            {
+                var outTask = proc.StandardOutput.ReadToEndAsync(timeoutCts.Token);
+                var errTask = proc.StandardError.ReadToEndAsync(timeoutCts.Token);
+                await proc.WaitForExitAsync(timeoutCts.Token);
+                var text = (await outTask).Trim().TrimEnd(',');
+                await errTask;
+                return proc.ExitCode == 0 && long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : null;
+            }
+            catch (OperationCanceledException)
+            {
+                try { if (!proc.HasExited) proc.Kill(entireProcessTree: true); } catch { }
+                if (ct.IsCancellationRequested) throw;
+                return null;
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException) { return null; }
+    }
+
+    /// <summary>Upper bound for one header probe (no -count_frames); generous for large files on slow disks.</summary>
+    public static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(60);
 
     private void ParseFfprobeJson(string json, VideoProbeData result)
     {

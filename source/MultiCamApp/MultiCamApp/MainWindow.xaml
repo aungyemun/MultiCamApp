@@ -73,7 +73,14 @@
                 <Border Grid.Column="0" Background="{StaticResource PanelBackgroundBrush}"
                         BorderBrush="{StaticResource BorderBrushMain}" BorderThickness="1"
                         CornerRadius="6" Padding="2">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                    <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <!-- Setup sections (1-4) scroll; Controls (5) and Status (6) are pinned below so the
+                         Start/Stop buttons and elapsed time never scroll out of view during a recording. -->
+                    <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
                         <StackPanel Margin="10" MinWidth="320">
 
@@ -94,25 +101,25 @@
                                     <StackPanel x:Name="Cam1Block" Margin="0,0,0,10">
                                         <TextBlock x:Name="Cam1Label" Style="{StaticResource BodyText}"
                                                    Foreground="{StaticResource AppForegroundBrush}" Margin="0,0,0,6"/>
-                                        <ComboBox x:Name="Cam1Box" Style="{StaticResource InputComboBoxStyle}"
+                                        <ComboBox x:Name="Cam1Box" AutomationProperties.LabeledBy="{Binding ElementName=Cam1Label}" Style="{StaticResource InputComboBoxStyle}"
                                                   SelectionChanged="DeviceBox_SelectionChanged"/>
                                     </StackPanel>
                                     <StackPanel x:Name="Cam2Block" Margin="0,0,0,10" Visibility="Collapsed">
                                         <TextBlock x:Name="Cam2Label" Style="{StaticResource BodyText}"
                                                    Foreground="{StaticResource AppForegroundBrush}" Margin="0,0,0,6"/>
-                                        <ComboBox x:Name="Cam2Box" Style="{StaticResource InputComboBoxStyle}"
+                                        <ComboBox x:Name="Cam2Box" AutomationProperties.LabeledBy="{Binding ElementName=Cam2Label}" Style="{StaticResource InputComboBoxStyle}"
                                                   SelectionChanged="DeviceBox_SelectionChanged"/>
                                     </StackPanel>
                                     <StackPanel x:Name="Cam3Block" Margin="0,0,0,10" Visibility="Collapsed">
                                         <TextBlock x:Name="Cam3Label" Style="{StaticResource BodyText}"
                                                    Foreground="{StaticResource AppForegroundBrush}" Margin="0,0,0,6"/>
-                                        <ComboBox x:Name="Cam3Box" Style="{StaticResource InputComboBoxStyle}"
+                                        <ComboBox x:Name="Cam3Box" AutomationProperties.LabeledBy="{Binding ElementName=Cam3Label}" Style="{StaticResource InputComboBoxStyle}"
                                                   SelectionChanged="DeviceBox_SelectionChanged"/>
                                     </StackPanel>
                                     <StackPanel x:Name="Cam4Block" Visibility="Collapsed">
                                         <TextBlock x:Name="Cam4Label" Style="{StaticResource BodyText}"
                                                    Foreground="{StaticResource AppForegroundBrush}" Margin="0,0,0,6"/>
-                                        <ComboBox x:Name="Cam4Box" Style="{StaticResource InputComboBoxStyle}"
+                                        <ComboBox x:Name="Cam4Box" AutomationProperties.LabeledBy="{Binding ElementName=Cam4Label}" Style="{StaticResource InputComboBoxStyle}"
                                                   SelectionChanged="DeviceBox_SelectionChanged"/>
                                     </StackPanel>
                                 </StackPanel>
@@ -123,12 +130,12 @@
                                     <TextBlock x:Name="VideoSectionTitle" Style="{StaticResource SectionTitleVideo}"/>
                                     <TextBlock x:Name="ResolutionLabel" Style="{StaticResource BodyText}"
                                                Foreground="{StaticResource AppForegroundBrush}" Margin="0,0,0,6"/>
-                                    <ComboBox x:Name="ResolutionBox" Style="{StaticResource InputComboBoxStyle}"
+                                    <ComboBox x:Name="ResolutionBox" AutomationProperties.LabeledBy="{Binding ElementName=ResolutionLabel}" Style="{StaticResource InputComboBoxStyle}"
                                               Margin="0,0,0,10"
                                               SelectionChanged="VideoSettings_Changed"/>
                                     <TextBlock x:Name="FpsLabel" Style="{StaticResource BodyText}"
                                                Foreground="{StaticResource AppForegroundBrush}" Margin="0,0,0,6"/>
-                                    <ComboBox x:Name="FpsBox" Style="{StaticResource InputComboBoxStyle}"
+                                    <ComboBox x:Name="FpsBox" AutomationProperties.LabeledBy="{Binding ElementName=FpsLabel}" Style="{StaticResource InputComboBoxStyle}"
                                               SelectionChanged="VideoSettings_Changed"/>
                                     <Expander x:Name="AdvancedCameraControlsExpander"
                                               Margin="0,10,0,0"
@@ -147,7 +154,7 @@
                                                            Style="{StaticResource BodyText}"
                                                            Foreground="{StaticResource AppSecondaryTextBrush}"
                                                            FontSize="12" Margin="0,0,0,4"/>
-                                                <ComboBox x:Name="FocusCameraTargetBox"
+                                                <ComboBox x:Name="FocusCameraTargetBox" AutomationProperties.LabeledBy="{Binding ElementName=CameraTargetHeaderText}"
                                                           Style="{StaticResource InputComboBoxStyle}"
                                                           Margin="0,0,0,8"
                                                           SelectionChanged="FocusCameraTargetBox_SelectionChanged"/>
@@ -167,14 +174,14 @@
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="70"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <Slider x:Name="ManualFocusSlider"
+                                                    <Slider x:Name="ManualFocusSlider" AutomationProperties.LabeledBy="{Binding ElementName=ManualFocusValueLabelText}"
                                                             Grid.Column="0"
                                                             Minimum="0"
                                                             Maximum="255"
                                                             TickFrequency="1"
                                                             IsSnapToTickEnabled="False"
                                                             ValueChanged="ManualFocusSlider_ValueChanged"/>
-                                                    <TextBox x:Name="ManualFocusValueBox"
+                                                    <TextBox x:Name="ManualFocusValueBox" AutomationProperties.LabeledBy="{Binding ElementName=ManualFocusValueLabelText}"
                                                              Grid.Column="1"
                                                              Margin="8,0,0,0"
                                                              Style="{StaticResource InputTextBoxStyle}"
@@ -221,14 +228,14 @@
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="70"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <Slider x:Name="ManualExposureSlider"
+                                                    <Slider x:Name="ManualExposureSlider" AutomationProperties.LabeledBy="{Binding ElementName=ManualExposureIndexLabelText}"
                                                             Grid.Column="0"
                                                             Minimum="0"
                                                             Maximum="255"
                                                             TickFrequency="1"
                                                             IsSnapToTickEnabled="False"
                                                             ValueChanged="ManualExposureSlider_ValueChanged"/>
-                                                    <TextBox x:Name="ManualExposureValueBox"
+                                                    <TextBox x:Name="ManualExposureValueBox" AutomationProperties.LabeledBy="{Binding ElementName=ManualExposureIndexLabelText}"
                                                              Grid.Column="1"
                                                              Margin="8,0,0,0"
                                                              Style="{StaticResource InputTextBoxStyle}"
@@ -272,7 +279,7 @@
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="70"/>
                                                         </Grid.ColumnDefinitions>
-                                                        <Slider x:Name="WbSlider"
+                                                        <Slider x:Name="WbSlider" AutomationProperties.LabeledBy="{Binding ElementName=WhiteBalanceHeaderText}"
                                                                 Grid.Column="0"
                                                                 Minimum="2000"
                                                                 Maximum="9000"
@@ -281,7 +288,7 @@
                                                                 IsEnabled="False"
                                                                 PreviewMouseLeftButtonUp="WbSlider_CommitValue"
                                                                 LostFocus="WbSlider_CommitValue"/>
-                                                        <TextBox x:Name="WbValueBox"
+                                                        <TextBox x:Name="WbValueBox" AutomationProperties.LabeledBy="{Binding ElementName=WhiteBalanceHeaderText}"
                                                                  Grid.Column="1"
                                                                  Margin="8,0,0,0"
                                                                  Style="{StaticResource InputTextBoxStyle}"
@@ -294,6 +301,11 @@
                                                                Margin="0,4,0,0"
                                                                Foreground="{StaticResource AppSecondaryTextBrush}"/>
                                                 </StackPanel>
+
+                                                <!-- Anti-flicker (UVC Power Line Frequency) -->
+                                                <Separator Margin="0,12,0,8" Background="{StaticResource BorderBrushMain}"/>
+                                                <ui:PowerlineFrequencySelector x:Name="PowerlineSelector"/>
+                                                <ui:VideoQualitySelector x:Name="QualitySelector" Margin="0,12,0,0"/>
 
                                                 <!-- Environmental Lock section -->
                                                 <Separator Margin="0,12,0,8" Background="{StaticResource BorderBrushMain}"/>
@@ -342,7 +354,7 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBox x:Name="OutputBox" Grid.Column="0" IsReadOnly="True"
+                                        <TextBox x:Name="OutputBox" AutomationProperties.LabeledBy="{Binding ElementName=OutputLabel}" Grid.Column="0" IsReadOnly="True"
                                                  Style="{StaticResource InputTextBoxStyle}"/>
                                         <Button x:Name="BrowseBtn" Grid.Column="1"
                                                 MinWidth="84" Margin="10,0,0,0"
@@ -351,8 +363,7 @@
                                     </Grid>
                                     <TextBlock x:Name="SessionLabel" Style="{StaticResource BodyText}"
                                                Foreground="{StaticResource AppForegroundBrush}" Margin="0,0,0,6"/>
-                                    <TextBox x:Name="SessionBox" Style="{StaticResource InputTextBoxStyle}"
-                                             TextChanged="SessionBox_TextChanged"/>
+                                    <TextBox x:Name="SessionBox" AutomationProperties.LabeledBy="{Binding ElementName=SessionLabel}" Style="{StaticResource InputTextBoxStyle}"/>
                                     <TextBlock x:Name="SessionFolderPreviewLabel" Style="{StaticResource BodyText}"
                                                FontSize="12" Margin="0,8,0,4" Opacity="0.85"/>
                                     <TextBlock x:Name="SessionFolderPreviewValue" Style="{StaticResource BodyText}"
@@ -361,71 +372,114 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Style="{StaticResource SectionCardStyle}">
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <Border Grid.Row="1" BorderBrush="{StaticResource BorderBrushMain}" BorderThickness="0,1,0,0"
+                            Background="{StaticResource PanelBackgroundBrush}">
+                        <StackPanel Margin="10,8,10,10" MinWidth="320">
+                            <Border Style="{StaticResource SectionCardStyle}" Padding="12,9,12,10" Margin="0,0,0,8">
                                 <StackPanel>
                                     <TextBlock x:Name="ControlsSectionTitle" Style="{StaticResource SectionTitleControls}"/>
-                                    <TextBlock x:Name="PreviewControlsLabel" Style="{StaticResource BodyText}"
-                                               Foreground="{StaticResource AppForegroundBrush}" Margin="0,0,0,6"/>
-                                    <Button x:Name="StartPreviewBtn" Style="{StaticResource PreviewButtonStyle}"
-                                            Click="StartPreviewBtn_Click"/>
-                                    <Button x:Name="StopPreviewBtn" Style="{StaticResource ReadableDisabledStopPreviewButtonStyle}"
-                                            Click="StopPreviewBtn_Click"/>
-                                    <Border Height="14" Background="Transparent"/>
-                                    <TextBlock x:Name="RecordingControlsLabel" Style="{StaticResource BodyText}"
-                                               Foreground="{StaticResource AppForegroundBrush}" Margin="0,0,0,6"/>
-                                    <Button x:Name="StartRecordBtn" Style="{StaticResource ReadableDisabledRecordStartButtonStyle}"
-                                            Click="StartRecordBtn_Click"/>
-                                    <Button x:Name="StopRecordBtn" Style="{StaticResource ReadableDisabledRecordStopButtonStyle}"
-                                            Margin="0" Click="StopRecordBtn_Click"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="8"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock x:Name="PreviewControlsLabel" Visibility="Collapsed"/>
+                                            <Button x:Name="StartPreviewBtn" Style="{StaticResource PreviewButtonStyle}"
+                                                    Padding="6,6" Click="StartPreviewBtn_Click"/>
+                                            <Button x:Name="StopPreviewBtn" Style="{StaticResource ReadableDisabledStopPreviewButtonStyle}"
+                                                    Padding="6,6" Margin="0" Click="StopPreviewBtn_Click"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock x:Name="RecordingControlsLabel" Visibility="Collapsed"/>
+                                            <Button x:Name="StartRecordBtn" Style="{StaticResource ReadableDisabledRecordStartButtonStyle}"
+                                                    Padding="6,6" Click="StartRecordBtn_Click"/>
+                                            <Button x:Name="StopRecordBtn" Style="{StaticResource ReadableDisabledRecordStopButtonStyle}"
+                                                    Padding="6,6" Margin="0" Click="StopRecordBtn_Click"/>
+                                        </StackPanel>
+                                    </Grid>
                                 </StackPanel>
                             </Border>
 
-                            <Border Style="{StaticResource StatusCardStyle}">
+                            <Border Style="{StaticResource StatusCardStyle}" Padding="12,9,12,8">
                                 <StackPanel>
                                     <TextBlock x:Name="StatusSectionTitle" Style="{StaticResource SectionTitleStatus}"/>
-                                    <Grid Margin="0,0,0,4">
+                                    <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Ellipse x:Name="StatusDot" Width="8" Height="8" Fill="{StaticResource ActiveDotBrush}"
-                                                 VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                        <StackPanel Grid.Column="1">
-                                            <TextBlock x:Name="StatusLabel" Style="{StaticResource StatusLabelText}"/>
-                                            <TextBlock x:Name="StatusValue" Style="{StaticResource StatusValueText}" Margin="0,0,0,6"/>
-                                        </StackPanel>
-                                    </Grid>
-                                    <TextBlock x:Name="ElapsedLabel" Style="{StaticResource StatusLabelText}"/>
-                                    <TextBlock x:Name="ElapsedValue" Style="{StaticResource StatusValueText}"/>
-                                    <TextBlock x:Name="SessionTimeLabel" Style="{StaticResource StatusLabelText}"/>
-                                    <TextBlock x:Name="SessionTimeValue" Style="{StaticResource StatusValueText}"/>
-                                    <Grid Margin="0,0,0,4">
-                                        <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <Ellipse x:Name="PreviewDot" Width="8" Height="8" Fill="{StaticResource ActiveDotBrush}"
-                                                 VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                        <StackPanel Grid.Column="1">
-                                            <TextBlock x:Name="PreviewStatusLabel" Style="{StaticResource StatusLabelText}"/>
-                                            <TextBlock x:Name="PreviewStatusValue" Style="{StaticResource StatusValueText}" Margin="0,0,0,6"/>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <!-- Status / preview values can be long ("Recording", localized errors):
+                                             they wrap in the left column; timers keep a fixed-width font on the right. -->
+                                        <Grid Grid.Row="0" Grid.Column="0" Margin="0,0,0,5">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Ellipse x:Name="StatusDot" Width="8" Height="8" Fill="{StaticResource ActiveDotBrush}"
+                                                     VerticalAlignment="Top" Margin="0,5,7,0"/>
+                                            <TextBlock x:Name="StatusLabel" Grid.Column="1" Style="{StaticResource StatusLabelText}"
+                                                       Margin="0,0,6,0"/>
+                                            <TextBlock x:Name="StatusValue" Grid.Column="2" Style="{StaticResource StatusValueText}"
+                                                       TextWrapping="Wrap" Margin="0"/>
+                                        </Grid>
+                                        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="12,0,0,5" VerticalAlignment="Top">
+                                            <TextBlock x:Name="ElapsedLabel" Style="{StaticResource StatusLabelText}"
+                                                       Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="ElapsedValue" Style="{StaticResource StatusValueText}"
+                                                       Margin="0" VerticalAlignment="Center" FontFamily="Consolas" FontSize="14"/>
                                         </StackPanel>
+                                        <!-- Preview state is already shown by Status (Idle / Previewing / Recording) -->
+                                        <Grid Grid.Row="1" Grid.Column="0" Margin="0,0,0,5" Visibility="Collapsed">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Ellipse x:Name="PreviewDot" Width="8" Height="8" Fill="{StaticResource ActiveDotBrush}"
+                                                     VerticalAlignment="Top" Margin="0,5,7,0"/>
+                                            <TextBlock x:Name="PreviewStatusLabel" Grid.Column="1" Style="{StaticResource StatusLabelText}"
+                                                       Margin="0,0,6,0"/>
+                                            <TextBlock x:Name="PreviewStatusValue" Grid.Column="2" Style="{StaticResource StatusValueText}"
+                                                       TextWrapping="Wrap" Margin="0"/>
+                                        </Grid>
+                                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="12,0,0,5" VerticalAlignment="Top" Visibility="Collapsed">
+                                            <TextBlock x:Name="SessionTimeLabel" Style="{StaticResource StatusLabelText}"
+                                                       Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="SessionTimeValue" Style="{StaticResource StatusValueText}"
+                                                       Margin="0" VerticalAlignment="Center" FontFamily="Consolas"/>
+                                        </StackPanel>
+                                        <Grid Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock x:Name="CamerasLabel" Style="{StaticResource StatusLabelText}" Margin="15,0,6,0"/>
+                                            <TextBlock x:Name="CamerasValue" Grid.Column="1" Style="{StaticResource StatusValueText}"
+                                                       TextWrapping="Wrap" Margin="0"/>
+                                        </Grid>
                                     </Grid>
-                                    <TextBlock x:Name="CamerasLabel" Style="{StaticResource StatusLabelText}"/>
-                                    <TextBlock x:Name="CamerasValue" Style="{StaticResource StatusValueText}" Margin="0,0,0,6"/>
                                     <TextBlock x:Name="PreviewStartupStatusText" Style="{StaticResource BodyText}"
-                                               FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8"
+                                               FontSize="12" TextWrapping="Wrap" Margin="0,0,0,4"
                                                Foreground="{StaticResource AppSecondaryTextBrush}"/>
                                     <TextBlock x:Name="MultiCamUsbWarningText" Style="{StaticResource BodyText}"
                                                FontSize="12" TextWrapping="Wrap" Margin="0"
                                                Foreground="{StaticResource AccentVideoBrush}"/>
-
                                 </StackPanel>
                             </Border>
-
-
                         </StackPanel>
-                    </ScrollViewer>
+                    </Border>
+                    </Grid>
                 </Border>
 
                 <Border Grid.Column="2" Background="{StaticResource PreviewCanvasBrush}"

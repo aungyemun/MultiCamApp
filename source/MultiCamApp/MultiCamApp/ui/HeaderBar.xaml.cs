@@ -16,16 +16,35 @@ public partial class HeaderBar : UserControl
 
     public void LoadLogo()
     {
+        // 2.1.0: the text-free mark (MulticamMark.png) is legible at 40 px; the full logo's
+        // "Record Multiple Cameras" text is not. Decoded at display size, not 1254 px.
+        var root = Utils.PathHelper.FindProjectRoot() ?? "";
         var paths = new[]
         {
+            Path.Combine(AppContext.BaseDirectory, "assets", "icons", "MulticamMark.png"),
+            Path.Combine(root, "source", "MultiCamApp", "MultiCamApp", "assets", "icons", "MulticamMark.png"),
             Path.Combine(AppContext.BaseDirectory, "assets", "icons", "Multicam.png"),
-            Path.Combine(Utils.PathHelper.FindProjectRoot() ?? "", "source", "MultiCamApp", "MultiCamApp", "assets", "icons", "Multicam.png")
+            Path.Combine(root, "source", "MultiCamApp", "MultiCamApp", "assets", "icons", "Multicam.png")
         };
         foreach (var p in paths)
         {
             if (!File.Exists(p)) continue;
-            LogoImage.Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(p));
-            break;
+            try
+            {
+                var bmp = new System.Windows.Media.Imaging.BitmapImage();
+                bmp.BeginInit();
+                bmp.UriSource = new Uri(p);
+                bmp.DecodePixelWidth = 128;   // 40 px at up to 300 % display scaling
+                bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                bmp.EndInit();
+                bmp.Freeze();
+                LogoImage.Source = bmp;
+                break;
+            }
+            catch (Exception ex) when (ex is IOException or NotSupportedException or UriFormatException)
+            {
+                // try the next candidate
+            }
         }
     }
 

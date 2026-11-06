@@ -2,9 +2,10 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $png = Join-Path $root "source\MultiCamApp\MultiCamApp\assets\icons\Multicam.png"
 $ico = Join-Path $root "source\MultiCamApp\MultiCamApp\assets\icons\MultiCamApp.ico"
+$mark = Join-Path $root "source\MultiCamApp\MultiCamApp\assets\icons\MulticamMark.png"
 
 if (-not (Test-Path $png)) { Write-Error "Missing $png" }
-if ((Test-Path $ico) -and (Get-Item $ico).LastWriteTime -ge (Get-Item $png).LastWriteTime) {
+if ((Test-Path $ico) -and (Test-Path $mark) -and (Get-Item $ico).LastWriteTime -ge (Get-Item $png).LastWriteTime) {
     Write-Host "App icon up to date"
     return
 }

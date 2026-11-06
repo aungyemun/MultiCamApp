@@ -197,9 +197,13 @@ public sealed class Direct3DPreviewRenderer : IDisposable
         }
 
         // Route to GPU render thread (fires FramePresented → FrameRendered after Present)
-        if (_gpuHost is not null)
+        // STABLE_CORE_V2 exception #3: read the field once — FallBackToWpf()/Dispose() on the UI
+        // thread can null it between a check and a second read (NullReferenceException on the
+        // capture thread, which is outside any try/catch).
+        var gpuHost = _gpuHost;
+        if (gpuHost is not null)
         {
-            _gpuHost.PresentFrame(frame); // returns immediately; render thread presents async
+            gpuHost.PresentFrame(frame); // returns immediately; render thread presents async
             return;
         }
 

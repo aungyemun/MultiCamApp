@@ -43,8 +43,12 @@ By default the camera scanner avoids opening cameras so it does not disturb prev
 USB / Camera Connection report:
 
 - Selected cameras.
-- USB controller/hub mapping if safely available without privacy-sensitive identifiers.
-- `Unknown` when mapping cannot be confirmed.
+- USB host controller and external USB hubs for each selected camera (since 2.1.0). The app walks the Windows device tree upwards from each camera with the Configuration Manager API (`cfgmgr32`, read-only). Only device names are reported, for example `Intel(R) USB 3.10 eXtensible Host Controller` or `Generic USB Hub`; instance IDs and serial numbers are not stored.
+- A **warning** when two or more selected cameras are connected through the same external USB hub (the most common bandwidth limit at 720p and above).
+- A **note** when cameras share one USB host controller. On most laptops all ports share one controller, so this is informational.
+- `Unknown` when mapping cannot be confirmed (for example, a camera that is not on USB).
+
+Graphics adapters are listed with name, driver version and date, and memory. Windows reports adapter memory as at most 4 GB for this query; the report says so.
 
 If USB topology is unavailable, the UI uses advisory wording:
 

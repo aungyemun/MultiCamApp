@@ -15,6 +15,8 @@ MultiCamApp includes an offline **Video Verification** page that checks recorded
 3. Click **Scan** to list videos, or **Verify** / **Verify All** to run checks.
 4. Select a row in the results table to read the detail panel on the right.
 
+Before a run, the page lists the sessions found as "Ready for verification" and shows no results; summary cards and the export buttons appear only after Verify, Verify All or Deep Verify has run. Exports: **Export TXT / JSON / CSV** ask where to save; **Export all to folder** writes `verification_report.txt`, `.json`, `.csv` and `video_audit_report.txt` into the scanned folder. A verification run also saves `video_audit_report.txt` there automatically.
+
 Each camera folder should contain an MP4 file, a Timestamp CSV, and metadata TXT/JSON files. A `session_metadata.json`/`session_metadata.txt` at the session root provides session-level context.
 
 Expected layout:
@@ -76,6 +78,14 @@ The `ffprobe`-based checks above were originally built around the legacy recorde
 Through v1.2.103, the underlying metadata parser didn't understand that newer schema at all — it silently returned all-zero/default values for a V2 file, which meant the verification pipeline's own PASS/WARNING/FAIL classification was wrong from the start for essentially every V2 recording. From v1.2.88 through v1.2.103, the Video Verification page worked around this with a growing stack of on-screen corrections: it re-checked whether a scanned folder was entirely VideoEngineV2 recordings and, if so, overwrote the session/camera/summary status with VideoEngineV2's own already-computed verdict (which does account correctly for Original Capture Mode, e.g. real per-camera frame-count differences from independently-measured FPS) after the fact.
 
 **As of v1.2.104**, the metadata parser (`verification/MetadataParser.cs`) natively recognizes and reads the VideoEngineV2 schema, so the verification pipeline computes the correct PASS/PASS_WITH_WARNING/FAIL verdict the first time — no on-screen correction pass needed. The old correction logic is still present as an inert safety net (it only ever activates when it finds a stale FAIL, which no longer happens for a V2 recording), but a fresh Verify All on a V2 session no longer needs it to show the right result.
+
+## Session list
+
+Each session in the scanned folder has its own table. When a folder holds many sessions, only the first 5 and any FAIL sessions are expanded automatically; click a session header to expand the others. This keeps the page responsive with large folders. Building every table at once took about 3 s.
+
+## Interrupted recordings
+
+Sessions recovered after a crash or forced close (they contain `RECOVERY_REPORT.txt`) have no per-camera metadata. They are therefore reported as FAIL, with the timestamp CSV as incomplete, and a scan of a folder that contains them gives an overall FAIL. Verify normal sessions separately, or move the interrupted ones to their own folder. See `docs/OUTPUT_FILES_AND_METADATA.md` → Interrupted Recordings.
 
 ## Verification Flow
 
@@ -175,6 +185,16 @@ Frame counts may differ because cameras delivered real frames at different measu
 - Progress and per-file results appear in the log at the bottom; a "Deep Verify (Independent MD5 Check)" summary card group shows aggregate status, files checked, total duplicate frames found, and the worst-offending file.
 - Requires the bundled `ffmpeg.exe` (not just `ffprobe.exe`). If it's missing, a warning appears explaining how to restore it (reinstall, or check `runtime/ffmpeg`).
 - Cancel at any time with the same **Cancel** button used for Scan/Verify.
+
+### Visual stability (part of Deep Verify, since 2.1.0)
+
+For each video, Deep Verify also measures, on the first 30 seconds:
+
+- **Light-flicker bands** — horizontal bright/dark bands that drift up or down when room lights flicker (100 Hz / 120 Hz) against the camera's rolling shutter. Reported as the median band strength in % of brightness, with the number of bands per frame, drift rate and direction. Below 0.3 % is generally not visible; 1 % or more is clearly visible. Remedy: set *Anti-flicker* in Advanced Camera Controls to your mains frequency (Japan: east 50 Hz, west 60 Hz) or *Auto*, then record again. If the value does not change, the camera ignores the setting.
+- **Brightness flashes** — frames whose mean brightness jumps more than 4 % from the surrounding frames.
+- **Temporal noise** — median frame-to-frame brightness difference (8-bit levels); higher means more sensor or compression noise (typical well-lit webcam: 0.5–1.5).
+
+Measured example (same scene, 120 Hz light flicker): C922 1.30 % at 50 Hz, 0.095 % at 60 Hz, 0.076 % at Auto. These checks never change the PASS/FAIL timing verdicts; they are visual-quality warnings.
 
 ## Release ZIP contents
 

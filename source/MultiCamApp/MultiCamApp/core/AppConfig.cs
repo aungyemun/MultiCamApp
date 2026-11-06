@@ -99,6 +99,11 @@ public sealed class AppConfig
     public string RecordingFileNameStyle { get; set; } = "camera_roll";
     /// <summary>OS record limit awareness (Windows ~3 hours).</summary>
     public double RecordLimitHours { get; set; } = 3;
+    /// <summary>
+    /// Camera anti-flicker (UVC Power Line Frequency) applied at camera open: 0 = keep camera
+    /// setting, 50 or 60 = mains Hz (Japan: east 50 Hz, west 60 Hz), -1 = camera auto (default).
+    /// </summary>
+    public int PowerLineFrequencyHz { get; set; } = -1;
     public SecuritySettings Security { get; set; } = new();
     public VerificationSettings Verification { get; set; } = new();
     public ExperimentModeSettings ExperimentMode { get; set; } = new();

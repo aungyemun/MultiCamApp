@@ -1,5 +1,5 @@
 // VideoEngineV2 — offline runtime capability snapshot.
-// Populated by RuntimeCapabilityDetector; consumed by VideoEngineBackendSelector.
+// Consumed by VideoEngineBackendSelector / VideoEngineFallbackPolicy.
 // No internet access required or performed.
 
 using System.Text;

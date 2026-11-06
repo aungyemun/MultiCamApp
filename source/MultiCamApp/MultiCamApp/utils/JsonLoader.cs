@@ -17,8 +17,16 @@ public static class JsonLoader
         if (resolved == null) return null;
         try
         {
-            var json = File.ReadAllText(resolved);
+            var json = ReadAllTextWithRetry(resolved);
             return JsonSerializer.Deserialize<T>(json, Options);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Transient lock (antivirus scan right after install, an editor) or permissions: the
+            // file is not corrupt, so it must NOT be renamed — renaming the shipped config made
+            // the next launch fail startup diagnostics until the app was reinstalled.
+            TryLogConfigError($"Could not read config {resolved}: {ex.Message}");
+            return null;
         }
         catch (Exception ex)
         {
@@ -36,6 +44,27 @@ public static class JsonLoader
             catch { /* best effort */ }
             return null;
         }
+    }
+
+    private static string ReadAllTextWithRetry(string path)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try { return File.ReadAllText(path); }
+            catch (IOException) when (attempt < 3) { Thread.Sleep(150); }
+        }
+    }
+
+    private static void TryLogConfigError(string message)
+    {
+        try
+        {
+            var logPath = Path.Combine(PathHelper.LogsFolder(), "config_error.log");
+            var logDir = Path.GetDirectoryName(logPath);
+            if (logDir != null && !Directory.Exists(logDir)) Directory.CreateDirectory(logDir);
+            File.AppendAllText(logPath, PrivacySanitizer.SanitizeForLog($"[{DateTime.Now}] {message}\n"));
+        }
+        catch { /* best effort */ }
     }
 
     public static string ConfigPath(string fileName) =>

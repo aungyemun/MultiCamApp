@@ -8,7 +8,6 @@ public static class PreviewPanelTheme
     public static readonly Brush HostBackground = Brush("#080A0C");
     public static readonly Brush CardBackground = Brush("#0F172A");
     public static readonly Brush HeaderBarBackground = Brush("#111827");
-    public static readonly Brush InnerVideoBorder = Brush("#334155");
     public static readonly Brush LabelForeground = Brush("#F9FAFB");
     public static readonly Brush StatsForeground = Brush("#CBD5E1");
     public static readonly Brush ActiveDot = Brush("#22C55E");

@@ -1,6 +1,6 @@
 # MultiCamApp License Agreement
 
-© 2026–Present Aung Ye Mun and contributors. All rights reserved.
+© 2026 Aung Ye Mun and contributors. All rights reserved.
 
 ---
 
@@ -39,7 +39,7 @@ For commercial licensing inquiries, contact the copyright holder.
 
 If you use MultiCamApp in academic, educational, or research-related work, please cite it as:
 
-> Mun AY, Koketsu S. MultiCamApp: Offline multi-camera recording, metadata capture, and video verification platform for research and educational workflows. Version v2.0.5. 2026.
+> Mun AY, Koketsu S. MultiCamApp: Offline multi-camera recording, metadata capture, and video verification platform for research and educational workflows. Version v2.1.0. 2026.
 
 Machine-readable citation metadata is provided in `CITATION.cff`.
 
@@ -57,7 +57,7 @@ Aung Ye Mun
 
 ## 6. Third-Party Components
 
-MultiCamApp bundles third-party software components, including OpenCV, FFmpeg/ffprobe, and the .NET runtime. Each component is subject to its own license terms. See `THIRD_PARTY_NOTICES.md` for full license and attribution details.
+MultiCamApp bundles third-party software components, including FFmpeg/ffprobe, OpenCV (via OpenCvSharp), Vortice.Windows, the .NET runtime, and the Microsoft Visual C++ Redistributable. Each component is subject to its own license terms. See `THIRD_PARTY_NOTICES.md` for full license and attribution details.
 
 ---
 

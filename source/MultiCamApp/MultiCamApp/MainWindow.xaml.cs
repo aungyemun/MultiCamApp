@@ -36,6 +36,7 @@ public partial class MainWindow : Window
     private bool _isPostStopProcessing;
     // Elapsed time frozen at the stop-click moment; displayed during post-stop processing.
     private TimeSpan _postStopFrozenElapsed;
+    private TimeSpan? _lastRecordingDuration;
     private readonly Utils.StopRecordingGuard _stopRecordingGuard = new();
     private readonly System.Windows.Controls.Image[] _previewImages = new System.Windows.Controls.Image[4];
     private readonly TextBlock[] _statLabels = new TextBlock[4];
@@ -83,14 +84,15 @@ public partial class MainWindow : Window
         _freezeWatchdog  = new Diagnostics.UiFreezeWatchdog(Dispatcher);
         _backendRegistry = new VideoEngineRegistry(_v2Engine);
         _v2Engine.SlotFallenBackToWpf += OnV2SlotFallenBackToWpf;
+        _v2Engine.SlotFailed += OnV2SlotFailed;
         InitializeComponent();
         SessionBox.TextChanged += SessionBox_TextChanged;
         _deviceBoxes = [Cam1Box, Cam2Box, Cam3Box, Cam4Box];
         _camBlocks = [Cam1Block, Cam2Block, Cam3Block, Cam4Block];
         _vm.PreloadLanguage();
         HeaderBarControl.LoadLogo();
-        if (HeaderBarControl.LogoSource != null)
-            Icon = HeaderBarControl.LogoSource;
+        // 2.1.0: no Icon override — WPF then uses the executable's multi-size MultiCamApp.ico
+        // (16–64 px frames are the text-free mark), instead of shrinking the 1254 px logo PNG.
         BuildLayoutRadios();
         BuildVideoSettingsCombos();
         BuildPreviewCells();
@@ -140,6 +142,29 @@ public partial class MainWindow : Window
         _freezeWatchdog.Start();
         // V2 device enumeration — runs silently; no camera is opened yet
         await InitV2EngineAsync();
+        // Recover sessions interrupted by a crash / forced close / power loss (background, read-mostly).
+        _ = RecoverInterruptedRecordingsAsync();
+    }
+
+    private async Task RecoverInterruptedRecordingsAsync()
+    {
+        try
+        {
+            var root = OutputBox.Text;
+            var probe = new Verification.VideoProbeService(new Core.VerificationSettings());
+            var recovered = await Task.Run(() => Recording.InterruptedRecordingRecovery.RecoverAllAsync(
+                root, (path, ct) => probe.ProbeAsync(path, ct), TimeSpan.FromDays(30)));
+            if (recovered.Count == 0) return;
+            var files = recovered.Sum(r => r.RecoveredCount);
+            var unplayable = recovered.Sum(r => r.Cameras.Count(c => c.Status == "NotPlayable"));
+            var names = string.Join(", ", recovered.Select(r => r.SessionFolder).Take(3)) + (recovered.Count > 3 ? ", …" : "");
+            ShowPreviewStatus(string.Format(_vm.Language["recoveryNotice"], recovered.Count, files, unplayable, names),
+                isError: unplayable > 0);
+        }
+        catch (Exception ex)
+        {
+            AppDiagnosticLogger.Runtime($"RECOVERY_SCAN_ERROR {ex.GetType().Name}: {ex.Message}");
+        }
     }
 
     private void OnCameraAccessDenied()
@@ -278,12 +303,12 @@ public partial class MainWindow : Window
             var videoBorder = new Border
             {
                 Background = PreviewPanelTheme.CardBackground,
-                BorderBrush = PreviewPanelTheme.InnerVideoBorder,
-                BorderThickness = new Thickness(1),
+                // 2.1.0: no inner border — the coloured card border already frames each camera.
+                BorderThickness = new Thickness(0),
                 CornerRadius = new CornerRadius(4),
                 ClipToBounds = true,
                 Child = viewbox,
-                Margin = new Thickness(6, 0, 6, 0)
+                Margin = new Thickness(6, 0, 6, 6)
             };
 
             var slotLabel = new TextBlock
@@ -310,7 +335,7 @@ public partial class MainWindow : Window
                 Height = 8,
                 Fill = PreviewPanelTheme.ActiveDot,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(8, 0, 0, 0)
+                Margin = new Thickness(8, 0, 12, 0)
             };
 
             var headerGrid = new Grid { Background = PreviewPanelTheme.HeaderBarBackground, MinHeight = 32 };
@@ -513,8 +538,20 @@ public partial class MainWindow : Window
         e.Cancel = true;
         _shutdownCleanupStarted = true;
         IsEnabled = false;
-        await CleanupForCloseAsync(forceShutdown: true).ConfigureAwait(true);
-        _shutdownCleanupCompleted = true;
+        try
+        {
+            await CleanupForCloseAsync(forceShutdown: true).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            // STABLE_CORE_V2 exception #1: never leave the window stuck in "cleanup started"
+            // (every later close attempt was cancelled). Log and let the window close.
+            AppDiagnosticLogger.Failure("shutdown", "Cleanup on close failed; closing anyway", ex);
+        }
+        finally
+        {
+            _shutdownCleanupCompleted = true;
+        }
         Close();
     }
 
@@ -669,6 +706,22 @@ public partial class MainWindow : Window
             $"APPLY_FOCUS_CLICK slot={slot} device=\"{deviceName}\" autoFocus={autoFocus} manualValue={manualVal}");
         try
         {
+            // Exception #13 (focus part): apply through VideoEngineV2 when the camera is open there.
+            if (slot >= 0 && _v2Engine.GetSlotPipelineState(slot)
+                    is CameraPipelineState.Previewing or CameraPipelineState.Recording)
+            {
+                if (slot < 4) _focusDefaultActivePerCamera[slot] = false;
+                var fr = await _v2Engine.ApplySlotUserFocusAsync(slot, autoFocus, autoFocus ? null : (manualVal ?? ManualFocusSlider.Value));
+                var L = _vm.Language;
+                FocusRestoreStatusText.Text = fr is null ? L["focusRestoreNotOpen"]
+                    : fr.ReadbackStatus == Capture.VideoEngineV2.V2ControlReadbackStatus.Unsupported ? L["focusNotSupported"]
+                    : !fr.Applied || fr.ReadbackStatus != Capture.VideoEngineV2.V2ControlReadbackStatus.Confirmed
+                        ? string.Format(L["focusApplyFailed"], fr.WarningMessage ?? fr.ReadbackStatus.ToString())
+                    : autoFocus ? L["focusAutoConfirmed"]
+                    : string.Format(L["focusManualConfirmed"], fr.ReadbackValue?.ToString("0", System.Globalization.CultureInfo.InvariantCulture) ?? "?");
+                UpdateManualFocusAvailability();
+                return;
+            }
             var target = slot >= 0 ? slot : (int?)null;
             if (target is >= 0 and < 4)
                 _focusDefaultActivePerCamera[target.Value] = false;
@@ -878,6 +931,7 @@ public partial class MainWindow : Window
             if (result.WhiteBalanceLocked) sb.Append($"  WB={result.WhiteBalanceLockedAtK}K");
             if (result.IsoLocked)          sb.Append("  ISO=locked");
             if (result.Warning is not null) sb.Append($"  [{result.Warning}]");
+            sb.Append(ExposureLimitsFpsWarning(slot, result));
             CalibrationStatusLabel.Text   = sb.ToString();
             LockEnvironmentButton.Content = L["unlockSettings"];
         }
@@ -891,6 +945,20 @@ public partial class MainWindow : Window
             LockEnvironmentButton.IsEnabled  = true;
             OneShotCalibrateButton.IsEnabled = true;
         }
+    }
+
+    /// <summary>
+    /// A locked shutter longer than the frame interval caps the sensor below the selected frame rate
+    /// (measured on a C922 at 720p60: shutter locked at 31 ms -> 37.9 fps delivered instead of 59.4).
+    /// The lock itself is correct; the user must be told before recording, not only in the metadata.
+    /// </summary>
+    private string ExposureLimitsFpsWarning(int slot, Capture.VideoEngineV2.V2EnvironmentLockResult result)
+    {
+        if (!result.ExposureLocked || result.ExposureLockedAtS <= 0) return "";
+        var fps = _v2Engine.GetSlotOverlayData(slot).TargetFps;
+        if (fps <= 0 || result.ExposureLockedAtS <= 1.05 / fps) return "";
+        return "  " + string.Format(_vm.Language["calibExposureLimitsFps"],
+            result.ExposureLockedAtS * 1000, 1000 / fps, fps);
     }
 
     private async void OneShotCalibrateButton_Click(object sender, RoutedEventArgs e)
@@ -941,6 +1009,7 @@ public partial class MainWindow : Window
             if (result.WhiteBalanceLocked) sb.Append($"  WB={result.WhiteBalanceLockedAtK}K");
             if (result.IsoLocked)          sb.Append("  ISO=locked");
             if (result.Warning is not null) sb.Append($"  [{result.Warning}]");
+            sb.Append(ExposureLimitsFpsWarning(slot, result));
             CalibrationStatusLabel.Text   = sb.ToString();
             LockEnvironmentButton.Content = L["unlockSettings"];
         }
@@ -1183,6 +1252,18 @@ public partial class MainWindow : Window
             $"manualSlider={manualVal} (slider 0-255 maps to driver min-max via proportional mapping)");
         try
         {
+            // STABLE_CORE_V2 exception #13: the cameras run in VideoEngineV2. The legacy path below
+            // opened a SharedReadOnly MediaCapture (cannot change controls) and reported
+            // "Not supported" even for cameras whose exposure works. Use the V2 engine when open.
+            if (targetSlot >= 0 && _v2Engine.GetSlotPipelineState(targetSlot)
+                    is CameraPipelineState.Previewing or CameraPipelineState.Recording)
+            {
+                var v2Result = await _v2Engine.ApplySlotUserExposureAsync(
+                    targetSlot, autoExp, autoExp ? null : (manualVal ?? ManualExposureSlider.Value));
+                if (targetSlot < 4) _exposureDefaultActivePerCamera[targetSlot] = false;
+                ExposureStatusText.Text = BuildV2ExposureStatusText(targetSlot, autoExp, v2Result);
+                return;
+            }
             var target = targetSlot >= 0 ? targetSlot : (int?)null;
             IReadOnlyList<CameraExposureControlStatus> results = await _vm.ApplyExposureSettingsAsync(target);
             if (targetSlot >= 0 && targetSlot < 4)
@@ -1200,6 +1281,23 @@ public partial class MainWindow : Window
         {
             ApplyExposureSettingButton.IsEnabled = true;
         }
+    }
+
+    private string BuildV2ExposureStatusText(int slot, bool autoExposure, Capture.VideoEngineV2.V2ControlApplyResult? r)
+    {
+        var L = _vm.Language;
+        if (r is null) return L["exposureNotOpen"];
+        if (r.ReadbackStatus == Capture.VideoEngineV2.V2ControlReadbackStatus.Unsupported) return L["exposureNotSupported"];
+        if (!r.Applied || r.ReadbackStatus is Capture.VideoEngineV2.V2ControlReadbackStatus.Failed
+                                           or Capture.VideoEngineV2.V2ControlReadbackStatus.Mismatch)
+            return string.Format(L["exposureApplyFailed"], r.WarningMessage ?? r.ReadbackStatus.ToString());
+        if (autoExposure) return L["exposureAutoConfirmed"];
+        if (r.ReadbackValue is not { } sec) return L["exposureManualSentNoReadback"];
+        var text = string.Format(L["exposureManualConfirmed"], sec * 1000);
+        var fps = _v2Engine.GetSlotOverlayData(slot).TargetFps;
+        if (fps > 0 && sec > 1.05 / fps)
+            text += "  " + string.Format(L["exposureLimitsFps"], sec * 1000, 1000 / fps, fps);
+        return text;
     }
 
     private string BuildExposureStatusText(IReadOnlyList<CameraExposureControlStatus> results, int targetSlot)
@@ -1367,6 +1465,10 @@ public partial class MainWindow : Window
     {
         var folderName = SessionFolderNameGenerator.PreviewFolderName(SessionBox.Text);
         var L = _vm.Language;
+        // The real folder gets the date/time when recording starts; showing the time the user
+        // typed the title (as before) did not match the folder actually created.
+        folderName = System.Text.RegularExpressions.Regex.Replace(folderName, @"_\d{8}_\d{6}$",
+            "_" + L["sessionFolderTimestampPlaceholder"]);
         SessionFolderPreviewValue.Text = string.Format(L["sessionFolderPreviewValue"], folderName);
     }
 
@@ -1585,10 +1687,45 @@ public partial class MainWindow : Window
                     resLine = $"{L["resolution"]}: {p.StatsText}   {L["fps"]}: {p.Pipeline.FpsMonitor.AverageFps:F1}";
             }
 
+            // STABLE_CORE_V2 exception #7: the lines above read the dormant legacy pipeline, so under
+            // VideoEngineV2 the header was always blank and a failed camera looked like a normal
+            // black panel. Prefer the V2 engine's own per-slot state/overlay data.
+            var v2State = _v2Engine.GetSlotPipelineState(i);
+            var v2Live = v2State is CameraPipelineState.Previewing or CameraPipelineState.Recording
+                or CameraPipelineState.StartingRecording or CameraPipelineState.StoppingRecording;
+            var v2Failed = active && previewActive && v2State == CameraPipelineState.Error;
+            string? fallbackTip = null;
+            if (active && previewActive)
+            {
+                if (v2Failed)
+                    resLine = _v2SlotErrorText[i] ?? string.Format(L["camErrGeneric"], $"cam{i + 1}", v2State);
+                else if (v2Live)
+                {
+                    var o = _v2Engine.GetSlotOverlayData(i);
+                    resLine = $"{o.Resolution}  ·  {o.LiveFps:F1} fps";
+                    // Camera could not provide the requested resolution/FPS: say so next to the
+                    // real values (full reason in the tooltip) instead of only in the metadata.
+                    if (!string.IsNullOrWhiteSpace(o.FallbackWarning))
+                        resLine += $"  ·  {L["formatFallbackShort"]}";
+                    if (o.IsRecording)
+                        resLine += $"  ·  REC {o.RecordedFrames:N0}";
+                    fallbackTip = o.FallbackWarning;
+                }
+                else if (string.IsNullOrEmpty(_vm.SelectedDeviceIds[i]))
+                    resLine = L["noCameraSelected"];
+            }
+
             _statLabels[i].Text = resLine;
-            _activeDots[i].Fill = active && previewActive && p.Pipeline.Status is "Previewing" or "Recording"
-                ? PreviewPanelTheme.ActiveDot
-                : new SolidColorBrush(Color.FromRgb(0x47, 0x55, 0x69));
+            _statLabels[i].Foreground = v2Failed ? Brushes.OrangeRed
+                : fallbackTip is not null ? (Brush)FindResource("VerdictWarningBrush")
+                : PreviewPanelTheme.StatsForeground;
+            _statLabels[i].TextWrapping = v2Failed ? TextWrapping.Wrap : TextWrapping.NoWrap;
+            _statLabels[i].ToolTip = v2Failed ? resLine : fallbackTip;
+            _activeDots[i].Fill = v2Failed
+                ? Brushes.OrangeRed
+                : active && previewActive && (v2Live || p.Pipeline.Status is "Previewing" or "Recording")
+                    ? PreviewPanelTheme.ActiveDot
+                    : (Brush)FindResource("IdleDotBrush");
         }
     }
 
@@ -1621,10 +1758,18 @@ public partial class MainWindow : Window
         StatusValue.Text = GetNeutralStatusText();
         // Use V2 stopwatch for elapsed/session display; only update from timer tick while recording.
         // When not recording (idle, previewing), always show 00:00:00.
+        // After a recording, keep showing its duration (labelled "Last recording") instead of
+        // resetting to 00:00:00, until the next recording starts.
         if (_vm.State.RunState != Core.AppRunState.Recording)
         {
-            ElapsedValue.Text = "00:00:00";
-            SessionTimeValue.Text = "00:00:00";
+            var last = _lastRecordingDuration is { } d ? d.ToString(@"hh\:mm\:ss") : "00:00:00";
+            ElapsedValue.Text = last;
+            SessionTimeValue.Text = last;
+            ElapsedLabel.Text = (_lastRecordingDuration is null ? L["elapsed"] : L["lastRecordingDuration"]) + ":";
+        }
+        else
+        {
+            ElapsedLabel.Text = $"{L["elapsed"]}:";
         }
 
         var isRecording = _vm.State.RunState == Core.AppRunState.Recording;
@@ -1633,26 +1778,33 @@ public partial class MainWindow : Window
             : (Brush)FindResource("AppForegroundBrush");
 
         var previewOn = _vm.State.IsPreviewing || isRecording;
+        // The "start preview first" hint was set once and never cleared, so it stayed visible
+        // next to the enabled calibration buttons during preview.
+        var calibHint = L["startPreviewToEnableCalibration"];
+        if (previewOn && CalibrationStatusLabel.Text == calibHint)
+            CalibrationStatusLabel.Text = "";
+        else if (!previewOn && string.IsNullOrEmpty(CalibrationStatusLabel.Text))
+            CalibrationStatusLabel.Text = calibHint;
         if (_vm.PreviewStartInProgress)
         {
             PreviewStatusValue.Text = L["previewStarting"];
-            PreviewDot.Fill = new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B));
+            PreviewDot.Fill = (Brush)FindResource("StartingDotBrush");
         }
         else
         {
             PreviewStatusValue.Text = previewOn ? L["previewActive"] : L["previewInactive"];
             PreviewDot.Fill = previewOn
                 ? (Brush)FindResource("ActiveDotBrush")
-                : new SolidColorBrush(Color.FromRgb(0x47, 0x55, 0x69));
+                : (Brush)FindResource("IdleDotBrush");
         }
 
         StatusDot.Fill = isRecording
-            ? (Brush)FindResource("ActiveDotBrush")
+            ? (Brush)FindResource("RecordingDotBrush")
             : _vm.PreviewStartInProgress
-                ? new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B))
+                ? (Brush)FindResource("StartingDotBrush")
             : previewOn
                 ? (Brush)FindResource("ActiveDotBrush")
-                : new SolidColorBrush(Color.FromRgb(0x47, 0x55, 0x69));
+                : (Brush)FindResource("IdleDotBrush");
 
         var active = _vm.State.CameraLayout;
         var selected = 0;
@@ -1663,10 +1815,10 @@ public partial class MainWindow : Window
             var (ready, required) = CountV2ReadySlots();
             CamerasValue.Text = required > 0
                 ? string.Format(L["camerasReadyStatus"], ready, required)
-                : $"{selected} / {active}";
+                : string.Format(L["camerasSelectedStatus"], selected, active);
         }
         else
-            CamerasValue.Text = $"{selected} / {active}";
+            CamerasValue.Text = string.Format(L["camerasSelectedStatus"], selected, active);
 
         PreviewStartupStatusText.Text = _vm.PreviewStartupStatus;
         PreviewStartupStatusText.Visibility = string.IsNullOrWhiteSpace(_vm.PreviewStartupStatus)
@@ -1675,6 +1827,23 @@ public partial class MainWindow : Window
 
         MultiCamUsbWarningText.Text = "";
         MultiCamUsbWarningText.Visibility = Visibility.Collapsed;
+
+        if (_recordUiBusy && !isRecording)
+            ShowTransitionStatus(L["statusStartingRecording"]);
+        else if (_previewUiBusy && !previewOn)
+            ShowTransitionStatus(L["statusStartingPreview"]);
+    }
+
+    /// <summary>
+    /// 2.1.0: start (encoder setup, ~2 s) and stop (file finalisation + metadata, ~3 s) are shown as
+    /// "Starting recording…" / "Saving recording…" with the amber dot, instead of "Previewing" while the
+    /// recording is not yet running or its files are not yet complete.
+    /// </summary>
+    private void ShowTransitionStatus(string text)
+    {
+        StatusValue.Text = text;
+        StatusValue.Foreground = (Brush)FindResource("AppForegroundBrush");
+        StatusDot.Fill = (Brush)FindResource("StartingDotBrush");
     }
 
     private string GetNeutralStatusText()
@@ -1857,6 +2026,8 @@ public partial class MainWindow : Window
             {
                 _freezeWatchdog.CurrentAppState = "Previewing";
                 StartPreviewStatsTimer();
+                _ = MediaFoundationEncoderService.WarmUpOnceAsync(VideoEngineSettings.DefaultPreferredWidth,
+                    VideoEngineSettings.DefaultPreferredHeight, VideoEngineSettings.DefaultPreferredFps, TimeSpan.FromSeconds(1.5));
             }
             else
                 _freezeWatchdog.CurrentAppState = "Idle";
@@ -2067,6 +2238,7 @@ public partial class MainWindow : Window
         // Disable the record button immediately so the user sees instant response.
         _recordUiBusy = true;
         UpdateUiStateFromCurrentState();
+        ShowTransitionStatus(_vm.Language["statusStartingRecording"]);
         if (_videoSettingsReapplyTask is { IsCompleted: false } pendingReapply)
         {
             VideoSettingsHint.Text = _vm.Language["videoSettingsApplying"];
@@ -2094,6 +2266,7 @@ public partial class MainWindow : Window
             _vm.UpdateRecordingTitle(t => Title = t);
             _recordUiBusy = false;
             UpdateActionButtons();
+            UpdateStatusDashboard();
         }
     }
 
@@ -2106,6 +2279,7 @@ public partial class MainWindow : Window
         // UI looks stopped right away. Freeze elapsed at click time.
         // MP4 finalization / audit continues silently — never shown in main status.
         _postStopFrozenElapsed = _v2RecordingStopwatch.Elapsed;
+        _lastRecordingDuration = _postStopFrozenElapsed;
         _isPostStopProcessing  = true;
         StopRecordBtn.IsEnabled  = false;
         StartRecordBtn.IsEnabled = false;
@@ -2114,8 +2288,9 @@ public partial class MainWindow : Window
         var frozenStr = _postStopFrozenElapsed.ToString(@"hh\:mm\:ss");
         ElapsedValue.Text     = frozenStr;
         SessionTimeValue.Text = frozenStr;
-        // Status panel: show previewing state immediately — RunState will flip in StopV2DefaultRecordingAsync.
-        StatusValue.Text = _vm.Language["previewing"];
+        // Status panel: "Saving recording…" until the files and metadata are complete (2.1.0; was
+        // "Previewing" immediately, which claimed the recording was finished while files were still open).
+        ShowTransitionStatus(_vm.Language["statusSavingRecording"]);
 
         try
         {
@@ -2217,11 +2392,19 @@ public partial class MainWindow : Window
         foreach (var image in _previewImages)
             image.Source = null;
 
-        // V2 cleanup — stop all active recording slots then all preview slots
-        await StopV2AllSlotsRecordingAsync();
+        // V2 cleanup — stop all active recording slots then all preview slots.
+        // STABLE_CORE_V2 exception #1: a metadata-write failure must not abort the rest of the
+        // shutdown (cameras released, encoders/engine disposed) — that previously left the
+        // window refusing to close and the cameras held until the process was killed.
+        try { await StopV2AllSlotsRecordingAsync(); }
+        catch (Exception ex)
+        {
+            AppDiagnosticLogger.Failure("shutdown", "Stopping recordings during cleanup failed; continuing shutdown", ex);
+        }
         await _v2Engine.StopAllSlotsPreviewAsync();
         _v2Engine.SlotFrameRendered -= OnV2SlotFrameRendered;
         _v2Engine.SlotFallenBackToWpf -= OnV2SlotFallenBackToWpf;
+        _v2Engine.SlotFailed -= OnV2SlotFailed;
         _v2Engine.Dispose();
         _backendRegistry.Dispose();
 
@@ -2328,8 +2511,27 @@ public partial class MainWindow : Window
     /// Starts the V2 preview pipeline for all active camera slots.
     /// Sets RunState to Previewing on success.
     /// </summary>
+    // STABLE_CORE_V2 exception #7: user-facing per-slot error text (localized, actionable).
+    private readonly string?[] _v2SlotErrorText = new string?[4];
+
+    private void OnV2SlotFailed(int slot, Exception ex)
+    {
+        if (slot < 0 || slot >= 4) return;
+        Dispatcher.InvokeAsync(() =>
+        {
+            var res = _v2Engine.GetSlotOverlayData(slot).Resolution;
+            var message = Utils.CameraErrorExplainer.Describe(ex, slot, res, _vm.Language);
+            _v2SlotErrorText[slot] = message;
+            ShowPreviewStatus(message, isError: true);
+            UpdatePreviewOverlayStats();
+            UpdateStatusDashboard();
+            UpdateActionButtons();
+        });
+    }
+
     private async Task<bool> StartV2DefaultPipelineAsync()
     {
+        Array.Clear(_v2SlotErrorText);
         ShowPreviewStatus("");
         _v2Engine.SlotFrameRendered -= OnV2SlotFrameRendered;
         _v2Engine.SlotFrameRendered += OnV2SlotFrameRendered;
@@ -2530,6 +2732,29 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Session journal: lets the next app start recover this session if the app is closed or
+        // crashes before Stop Recording completes (removed after metadata is written).
+        try
+        {
+            var journal = new Recording.InterruptedRecordingRecovery.Journal
+            {
+                AppVersion = _vm.Version.Version,
+                StartedUtc = DateTime.UtcNow.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+                RequestedResolution = $"{VideoEngineSettings.DefaultPreferredWidth}x{VideoEngineSettings.DefaultPreferredHeight}",
+                RequestedFps = VideoEngineSettings.DefaultPreferredFps,
+                Container = VideoEngineSettings.CrashSafeFragmentedMp4 ? "fragmented MP4 (H.264)" : "MP4 (H.264)",
+                KeyframeIntervalSeconds = VideoEngineSettings.KeyframeIntervalSeconds,
+                PowerlineFrequencyHz = VideoEngineSettings.PowerlineFrequencyHz,
+                Cameras = activeSlots.Select(i => new Recording.InterruptedRecordingRecovery.JournalCamera
+                    { Slot = $"cam{i + 1}", Device = System.Text.RegularExpressions.Regex.Replace(_vm.GetCameraSlotLabel(i), @"^cam\d+:\s*", "") }).ToList(),
+            };
+            await Task.Run(() => Recording.InterruptedRecordingRecovery.WriteJournal(plan.FullPath, journal));
+        }
+        catch (Exception ex)
+        {
+            AppDiagnosticLogger.Runtime($"V2_SESSION_JOURNAL_ERROR {ex.GetType().Name}: {ex.Message}");
+        }
+
         // Start all camera recordings concurrently.
         // Sequential startup was the previous pattern; with 3 cameras each taking ~1-2s
         // to initialize LowLagMediaRecording, that was 3-6s of UI stall.
@@ -2639,7 +2864,9 @@ public partial class MainWindow : Window
             if (_v2RecordingFileSets[i] is null) continue;
             var fileSet = _v2RecordingFileSets[i]!;
             _v2RecordingFileSets[i] = null;
-            if (_v2Engine.GetSlotPipelineState(i) == CameraPipelineState.Recording)
+            // STABLE_CORE_V2 exception #6: include slots whose recording was interrupted by a
+            // capture error, so their MP4 is finalized and gets metadata instead of being dropped.
+            if (_v2Engine.IsSlotRecordingOrInterrupted(i))
                 stopTasks.Add(StopV2SlotCameraAsync(i, fileSet));
         }
 
@@ -2683,8 +2910,52 @@ public partial class MainWindow : Window
         }
         else
         {
-            await _postRecordingMetadataTask;
+            // STABLE_CORE_V2 exception #1: a *previous* recording's metadata task may already be
+            // faulted (e.g. disk full). That failure was logged and surfaced when it happened;
+            // re-throwing it here made every later Stop Preview and app close fail permanently.
+            try { await _postRecordingMetadataTask; }
+            catch (Exception ex)
+            {
+                AppDiagnosticLogger.Runtime(
+                    $"V2_POST_METADATA_PREVIOUS_FAILURE_IGNORED {ex.GetType().Name}: {ex.Message}");
+            }
         }
+    }
+
+    private static async Task<Dictionary<int, Diagnostics.FfprobeResult>> ProbeFinalVideosForMetadataAsync(
+        List<(int slot, RecordingFileSet fileSet, RecordingFinalizeResult result)> collected)
+    {
+        var map = new Dictionary<int, Diagnostics.FfprobeResult>();
+        var probe = new Verification.VideoProbeService(new Core.VerificationSettings());
+        if (!probe.IsAvailable) return map;
+        var tasks = collected.Select(async c =>
+        {
+            var path = !string.IsNullOrEmpty(c.result.FinalVideoPath) ? c.result.FinalVideoPath : c.fileSet.FinalVideoPath;
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return (c.slot, Diagnostics.FfprobeResult.NotAvailable("Final video file not found"));
+            var d = await probe.ProbeAsync(path).ConfigureAwait(false);
+            return (c.slot, d.Success
+                ? new Diagnostics.FfprobeResult
+                {
+                    Available          = true,
+                    Codec              = d.VideoCodec,
+                    PixelFormat        = d.PixelFormat,
+                    Width              = d.Width,
+                    Height             = d.Height,
+                    AvgFrameRate       = d.AvgFrameRateRaw,
+                    RFrameRate         = d.RFrameRateRaw,
+                    AvgFpsNumeric      = d.Fps,
+                    ContainerDurationS = d.DurationSeconds,
+                    NbFrames           = d.FrameCount,
+                    BitRateBps         = d.BitRate,
+                    FileSizeBytes      = d.FileSizeBytes,
+                    ConstantFrameRate  = d.ConstantFps,
+                }
+                : Diagnostics.FfprobeResult.NotAvailable(d.Error ?? "ffprobe could not read the file"));
+        });
+        foreach (var (slot, r) in await Task.WhenAll(tasks).ConfigureAwait(true))
+            map[slot] = r;
+        return map;
     }
 
     /// <summary>
@@ -2700,25 +2971,29 @@ public partial class MainWindow : Window
         foreach (var (slot, fileSet, _) in collected)
             tsStatsBySlot[slot] = await ReadTimestampCsvStatsAsync(fileSet.TimestampCsvPath);
 
-        // Phase 3: Compute session-level stats from frame counts and CSV data only
-        var emptyFfprobe = new Dictionary<int, Diagnostics.FfprobeResult>();
+        // Phase 3: Compute session-level stats from frame counts, CSV data and a header-only
+        // ffprobe of each finalized file. STABLE_CORE_V2 exception #11: the ffprobe step was being
+        // skipped (empty results), so every metadata file reported "Unknown (ffprobe not
+        // available)" / empty ffprobeAudit even though ffprobe is bundled and the post-finalize
+        // check had just used it. A header probe is ~tens of ms per file (no frame counting).
+        var ffprobeBySlot = await ProbeFinalVideosForMetadataAsync(collected);
         var emptyDup     = new Dictionary<int, Diagnostics.DuplicateDetectionResult>();
-        var sessionStats = ComputeSessionVerificationStats(collected, tsStatsBySlot, emptyFfprobe, emptyDup);
+        var sessionStats = ComputeSessionVerificationStats(collected, tsStatsBySlot, ffprobeBySlot, emptyDup);
 
         // Phase 4: Write per-camera metadata
         foreach (var (slot, fileSet, result) in collected)
         {
             await WriteV2SlotMetadataAsync(slot, fileSet, result,
                 tsStatsBySlot.GetValueOrDefault(slot),
-                null, null, null,
+                ffprobeBySlot.GetValueOrDefault(slot), null, null,
                 sessionStats,
-                null,
+                ffprobeBySlot,
                 tsStatsBySlot);
         }
 
         // Phase 5: Write session-level metadata
         if (!string.IsNullOrEmpty(sessionFolder))
-            await WriteV2SessionMetadataAsync(collected, tsStatsBySlot, emptyFfprobe, emptyDup,
+            await WriteV2SessionMetadataAsync(collected, tsStatsBySlot, ffprobeBySlot, emptyDup,
                 sessionStats, sessionFolder);
 
         // CanonicalMetadataJsonPath/CanonicalMetadataTxtPath (the unprefixed "metadata.json"/
@@ -2742,6 +3017,8 @@ public partial class MainWindow : Window
 
         AppDiagnosticLogger.Runtime(
             $"V2_POST_METADATA_COMPLETE cameras={collected.Count} files={requiredFiles.Count}");
+        if (!string.IsNullOrEmpty(sessionFolder))
+            Recording.InterruptedRecordingRecovery.CompleteJournal(sessionFolder);
     }
 
     // ── Session verification stats ────────────────────────────────────────────
@@ -2954,6 +3231,10 @@ public partial class MainWindow : Window
             string CtrlSupport(V2ControlApplyResult? c) => c?.ReadbackStatus switch
             {
                 V2ControlReadbackStatus.Unsupported  => J("Not supported by device/driver", "デバイス/ドライバー非対応"),
+                // 2.1.0: controls handled through the standard UVC control report "NotAttempted" when the
+                // camera's auto mode was deliberately kept — the control exists, so do not call it Unknown.
+                V2ControlReadbackStatus.NotAttempted when c.WarningMessage?.Contains("UVC", StringComparison.Ordinal) == true
+                                                     => J("Supported (standard UVC control)", "対応（標準UVC制御）"),
                 V2ControlReadbackStatus.NotAttempted => J("Unknown", "不明"),
                 null                                 => J("Unknown", "不明"),
                 _                                    => J("Supported", "対応"),
@@ -2993,6 +3274,38 @@ public partial class MainWindow : Window
                     J(warning, "CameraControlManagerV2が開いているカメラセッションに接続されていません。"),
                 _ when warning.StartsWith("Skipped — exposure control unsupported", StringComparison.Ordinal) =>
                     J(warning, "スキップ — このデバイスでは露出制御が非対応のため、低照度補正を無効化しても画像が暗くなるだけで再現性の向上にはなりません。"),
+                "Not changed — this camera has no separate low-light compensation control (UVC exposure only). Whether exposure was auto or manual during the recording is stated in the exposure lines." =>
+                    J(warning, "変更なし — このカメラには独立した低照度補正制御がありません（UVC露出のみ）。録画中の露出が自動か手動かは露出の行に記載しています。"),
+                "Not changed — exposure is locked via the UVC exposure control when recording starts, so backlight/low-light compensation cannot alter brightness during the recording." =>
+                    J(warning, "変更なし — 録画開始時にUVC露出制御で露出を固定するため、逆光/低照度補正が録画中の明るさを変えることはありません。"),
+                "Could not disable automatic backlight compensation mode." =>
+                    J(warning, "逆光補正の自動モードを無効にできませんでした。"),
+                "Could not set backlight compensation to its off/minimum value." =>
+                    J(warning, "逆光補正をオフ／最小値に設定できませんでした。"),
+                "Power line frequency (anti-flicker) control not supported on this device." =>
+                    J(warning, "このデバイスはちらつき防止（電源周波数）制御に対応していません。"),
+                "Manual exposure (set in Advanced Camera Controls) kept for the recording (UVC control)." =>
+                    J(warning, "詳細カメラ設定で設定したマニュアル露出を録画中も維持しました（UVC制御）。"),
+                "Camera auto exposure kept (UVC). Anti-flicker stays effective; set exposure manually in Advanced Camera Controls if a fixed shutter is required." =>
+                    J(warning, "カメラの自動露出を維持しました（UVC）。ちらつき防止は有効です。シャッターを固定する場合は詳細カメラ設定で露出を手動設定してください。"),
+                "Locked at the value settled during preview (UVC control)." =>
+                    J(warning, "プレビュー中に安定した値で固定しました（UVC制御）。"),
+                "Auto mode could not be disabled (UVC control)." =>
+                    J(warning, "自動モードを無効にできませんでした（UVC制御）。"),
+                "Supported via standard UVC control: autofocus runs during preview and is locked when recording starts." =>
+                    J(warning, "標準UVC制御で対応: プレビュー中はオートフォーカスが動作し、録画開始時に固定されます。"),
+                "Supported via standard UVC control: camera auto mode kept (manual control available in Advanced Camera Controls)." =>
+                    J(warning, "標準UVC制御で対応: カメラの自動モードを維持（詳細カメラ設定で手動制御可能）。"),
+                "Auto white balance (standard UVC control)." =>
+                    J(warning, "オートホワイトバランス（標準UVC制御）。"),
+                _ when System.Text.RegularExpressions.Regex.Match(warning,
+                        @"^This camera does not accept automatic anti-flicker; it stays at (-?\d+) \(50/60 = Hz, 0 = off\)\. If moving horizontal bands appear, choose 50 or 60 Hz to match the local mains\.$") is { Success: true } m =>
+                    J(warning, $"このカメラは自動ちらつき防止に対応していないため、{m.Groups[1].Value}のままです（50/60 = Hz、0 = オフ）。横縞が流れる場合は、地域の電源周波数に合わせて50 Hzまたは60 Hzを選択してください。"),
+                _ when System.Text.RegularExpressions.Regex.Match(warning, @"^Auto anti-flicker: camera selected (-?\d+) Hz\.$") is { Success: true } m =>
+                    J(warning, $"自動ちらつき防止: カメラが{m.Groups[1].Value} Hzを選択しました。"),
+                _ when System.Text.RegularExpressions.Regex.Match(warning,
+                        @"^Camera setting kept: (-?\d+) \(50/60 = Hz, 0 = off, -1 = auto\)\. Set powerLineFrequencyHz to 50 or 60 to match local mains\.$") is { Success: true } m =>
+                    J(warning, $"カメラ設定を維持: {m.Groups[1].Value}（50/60 = Hz、0 = オフ、-1 = 自動）。地域の電源周波数に合わせてpowerLineFrequencyHzを50または60に設定してください。"),
                 _ when warning.StartsWith("Flicker reduction is not exposed", StringComparison.Ordinal) =>
                     J(warning, "フリッカー低減はこのシステムのWinRTカメラ制御APIでは公開されていません（VideoDeviceController.FlickerReductionControlはインストール済みのWindows SDKメタデータに存在しません）。MultiCamAppから適用することはできません。"),
                 _ => warning,
@@ -3199,7 +3512,11 @@ public partial class MainWindow : Window
                 V2FormatSelectionKind.NoFormatsAvailable  => J("Yes (no formats available)", "はい（利用可能フォーマットなし）"),
                 _ => J("Unknown", "不明"),
             };
-            var fmtFallbackReason = fmt?.FallbackReason ?? J("None", "なし");
+            var (capSubtype, capNote) = _v2Engine.GetSlotCaptureNegotiation(slot);
+            if (capNote is not null && fmt?.Kind == V2FormatSelectionKind.ExactMatch)
+                fmtFallbackUsed = J("Yes (camera mode switched automatically)", "はい（カメラモードを自動切替）");
+            var fmtFallbackReason = string.Join(" ", new[] { fmt?.FallbackReason, capNote }.Where(x => !string.IsNullOrWhiteSpace(x)))
+                is { Length: > 0 } fr ? fr : J("None", "なし");
             var activeSlotList = string.Join(", ", Enumerable.Range(0, layout)
                 .Where(i => !string.IsNullOrEmpty(_vm.SelectedDeviceIds[i]))
                 .Select(i => $"cam{i + 1}"));
@@ -3236,8 +3553,8 @@ public partial class MainWindow : Window
             string vfrBehavior = isDriverVfr ? "DriverVfr"
                 : (hasFfprobeData && !ffprobe!.ConstantFrameRate) ? "VFR" : "CFR";
             string vfrNote = isDriverVfr
-                ? J($"Camera driver reports r_frame_rate={ffprobe!.RFrameRate} but avg delivery is {ffprobe.AvgFpsNumeric:F2} fps. This is a driver-level VFR artifact, not a recording failure. Timestamp CSV is the authoritative timing source.",
-                    $"カメラドライバーがr_frame_rate={ffprobe!.RFrameRate}を報告していますが平均{ffprobe.AvgFpsNumeric:F2}fpsで配信されています。これはドライバーレベルのVFRアーティファクトであり録画失敗ではありません。タイムスタンプCSVが信頼できるタイミングソースです。")
+                ? J($"Variable frame timing: the camera delivered an average of {ffprobe!.AvgFpsNumeric:F2} fps with real per-frame timestamps. ffprobe's r_frame_rate ({ffprobe.RFrameRate}) is its own estimate from the timestamp base and is not meaningful for variable-frame-rate files. This is camera behaviour, not a recording failure; the timestamp CSV is the authoritative per-frame timing source.",
+                    $"可変フレームタイミング: カメラは実フレームのタイムスタンプ付きで平均{ffprobe!.AvgFpsNumeric:F2}fpsを配信しました。ffprobeのr_frame_rate（{ffprobe.RFrameRate}）はタイムスタンプ基準からの推定値であり、可変フレームレートのファイルでは意味を持ちません。録画失敗ではなくカメラの挙動です。フレームごとのタイミングはタイムスタンプCSVが正となります。")
                 : "";
 
             // ── Startup settling analysis ─────────────────────────────────────
@@ -3251,7 +3568,10 @@ public partial class MainWindow : Window
 
             // ── Bitrate profile ───────────────────────────────────────────────
             var activeBitrateProfile = Capture.VideoEngineV2.VideoEngineSettings.BitrateProfile;
-            int activeBitrateKbps    = Capture.VideoEngineV2.VideoEngineSettings.TargetBitrateKbps;
+            // STABLE_CORE_V2 exception #10: record the per-resolution bitrate actually used by the encoder.
+            int activeBitrateKbps    = selFmt is not null
+                ? Capture.VideoEngineV2.VideoEngineSettings.ResolveTargetBitrateKbps(selFmt.Width, selFmt.Height, selFmt.NominalFps)
+                : Capture.VideoEngineV2.VideoEngineSettings.TargetBitrateKbps;
 
             // ── Timing classification ─────────────────────────────────────────
             double requestedFps = selFmt?.NominalFps ?? 30.0;
@@ -3292,7 +3612,7 @@ public partial class MainWindow : Window
             lines.Add($"{J("Generated", "生成日時")}: {now:yyyy-MM-dd HH:mm:ss}");
             lines.Add($"{J("App version", "アプリバージョン")}: {ver.Version}");
             lines.Add($"{J("Build", "ビルド")}: {ver.Build}");
-            lines.Add($"{J("Release stage", "リリースステージ")}: {ver.Stage}");
+            lines.Add($"{J("Release stage", "リリースステージ")}: {StageLabel(ver.Stage, isJa)}");
 
             Sec(J("[Session]", "[セッション]"));
             L(J("Session name", "セッション名"),     SessionBox.Text);
@@ -3303,7 +3623,7 @@ public partial class MainWindow : Window
             L(J("Active cameras", "アクティブカメラ数"), layout.ToString());
             L(J("Active slots", "アクティブスロット"),   activeSlotList);
             L(J("Engine", "エンジン"),               "VideoEngineV2");
-            L(J("Metadata language", "メタデータ言語"), isJa ? "Japanese" : "English");
+            L(J("Metadata language", "メタデータ言語"), isJa ? "日本語 (ja)" : "English (en)");
 
             Sec(J("[Recording Engine]", "[録画エンジン]"));
             L(J("Recording engine", "録画エンジン"),       "VideoEngineV2");
@@ -3332,6 +3652,7 @@ public partial class MainWindow : Window
             L(J("Selected resolution", "選択解像度"),     resStr);
             L(J("Requested FPS", "要求FPS"),             trueRequestedFpsDisplay);
             L(J("Selected camera format FPS", "選択カメラフォーマットFPS"), reqFpsStr);
+            L(J("Camera input subtype", "カメラ入力サブタイプ"), capSubtype ?? J("Unknown", "不明"));
             L(J("Writer/container FPS", "ライター/コンテナFPS"), reqFpsStr);
             L(J("ffprobe average FPS", "ffprobe 平均FPS"), ffprobeAvgFpsStr);
             L(J("ffprobe raw/r_frame_rate", "ffprobe 生FPS"), ffprobeRFpsStr);
@@ -3348,10 +3669,21 @@ public partial class MainWindow : Window
             L(J("Autofocus requested", "オートフォーカス要求"),       J("Off", "オフ"));
             L(J("Autofocus result", "オートフォーカス結果"),          CtrlResult2(focusCtrl));
             lines.Add("");
-            L(J("Manual focus requested", "マニュアルフォーカス要求"),   J("No", "いいえ"));
-            L(J("Manual focus value requested", "マニュアルフォーカス値"), J("None", "なし"));
-            L(J("Manual focus result", "マニュアルフォーカス結果"),       J("Not requested", "未要求"));
-            L(J("Manual focus readback", "マニュアルフォーカス読み取り"),  J("Unavailable", "取得不可"));
+            // 2.1.0: fixed text replaced by the camera readback taken when recording started (focus is locked
+            // at that position by default), so a defocused recording can be traced to its lens position.
+            var focusPos = focusCtrl?.ReadbackValue is { } fp ? fp.ToString("0", ic) : null;
+            var focusFixed = focusCtrl?.AutoModeActive == false || (focusCtrl?.Applied == true && focusPos is not null);
+            L(J("Focus during recording", "録画中のフォーカス"), focusCtrl?.AutoModeActive switch
+            {
+                true  => J("Autofocus on", "オートフォーカス オン"),
+                false => J("Fixed (autofocus off)", "固定（オートフォーカス オフ）"),
+                _     => focusFixed ? J("Fixed", "固定")
+                       : focusCtrl?.ReadbackStatus == V2ControlReadbackStatus.Unsupported || focusCtrl is null
+                           ? J("Fixed-focus camera (no focus control)", "固定焦点カメラ（フォーカス制御なし）")
+                           : J("Unknown", "不明"),
+            });
+            L(J("Focus position (camera units)", "フォーカス位置（カメラ単位）"), focusPos
+                ?? (focusCtrl?.ReadbackStatus == V2ControlReadbackStatus.Unsupported || focusCtrl is null ? J("Not applicable", "該当なし") : J("Unavailable", "取得不可")));
             lines.Add("");
             L(J("Default focus restore requested", "フォーカスデフォルト復元要求"), J("Yes (at session open)", "はい（セッション開始時）"));
             L(J("Default focus restore result", "フォーカスデフォルト復元結果"),    CtrlResult2(focusCtrl));
@@ -3361,13 +3693,23 @@ public partial class MainWindow : Window
             L(J("Exposure control", "露出制御"),              CtrlSupport(exposureCtrl));
             lines.Add("");
             L(J("Auto exposure control", "自動露出制御"),      CtrlSupport(exposureCtrl));
-            L(J("Auto exposure requested", "自動露出要求"),     J("Off", "オフ"));
+            // STABLE_CORE_V2 exception #13: these lines were fixed text ("Off" / "No") regardless of
+            // what the camera did. They now reflect the device readback taken at recording start.
+            var expAutoState = exposureCtrl?.AutoModeActive;
+            var expManualMs  = expAutoState == false && exposureCtrl?.ReadbackValue is { } expS
+                ? (expS * 1000).ToString("F1", ic) + " ms" : null;
+            L(J("Auto exposure during recording", "録画中の自動露出"), expAutoState switch
+            {
+                true  => J("On (camera auto exposure kept)", "オン（カメラの自動露出を維持）"),
+                false => J("Off", "オフ"),
+                _     => J("Unknown", "不明"),
+            });
             L(J("Auto exposure result", "自動露出結果"),        CtrlResult2(exposureCtrl));
             lines.Add("");
-            L(J("Manual exposure requested", "マニュアル露出要求"),   J("No", "いいえ"));
-            L(J("Manual exposure value requested", "マニュアル露出値"), J("None", "なし"));
-            L(J("Manual exposure result", "マニュアル露出結果"),       J("Not requested", "未要求"));
-            L(J("Manual exposure readback", "マニュアル露出読み取り"),  J("Unavailable", "取得不可"));
+            L(J("Manual exposure", "マニュアル露出"),           expManualMs is null ? J("No", "いいえ") : J("Yes", "はい"));
+            L(J("Manual exposure value", "マニュアル露出値"),    expManualMs ?? J("None", "なし"));
+            L(J("Manual exposure result", "マニュアル露出結果"), expManualMs is null ? J("Not requested", "未要求") : CtrlResult2(exposureCtrl));
+            L(J("Manual exposure readback", "マニュアル露出読み取り"), expManualMs ?? J("Unavailable", "取得不可"));
             lines.Add("");
             L(J("Default exposure restore requested", "露出デフォルト復元要求"), J("Yes (at session open)", "はい（セッション開始時）"));
             L(J("Default exposure restore result", "露出デフォルト復元結果"),    CtrlResult2(exposureCtrl));
@@ -3379,7 +3721,9 @@ public partial class MainWindow : Window
             L(J("Low-light compensation result", "低照度補正結果"),                  CtrlResult2(llcCtrl));
             L(J("Low-light compensation readback", "低照度補正読み取り"),             CtrlReadback(llcCtrl));
             L(J("Low-light compensation confirmed off", "低照度補正オフ確認"),        llcConfirmedOffStr);
-            if (!llcOff && llcCtrl is not null)
+            if (!llcOff && llcCtrl is not null && llcCtrl.ReadbackStatus == V2ControlReadbackStatus.NotAttempted)
+                lines.Add($"  * {LocalizeControlWarning(llcCtrl.WarningMessage) ?? J("Not changed.", "変更なし。")}");
+            else if (!llcOff && llcCtrl is not null)
                 lines.Add(isJa
                     ? $"  * 警告: 低照度補正無効要求が{(llcCtrl.Applied ? "適用されました" : "失敗しました")}; 読み取り値のみでは確認状態として扱いません。"
                     : $"  * Warning: Low-light compensation disable {(llcCtrl.Applied ? "applied" : "failed")}; readback value alone is not treated as confirmed state.");
@@ -3393,14 +3737,18 @@ public partial class MainWindow : Window
             // Flicker reduction
             L(J("Flicker reduction control", "フリッカー低減制御"), CtrlSupport(flickerCtrl));
             L(J("Flicker reduction result", "フリッカー低減結果"),  CtrlResult2(flickerCtrl));
+            string PlName(double? v) => v switch
+            {
+                50 => "50 Hz", 60 => "60 Hz", -1 => J("Auto", "自動"), 0 => J("Off / camera default", "オフ／カメラ既定"), _ => J("Unknown", "不明"),
+            };
+            L(J("Anti-flicker requested / camera value", "ちらつき防止 要求／カメラ値"),
+              $"{(VideoEngineSettings.PowerlineFrequencyHz == 0 ? J("Keep camera setting", "カメラ設定を維持") : PlName(VideoEngineSettings.PowerlineFrequencyHz))} / {PlName(flickerCtrl?.ReadbackValue)}");
             if (flickerCtrl?.WarningMessage is not null)
             {
                 // WarningMessage comes from the backend (CameraControlManagerV2) as a fixed
                 // English string — unlike LLC's warning above, it isn't parameterized, so a
                 // direct known-string translation is safe here instead of emitting it raw.
-                var flickerMsg = isJa && flickerCtrl.WarningMessage.StartsWith("Flicker reduction is not exposed", StringComparison.Ordinal)
-                    ? "フリッカー低減はこのシステムのWinRTカメラ制御APIでは公開されていません（VideoDeviceController.FlickerReductionControlはインストール済みのWindows SDKメタデータに存在しません）。MultiCamAppから適用することはできません。"
-                    : flickerCtrl.WarningMessage;
+                var flickerMsg = LocalizeControlWarning(flickerCtrl.WarningMessage);
                 lines.Add(isJa ? $"  * 警告: {flickerMsg}" : $"  * Warning: {flickerMsg}");
             }
             lines.Add("");
@@ -3500,7 +3848,7 @@ public partial class MainWindow : Window
 
             Sec(J($"[Timing Reference]", $"[タイミング基準]"));
             L(J("Reference camera", "基準カメラ"), timingRefName);
-            L(J("Selection reason", "選択理由"), timingRefReason);
+            L(J("Selection reason", "選択理由"), isJa ? LocalizeTimingReason(timingRefReason) : timingRefReason);
             foreach (var (s, status) in cfrStatusMap.OrderBy(x => x.Key))
                 L(J($"CFR status (cam{s + 1})", $"CFR状態（cam{s + 1}）"), status);
             L(J("Authoritative timing source", "信頼できるタイミングソース"), J("Timestamp CSV (per-frame monotonic timestamps)", "タイムスタンプCSV（フレームごとの単調タイムスタンプ）"));
@@ -3534,15 +3882,16 @@ public partial class MainWindow : Window
             L(J("Container avg_frame_rate", "コンテナ avg_frame_rate"), ffprobeAvgFpsStr + " fps");
             L(J("Measured avg FPS from timestamps", "タイムスタンプからの平均FPS"), hasTs ? $"{measuredAvgFps:F2} fps" : NA());
             L(J("Frame-count duration (nominal)", "フレーム数ベース時間（名目）"),
-                frameCountDurationS > 0 ? $"{frameCountDurationS:F3} s ({result.FramesWritten} frames / {requestedFps:F0} fps) — nominal estimate only" : NA());
+                frameCountDurationS > 0 ? $"{frameCountDurationS:F3} s ({recordingFrames} {J("frames", "フレーム")} / {requestedFps:F0} fps) — {J("nominal estimate only", "名目上の推定値")}" : NA());
             L(J("Container duration (player interpretation)", "コンテナ時間（プレーヤー解釈）"),
-                containerDurationS > 0 ? $"{containerDurationS:F3} s — as interpreted by MP4 container / media player" : NA());
+                containerDurationS > 0 ? $"{containerDurationS:F3} s — {J("as interpreted by MP4 container / media player", "MP4コンテナ／プレーヤーの解釈")}" : NA());
             L(J("App timestamp duration (primary audit)", "アプリタイムスタンプ時間（一次監査）"),
-                appTsDurationS > 0 ? $"{appTsDurationS:F3} s — per-frame monotonic CSV; primary audit source" : NA());
+                appTsDurationS > 0 ? $"{appTsDurationS:F3} s — {J("per-frame monotonic CSV; primary audit source", "フレームごとの単調CSV、一次監査ソース")}" : NA());
             L(J("Internal clock duration (lifecycle timing)", "内部クロック時間（ライフサイクルタイミング）"),
-                internalClockS > 0 ? $"{internalClockS:F3} s — recording stopwatch (start→stop)" : NA());
+                internalClockS > 0 ? $"{internalClockS:F3} s — {J("recording stopwatch (start→stop)", "録画ストップウォッチ（開始→停止）")}" : NA());
             L(J("Hardware camera presentation timestamp", "ハードウェアカメラプレゼンテーションタイムスタンプ"),
-                J("Not used — app-side monotonic timestamp used instead", "未使用 — アプリ側の単調タイムスタンプを使用"));
+                J("Recorded per frame in CSV column capturePtsMsFromFirstFrame (identical to the MP4 sample times); capturePtsMsSystemClock gives the same time on the clock shared by all cameras",
+                  "CSV列 capturePtsMsFromFirstFrame にフレームごとに記録（MP4のサンプル時刻と同一）。capturePtsMsSystemClock は全カメラ共通の時計での同じ時刻"));
             if (containerDurationS > 0 && appTsDurationS > 0)
                 L(J("Container vs app timestamp diff", "コンテナ vs タイムスタンプ差"), $"{containerVsAppDiffS:+0.000;-0.000;0.000} s");
             if (frameCountDurationS > 0 && appTsDurationS > 0)
@@ -3564,17 +3913,22 @@ public partial class MainWindow : Window
             Sec(J($"[Timestamp Source — {slotName}]", $"[タイムスタンプソース — {slotName}]"));
             L(J("Timestamp source", "タイムスタンプソース"), J("AppMonotonicClock", "アプリ単調クロック"));
             L(J("Clock implementation", "クロック実装"), "Stopwatch.GetTimestamp / Stopwatch.Frequency");
-            L(J("Timestamp origin", "タイムスタンプ基点"), J("Recording start", "録画開始"));
+            L(J("Timestamp origin", "タイムスタンプ基点"), J("First recorded frame (CSV row 0 = MP4 frame 0)", "最初の録画フレーム（CSV行0 = MP4フレーム0）"));
             L(J("Timestamp capture point", "タイムスタンプ取得タイミング"),
-                J("CSV row write time on background frame thread", "バックグラウンドフレームスレッドのCSV書込時刻"));
-            L(J("Hardware presentation timestamp available", "ハードウェアプレゼンテーションタイムスタンプ利用可能"), J("No", "いいえ"));
+                J("appTimestamp*: frame arrival in the app; capturePtsMsFromFirstFrame: camera capture time",
+                  "appTimestamp*: アプリへのフレーム到着時刻、capturePtsMsFromFirstFrame: カメラのキャプチャ時刻"));
+            L(J("Hardware presentation timestamp available", "ハードウェアプレゼンテーションタイムスタンプ利用可能"), J("Yes", "はい"));
             lines.Add(J(
-                "  * Note: These timestamps are application-side monotonic timestamps, not hardware camera presentation timestamps.",
-                "  * 注: これらのタイムスタンプはアプリ側の単調タイムスタンプであり、ハードウェアカメラのプレゼンテーションタイムスタンプではありません。"));
+                "  * One CSV row per frame in the MP4, in the same order (row k = video frame k).",
+                "  * MP4内の各フレームにつきCSV1行、同じ順序（行k = 映像フレームk）。"));
 
             Sec(J($"[Bitrate Profile — {slotName}]", $"[ビットレートプロファイル — {slotName}]"));
             L(J("Bitrate profile", "ビットレートプロファイル"), activeBitrateProfile.ToString());
-            L(J("Target bitrate", "目標ビットレート"), $"{activeBitrateKbps} kbps");
+            var rcQuality = VideoEngineSettings.RateControl == V2RateControl.QualityVbr;
+            L(J("Rate control", "レート制御"), rcQuality
+                ? J($"Constant quality (encoder quality {VideoEngineSettings.EncoderQuality}); bitrate follows scene detail", $"品質一定（エンコーダー品質 {VideoEngineSettings.EncoderQuality}）。ビットレートはシーンの細かさに応じて変動")
+                : J("Constant bitrate", "固定ビットレート"));
+            L(J("Target bitrate", "目標ビットレート"), rcQuality ? J("Not used (constant quality)", "未使用（品質一定）") : $"{activeBitrateKbps} kbps");
             L(J("Actual bitrate (ffprobe)", "実際のビットレート（ffprobe）"), ffprobeBrStr);
 
             // v1.2.0-alpha backend section
@@ -3608,7 +3962,8 @@ public partial class MainWindow : Window
                 L(J("Color primaries",        "色域（プライマリ）"),                  beMeta.ColorPrimaries);
                 L(J("Color transfer function","色伝達関数"),                          beMeta.ColorTransferFunction);
                 L(J("Color matrix",           "色マトリックス"),                      beMeta.ColorMatrix);
-                L(J("Color range",            "色範囲"),                              beMeta.ColorRange);
+                L(J("Color range",            "色範囲"),                              isJa && beMeta.ColorRange?.StartsWith("Full (0-255", StringComparison.Ordinal) == true
+                    ? "フル (0-255 / pc、Windowsカメラと同じ)" : beMeta.ColorRange);
             }
             L(J("Preview independent from recording", "プレビュー独立性"),           beMeta.PreviewIndependentFromRecording ? J("Yes", "はい") : J("No", "いいえ"));
             L(J("Preview target FPS",         "プレビュー目標FPS"),                  beMeta.PreviewTargetFps.ToString("F1", ic));
@@ -3637,6 +3992,15 @@ public partial class MainWindow : Window
 
             Sec(J($"[Frame Quality — {slotName}]", $"[フレーム品質 — {slotName}]"));
             var dupImpl = dup?.Implemented == true;
+            if (!dupImpl)
+            {
+                L(J("Duplicate-frame analysis", "重複フレーム分析"),
+                  J("Not run at recording time — use Deep Verify on the Video Verification page (exact per-frame MD5).",
+                    "録画時には実行しません — 動画検証ページのDeep Verify（フレームごとのMD5完全一致）を使用してください。"));
+                L(J("Frames padded / duplicated by the app", "アプリによる補間・複製フレーム"), J("None (original real frames only)", "なし（実フレームのみ）"));
+            }
+            else
+            {
             L(J("Duplicate-frame detection", "重複フレーム検出"),               dupImpl ? J("Implemented", "実装済み") : J("Not available", "利用不可"));
             L(J("Frames sampled for duplicate check", "重複チェックサンプル数"), dupImpl ? dup!.FramesSampled.ToString()        : NA());
             L(J("Comparisons performed", "比較実施数"),                          dupImpl ? dup!.ComparisonsPerformed.ToString()   : NA());
@@ -3655,11 +4019,12 @@ public partial class MainWindow : Window
             L(J("Preview dropped frames", "プレビュードロップフレーム数"), J("N/A (Realtime mode — not detectable)", "N/A（リアルタイムモード — 検出不可）"));
             L(J("Writer queue max depth", "ライタキュー最大深度"), J("Not tracked", "非追跡"));
             L(J("Writer max latency", "ライタ最大レイテンシ"),    J("Not tracked", "非追跡"));
+            }
 
             Sec(J($"[Motion Blur Risk — {slotName}]", $"[モーションブラーリスク — {slotName}]"));
             L(J("Motion blur risk", "モーションブラーリスク"), blurLevel);
             lines.Add(J("- Motion blur evidence:", "- モーションブラー根拠:"));
-            lines.Add($"  * {J("Auto exposure active", "自動露出アクティブ")}: {(exposureFixed ? J("No", "いいえ") : J("Unknown", "不明"))}");
+            lines.Add($"  * {J("Auto exposure active", "自動露出アクティブ")}: {(exposureCtrl?.AutoModeActive switch { true => J("Yes", "はい"), false => J("No", "いいえ"), _ => exposureFixed ? J("No", "いいえ") : J("Unknown", "不明") })}");
             lines.Add($"  * {J("Manual exposure confirmed", "マニュアル露出確認済み")}: {(exposureFixed ? J("Yes", "はい") : J("No", "いいえ"))}");
             lines.Add($"  * {J("Low-light compensation confirmed off", "低照度補正オフ確認済み")}: {llcConfirmedOffStr}");
             lines.Add($"  * {J("Capture FPS stable", "キャプチャFPS安定性")}: {(hasTs && tsStats!.GapCount == 0 ? J("Yes", "はい") : hasTs ? J("No (gaps detected)", "いいえ（ギャップ検出）") : J("Unknown", "不明"))}");
@@ -3668,6 +4033,12 @@ public partial class MainWindow : Window
 
             Sec(J($"[Visual Quality — {slotName}]", $"[映像品質 — {slotName}]"));
             var vqImpl = vq?.Implemented == true;
+            if (!vqImpl)
+            {
+                L(J("Visual quality analysis", "映像品質分析"), J("Not run at recording time.", "録画時には実行しません。"));
+            }
+            else
+            {
             L(J("Visual quality analysis", "映像品質分析"),       vqImpl ? J("Implemented", "実装済み") : J("Not available", "利用不可"));
             L(J("Frames sampled for quality", "品質サンプル数"),   vqImpl ? vq!.FramesSampled.ToString() : NA());
             L(J("Blur score (Laplacian var)", "ブラースコア"),     vqImpl ? vq!.BlurScore.ToString("F2", ic) : NA());
@@ -3679,10 +4050,8 @@ public partial class MainWindow : Window
             L(J("Uneven lighting score", "不均一照明スコア"),       vqImpl ? $"{vq!.UnevenLightingScore:F1} ({vq.UnevenLightingLevel})" : NA());
             L(J("Visual quality verdict", "映像品質判定"),         vq?.Verdict ?? NA());
             lines.Add(J("- Visual quality notes:", "- 映像品質ノート:"));
-            if (vqImpl)
-                foreach (var n in vq!.Notes) lines.Add($"  * {n}");
-            else
-                lines.Add($"  * {vq?.ErrorMessage ?? J("Not available", "利用不可")}");
+            foreach (var n in vq!.Notes) lines.Add($"  * {n}");
+            }
 
             Sec(J("[Session Verification]", "[セッション検証]"));
             L(J("Session result (this camera)", "セッション結果（このカメラ）"), sessionResult);
@@ -3777,8 +4146,9 @@ public partial class MainWindow : Window
                     ffprobeAvgFps         = hasFfprobeData ? (double?)ffprobe!.AvgFpsNumeric : null,
                     ffprobeRFrameRate     = hasFfprobeData ? ffprobe!.RFrameRate : null,
                     ffprobeConstantFr     = hasFfprobeData ? (bool?)ffprobe!.ConstantFrameRate : null,
-                    formatFallbackUsed    = fmt?.Kind != V2FormatSelectionKind.ExactMatch,
-                    fallbackReason        = fmt?.FallbackReason,
+                    formatFallbackUsed    = fmt?.Kind != V2FormatSelectionKind.ExactMatch || capNote is not null,
+                    fallbackReason        = string.Join(" ", new[] { fmt?.FallbackReason, capNote }.Where(x => !string.IsNullOrWhiteSpace(x))) is { Length: > 0 } fr2 ? fr2 : null,
+                    cameraInputSubtype    = capSubtype,
                 }},
                 controls = new
                 {
@@ -3796,7 +4166,9 @@ public partial class MainWindow : Window
                     temporaryFileRenamed = fileSet.IsFinalized,
                     tempStillExists,
                     outputFile        = Path.GetFileName(fileSet.FinalVideoPath),
-                    outputFilePath    = fileSet.FinalVideoPath,
+                    // STABLE_CORE_V2 exception #12: was the absolute path (contained the Windows user name).
+                    outputFilePath    = Utils.PrivacySanitizer.RelativeOrFileName(
+                        Path.GetDirectoryName(fileSet.CameraFolder), fileSet.FinalVideoPath),
                     fileSizeBytes,
                     writerStatus      = result.Status.ToString(),
                     failureReason     = result.FailureReason,
@@ -3858,7 +4230,9 @@ public partial class MainWindow : Window
                 bitrateProfile = new
                 {
                     profile            = activeBitrateProfile.ToString(),
-                    targetBitrateKbps  = activeBitrateKbps,
+                    rateControl        = VideoEngineSettings.RateControl.ToString(),
+                    encoderQuality     = VideoEngineSettings.RateControl == V2RateControl.QualityVbr ? (uint?)VideoEngineSettings.EncoderQuality : null,
+                    targetBitrateKbps  = VideoEngineSettings.RateControl == V2RateControl.QualityVbr ? (int?)null : activeBitrateKbps,
                     ffprobeBitrateKbps = hasFfprobeData && ffprobe!.BitRateBps.HasValue ? (int?)(ffprobe.BitRateBps.Value / 1000) : null,
                 },
                 timingModels = new
@@ -3938,7 +4312,7 @@ public partial class MainWindow : Window
                     clockImplementation                    = "Stopwatch.GetTimestamp / Stopwatch.Frequency",
                     origin                                 = "RecordingStart",
                     capturePoint                           = "CsvWriteTimeOnBackgroundFrameThread",
-                    hardwarePresentationTimestampAvailable = false,
+                    hardwarePresentationTimestampAvailable = true, // CSV column capturePtsMsFromFirstFrame (exception #8)
                     note                                   = "Application-side monotonic timestamp; not a hardware camera presentation timestamp.",
                 },
                 cameraControlReadbackLimitations = new
@@ -3989,7 +4363,7 @@ public partial class MainWindow : Window
                     level                = blurLevel,
                     exposureConfirmedFixed = exposureFixed,
                     llcConfirmedOff      = llcOff,
-                    autoExposureActive   = !exposureFixed,
+                    autoExposureActive   = exposureCtrl?.AutoModeActive ?? !exposureFixed,
                     note                 = blurNote,
                 },
                 visualQuality = new
@@ -4230,6 +4604,19 @@ public partial class MainWindow : Window
         return (best, reason, cfrStatusMap);
     }
 
+    // 2.1.0: Japanese metadata showed raw English for these two values.
+    private static string StageLabel(string? stage, bool isJa) =>
+        string.IsNullOrWhiteSpace(stage) ? "-"
+        : string.Equals(stage, "stable", StringComparison.OrdinalIgnoreCase) ? (isJa ? "安定版" : "Stable")
+        : stage;
+
+    private static string LocalizeTimingReason(string reason) => reason
+        .Replace("first active camera (no timing data)", "最初のアクティブカメラ（タイミングデータなし）", StringComparison.Ordinal)
+        .Replace("no mid-session gaps", "セッション中のギャップなし", StringComparison.Ordinal)
+        .Replace("jitter σ=", "ジッター σ=", StringComparison.Ordinal)
+        .Replace("avg ", "平均 ", StringComparison.Ordinal)
+        .Replace("No active cameras", "アクティブなカメラなし", StringComparison.Ordinal);
+
     private static (List<string> labels, string primary, string note) ClassifyTimingBehavior(
         TimestampCsvStats? ts, Diagnostics.FfprobeResult? fp, double requestedFps, bool isJa = false)
     {
@@ -4408,7 +4795,7 @@ public partial class MainWindow : Window
             lines.Add($"{J("Generated", "生成日時")}: {now:yyyy-MM-dd HH:mm:ss}");
             lines.Add($"{J("App version", "アプリバージョン")}: {ver.Version}");
             lines.Add($"{J("Build", "ビルド")}: {ver.Build}");
-            lines.Add($"{J("Release stage", "リリースステージ")}: {ver.Stage}");
+            lines.Add($"{J("Release stage", "リリースステージ")}: {StageLabel(ver.Stage, isJa)}");
 
             Sec(J("[Session Summary]", "[セッションサマリー]"));
             L(J("Session name", "セッション名"),       SessionBox.Text);
@@ -4419,7 +4806,7 @@ public partial class MainWindow : Window
             L(J("Active slots", "アクティブスロット"),
                 string.Join(", ", collected.Select(s => $"cam{s.slot + 1}")));
             L(J("Engine", "エンジン"), "VideoEngineV2");
-            L(J("Metadata language", "メタデータ言語"), isJa ? "Japanese" : "English");
+            L(J("Metadata language", "メタデータ言語"), isJa ? "日本語 (ja)" : "English (en)");
 
             Sec(J("[Inter-Camera Comparison]", "[カメラ間比較]"));
             L(J("Camera count", "カメラ数"), collected.Count.ToString());

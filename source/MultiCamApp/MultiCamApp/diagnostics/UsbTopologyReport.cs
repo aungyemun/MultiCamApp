@@ -15,4 +15,6 @@ public sealed class UsbCameraTopologyEntry
     public string DeviceId { get; set; } = "";
     public string CameraKind { get; set; } = "Unknown";
     public string UsbControllerOrHub { get; set; } = "Unknown";
+    /// <summary>External USB hubs between the camera and the controller (names only), nearest first.</summary>
+    public List<string> UsbHubs { get; set; } = [];
 }

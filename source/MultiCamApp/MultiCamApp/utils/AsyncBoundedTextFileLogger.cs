@@ -102,9 +102,16 @@ internal sealed class AsyncBoundedTextFileLogger : IDisposable
     {
         try
         {
-            _cts.Cancel();
+            // Complete first so the writer drains everything already queued (e.g. the final
+            // session summary lines written just before Dispose); cancel only if it is stuck.
             _queue.Writer.TryComplete();
-            try { _writerTask.Wait(TimeSpan.FromSeconds(1)); } catch { }
+            var drained = false;
+            try { drained = _writerTask.Wait(TimeSpan.FromSeconds(2)); } catch { }
+            if (!drained)
+            {
+                _cts.Cancel();
+                try { _writerTask.Wait(TimeSpan.FromMilliseconds(500)); } catch { }
+            }
         }
         catch { }
         finally { _cts.Dispose(); }

@@ -28,7 +28,7 @@
             <Setter Property="MinHeight" Value="132"/>
         </Style>
         <Style x:Key="HardwarePanelTitle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="{StaticResource AccentVideoBrush}"/>
             <Setter Property="Margin" Value="0,0,0,8"/>
@@ -38,7 +38,7 @@
             <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
-        <Style x:Key="HardwareExpander" TargetType="Expander">
+        <Style x:Key="HardwareExpander" TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
             <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Margin" Value="0"/>
@@ -71,8 +71,8 @@
 
         <Border Grid.Row="0" Style="{StaticResource SectionCardStyle}" Margin="0,0,0,10">
             <StackPanel>
-                <TextBlock x:Name="PageTitleText" FontSize="20" FontWeight="SemiBold"
-                           Foreground="{StaticResource AppForegroundBrush}" Margin="0,0,0,6"/>
+                <!-- 2.1.0: same page-title style as Video Verification and the Main page sections -->
+                <TextBlock x:Name="PageTitleText" Style="{StaticResource SectionTitleLayout}" Margin="0,0,0,4"/>
                 <TextBlock x:Name="PageDescriptionText"
                            TextWrapping="Wrap" Foreground="{StaticResource AppSecondaryTextBrush}"/>
                 <Grid Margin="0,12,0,0" HorizontalAlignment="Left" VerticalAlignment="Center">
@@ -95,7 +95,7 @@
             <StackPanel>
                 <Border Style="{StaticResource SectionCardStyle}">
                     <StackPanel>
-                        <TextBlock x:Name="SummaryTitleText" FontWeight="SemiBold" FontSize="15"
+                        <TextBlock x:Name="SummaryTitleText" FontWeight="SemiBold" FontSize="14"
                                    Foreground="{StaticResource AccentVideoBrush}" Margin="0,0,0,8"/>
                         <TextBlock x:Name="LastScanText"
                                    Foreground="{StaticResource AppSecondaryTextBrush}" Margin="0,0,0,6"/>

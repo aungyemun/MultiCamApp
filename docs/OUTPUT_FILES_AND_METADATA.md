@@ -59,6 +59,23 @@ MultiCamApp records original captured frames only. Exact 30.000 FPS cannot be gu
 
 In Original Capture Mode, the app does not insert duplicate or placeholder frames to force equal camera frame counts. Frame counts may differ because cameras delivered real frames at different measured FPS.
 
+**Container (since 2.1.0): fragmented MP4, H.264, keyframe every 1 s.** A plain MP4 gets its index only when recording stops normally; after a crash, forced close or power loss it was unplayable ("moov atom not found", verified by a kill test). Fragmented MP4 stays playable up to the last fragment (kill test: 0–2 frames lost per camera). The 1-second keyframe interval also gives analysis tools fast, frame-accurate seeking. Standard players, ffmpeg/ffprobe, OpenCV and browsers read fragmented MP4. Both settings are in `VideoEngineSettings` (`CrashSafeFragmentedMp4`, `KeyframeIntervalSeconds`).
+
+## Metadata Language
+
+`camN_metadata.txt` and `session_metadata.txt` are written in the UI language active when the recording started (English or Japanese; changing the language during a recording does not change it; the "Metadata language" line says which). Field names in `camN_metadata.json`, the CSV column names and technical identifiers (codec, API and column names) are always English, so scripts can read files from either language.
+
+## Interrupted Recordings (crash, forced close, power loss)
+
+While a recording is running, the session folder contains `session_in_progress.json` (settings, cameras, start time; no paths). It is deleted after the metadata is written at a normal stop. At the next start, the app looks for sessions in the output folder (last 30 days) that still have this file or a `camN.tmp.mp4`, then:
+
+- verifies each `camN.tmp.mp4` with ffprobe and, if playable, renames it to `camN.mp4` (or `camN_recovered.mp4` — an existing file is never overwritten);
+- counts the timestamp CSV rows and reports video frames minus CSV rows;
+- writes `RECOVERY_REPORT.txt` (human-readable) and `recovery_report.json`, and renames the journal to `session_interrupted.json`;
+- shows a notice in the Status panel. Files that cannot be played are left untouched and listed as *NotPlayable*.
+
+Per-camera metadata files are not written for an interrupted session; run Video Verification before using it. Because the metadata is missing, Video Verification reports these files as FAIL and the timestamp CSV as incomplete. This is intended: an interrupted recording is not a complete scientific recording. The CSV can also hold a few rows more than the video, for frames still being written when the app closed (measured: 1–10 rows). Frames that are in the video are still correctly timed by rows 0…N−1.
+
 ## Original Capture Mode
 
 Original Capture Mode means:
@@ -86,22 +103,25 @@ cam3_timestamps.csv
 cam4_timestamps.csv
 ```
 
-Columns (VideoEngineV2, current default engine):
+Columns (VideoEngineV2, current default engine). Since v2.1.0 there is **exactly one row per frame in the MP4, in the same order** (row *k* = video frame *k*); frames delivered while the encoder was still opening or already stopping are not listed.
 
 | Col | Name | Description |
 | :-- | :--- | :---------- |
-| 0 | `frameIndex` | Frame counter (preview-inclusive — the first recorded row's index reflects frames already delivered since preview start, not 0) |
-| 1 | `captureTimestampUtc` | UTC wall-clock time at frame capture |
-| 2 | `appTimestampMsFromRecStart` | Recording-relative ms (monotonic, from recording start) |
-| 3 | `appTimestampSecondsFromRecStart` | Recording-relative seconds (monotonic) |
-| 4 | `monotonicTicks` | `Stopwatch.GetTimestamp()` ticks |
-| 5 | `frameIntervalMs` | Interval since previous frame (ms) |
-| 6 | `estimatedCaptureFps` | Rolling estimated FPS |
-| 7 | `droppedFrameWarning` | 1 if timing gap detected, else 0 |
+| 0 | `frameIndex` | 0-based MP4 frame number |
+| 1 | `captureTimestampUtc` | UTC wall-clock time at which the frame reached the app |
+| 2 | `appTimestampMsFromRecStart` | App arrival time in ms, relative to the first recorded frame (monotonic) |
+| 3 | `appTimestampSecondsFromRecStart` | Same, in seconds |
+| 4 | `monotonicTicks` | `Stopwatch.GetTimestamp()` ticks at row creation |
+| 5 | `frameIntervalMs` | Camera capture-time interval to the previous recorded frame (ms); 0 for frame 0 |
+| 6 | `estimatedCaptureFps` | Recorded frames ÷ recording time so far |
+| 7 | `droppedFrameWarning` | 1 if the capture interval exceeded 2× the nominal frame interval, else 0 |
+| 8 | `capturePtsMsFromFirstFrame` | Camera capture timestamp (Media Foundation `SystemRelativeTime`) relative to frame 0 — identical to the MP4 sample time of that frame |
 
-`writerQueueDepth` and `writerLatencyMs` columns existed in the legacy OpenCV writer and are not present in current VideoEngineV2 Timestamp CSV output.
+`writerQueueDepth` and `writerLatencyMs` columns existed in the legacy OpenCV writer and are not present in current VideoEngineV2 Timestamp CSV output. Readers that index columns 0–7 by position are unaffected by column 8.
 
-Timestamps are app-side monotonic (`Stopwatch.GetTimestamp / Stopwatch.Frequency`), not hardware camera presentation timestamps. They are captured at CSV write time on the background frame thread, relative to recording start.
+Use `capturePtsMsFromFirstFrame` for per-frame timing analysis (it is the camera's own capture time and matches the video file exactly); `appTimestamp*` show when each frame reached the app and include scheduling jitter.
+
+Since 2.1.0 there is a 10th column, `capturePtsMsSystemClock`: the same capture timestamp as an absolute value on the Windows system (QPC) clock that every camera's frames are stamped with. Subtract it between cameras to align them exactly — for example, the start offset between cam1 and cam2 is `cam2.capturePtsMsSystemClock[0] − cam1.capturePtsMsSystemClock[0]`. Measured software start offsets were 28 ms (2 cameras), 106 ms (3 cameras) and 159 ms (4 cameras); use this column, not file start times, to synchronise cameras.
 
 ## Per-Camera Metadata
 
@@ -177,6 +197,12 @@ Command-line audit helper:
 ```
 
 See [Video Verification](user_guide/video_verification.md) for result interpretation.
+
+## New metadata fields (2.1.0)
+
+- `Camera input subtype` (txt) / `cameraInputSubtype` (json): the camera-side format actually used (`NV12`, `YUY2`, `MJPG`, …).
+- `Fallback reason` / `fallbackReason`: now also states when the camera mode was switched automatically because the first mode delivered no frames.
+- `Auto exposure during recording` (txt) / `autoExposureActive` (json): read back from the camera at recording start (`On (camera auto exposure kept)` / `Off` / `Unknown`), replacing fixed text. `Manual exposure`, `Manual exposure value` and `Manual exposure readback` show the shutter the camera confirmed when exposure is manual.
 
 ## Data Preservation
 

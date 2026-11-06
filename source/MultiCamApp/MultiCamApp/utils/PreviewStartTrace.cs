@@ -419,13 +419,25 @@ public sealed class PreviewStartTraceSession : IDisposable
         if (!_trace.ToString().Contains("START_PREVIEW_TOTAL_TIME_MS", StringComparison.Ordinal))
             Marker($"START_PREVIEW_TOTAL_TIME_MS={_total.ElapsedMilliseconds}");
 
-        WriteDiagnosis(_openedCount, _requiredCount);
+        // Diagnostics must never break Start Preview: an IO error here used to throw out of the
+        // `using` and skip Clear(), leaving the AsyncLocal trace session attached.
+        try
+        {
+            WriteDiagnosis(_openedCount, _requiredCount);
 
-        lock (_writeLock)
-            File.WriteAllText(_tracePath, PrivacySanitizer.SanitizeForLog(_trace.ToString()), Encoding.UTF8);
+            lock (_writeLock)
+                File.WriteAllText(_tracePath, PrivacySanitizer.SanitizeForLog(_trace.ToString()), Encoding.UTF8);
 
-        MirrorTrace();
-        PreviewStartTrace.Clear(this);
+            MirrorTrace();
+        }
+        catch (Exception ex)
+        {
+            AppDiagnosticLogger.Runtime($"PREVIEW_TRACE_WRITE_FAILED {ex.GetType().Name}: {ex.Message}");
+        }
+        finally
+        {
+            PreviewStartTrace.Clear(this);
+        }
     }
 
     private SlotTrace GetSlot(int slotIndex)

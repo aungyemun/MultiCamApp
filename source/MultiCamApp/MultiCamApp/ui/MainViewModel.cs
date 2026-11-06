@@ -356,6 +356,8 @@ public sealed class MainViewModel
     public async Task InitializeAsync()
     {
         Config = JsonLoader.LoadFromFile<AppConfig>(JsonLoader.ConfigPath("appsettings.json")) ?? Config;
+        if (Config.PowerLineFrequencyHz is 0 or 50 or 60 or -1)
+            Capture.VideoEngineV2.VideoEngineSettings.PowerlineFrequencyHz = Config.PowerLineFrequencyHz;
         Version = VersionService.Load();
         VersionService.Reload();
         Language.Load(Config.DefaultLanguage);

@@ -2,16 +2,16 @@
 ; Fully offline, self-contained bundle. Supports in-place upgrade without manual uninstall.
 #define AppName "MultiCamApp"
 #ifndef AppVersion
-#define AppVersion "2.0.5"
+#define AppVersion "2.1.0"
 #endif
 #define AppPublisher "Aung Ye Mun"
 ; Numeric-only version for Windows VersionInfoVersion (no alpha/beta suffix allowed)
-#define AppVersionNumeric "2.0.5.338"
+#define AppVersionNumeric "2.1.0.339"
 ; Short semantic version ("X.Y.Z", no build suffix) matching config/version.json's "version"
 ; field exactly. build_release.bat always passes the FULL "X.Y.Z.build" string into AppVersion
 ; via /DAppVersion (needed for AppVerName/OutputBaseFilename), so AppVersion itself can never be
 ; used to check version.json's separate version/build fields — use this instead.
-#define AppVersionShort "2.0.5"
+#define AppVersionShort "2.1.0"
 #define AppExeName "MultiCamApp.exe"
 #ifndef PublishDir
 #define PublishDir "..\dist"
@@ -25,7 +25,7 @@ AppName={#AppName}
 AppVersion={#AppVersion}
 AppVerName={#AppName} v{#AppVersion}
 AppPublisher={#AppPublisher}
-AppCopyright=Copyright (C) 2026-Present Aung Ye Mun and contributors
+AppCopyright=Copyright (C) 2026 Aung Ye Mun and contributors
 AppPublisherURL=
 AppSupportURL=
 AppUpdatesURL=

@@ -93,7 +93,36 @@ public sealed class VerificationReportWriter
             }),
             logs = report.LogLines
         };
-        await File.WriteAllTextAsync(path, PrivacySanitizer.SanitizeForOutput(JsonSerializer.Serialize(dto, options)), Encoding.UTF8);
+        // 2.1.0: sanitize string values only. Sanitizing the serialized text turned numbers such as
+        // 0.0016666666666666668 into "0.[id]" (long-hex ID rule), which made the file invalid JSON.
+        var node = JsonSerializer.SerializeToNode(dto, options);
+        SanitizeStrings(node);
+        await File.WriteAllTextAsync(path, node?.ToJsonString(options) ?? "null", Encoding.UTF8);
+    }
+
+    private static void SanitizeStrings(System.Text.Json.Nodes.JsonNode? node)
+    {
+        switch (node)
+        {
+            case System.Text.Json.Nodes.JsonObject obj:
+                foreach (var key in obj.Select(p => p.Key).ToList())
+                {
+                    if (obj[key] is System.Text.Json.Nodes.JsonValue v && v.TryGetValue<string>(out var s))
+                        obj[key] = PrivacySanitizer.SanitizeForOutput(s);
+                    else
+                        SanitizeStrings(obj[key]);
+                }
+                break;
+            case System.Text.Json.Nodes.JsonArray arr:
+                for (var i = 0; i < arr.Count; i++)
+                {
+                    if (arr[i] is System.Text.Json.Nodes.JsonValue v && v.TryGetValue<string>(out var s))
+                        arr[i] = PrivacySanitizer.SanitizeForOutput(s);
+                    else
+                        SanitizeStrings(arr[i]);
+                }
+                break;
+        }
     }
 
     public async Task ExportTextAsync(VerificationReport report, string path)

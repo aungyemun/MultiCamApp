@@ -17,7 +17,7 @@ public enum RecordingFinalizeStatus
     Cancelled,
 }
 
-/// <summary>Returned by <see cref="IVideoFileWriter.FinalizeAsync"/> describing the outcome.</summary>
+/// <summary>Returned by <c>VideoEngineV2.StopSlotRecordingAsync</c> describing the outcome.</summary>
 public sealed class RecordingFinalizeResult
 {
     public RecordingFinalizeStatus Status { get; init; }

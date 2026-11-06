@@ -67,6 +67,18 @@ public sealed class FrameTimestampMonitor : IDisposable
     /// <summary>Total frames recorded this session.</summary>
     public long FrameCount => _frameCount;
 
+    // STABLE_CORE_V2 exception #8: CSV rows are written only for frames the encoder accepted, so
+    // CSV row k == MP4 frame k. Previously every delivered frame (including the ~1-2 s while the
+    // encoder was opening and while it was stopping) got a row — measured on real hardware: +71
+    // rows / ~2.4 s of timestamps with no corresponding video frame, misaligning per-frame analysis.
+    private long _csvRowIndex;
+    private TimeSpan _csvFirstPts;
+    private TimeSpan _csvLastPts;
+    private double _csvFirstWallMs;
+
+    /// <summary>Rows written to the current/last timestamp CSV (== frames encoded into the MP4).</summary>
+    public long CsvRowCount => Interlocked.Read(ref _csvRowIndex);
+
     /// <summary>Starts the wall-clock reference. Optionally opens a CSV file for this session.</summary>
     public void Start(double expectedFps = 30.0)
     {
@@ -106,12 +118,13 @@ public sealed class FrameTimestampMonitor : IDisposable
         // Resume the clock if Stop() paused it between recordings on the same pipeline instance.
         if (!_wallClock.IsRunning) _wallClock.Start();
         _csvStartOffsetMs = _wallClock.Elapsed.TotalMilliseconds;
+        Interlocked.Exchange(ref _csvRowIndex, 0);
         Directory.CreateDirectory(Path.GetDirectoryName(csvPath) ?? ".");
         _csvWriter = new StreamWriter(csvPath, append: false, encoding: Encoding.UTF8);
         _csvWriter.WriteLine(
             "frameIndex,captureTimestampUtc,appTimestampMsFromRecStart," +
             "appTimestampSecondsFromRecStart,monotonicTicks," +
-            "frameIntervalMs,estimatedCaptureFps,droppedFrameWarning");
+            "frameIntervalMs,estimatedCaptureFps,droppedFrameWarning,capturePtsMsFromFirstFrame,capturePtsMsSystemClock");
         _csvOpen = true;
 
         // Unbounded: the writer task always keeps up in practice (row formatting + a file write
@@ -156,38 +169,58 @@ public sealed class FrameTimestampMonitor : IDisposable
                 : null,
         };
 
-        // Capture the queue in a local so Stop() on the UI thread cannot null it between the
-        // check and the use — FrameArrived fires on a background thread. Formatting the row is
-        // pure string work (no I/O); TryWrite on an unbounded channel never blocks.
-        var queue = _csvQueue;
-        if (_csvOpen && queue is not null)
-        {
-            queue.Writer.TryWrite(FormatCsvRow(info, estFps));
-        }
-
+        // CSV rows are no longer written here (preview-inclusive) — see AppendRecordedFrame.
         TimestampSampled?.Invoke(this, info);
         if (hasAnomaly) AnomalyDetected?.Invoke(this, info);
 
         return info;
     }
 
-    private string FormatCsvRow(CameraFrameTimestampInfo info, double estFps)
+    /// <summary>
+    /// Appends one CSV row for a frame that was actually written to the MP4. Call from the
+    /// frame-arrived thread only, after the encoder accepted the frame, in delivery order.
+    /// Columns: frameIndex = 0-based MP4 frame number; appTimestampMs/SecondsFromRecStart = app
+    /// arrival time relative to the first recorded frame; frameIntervalMs = capture-timestamp
+    /// delta to the previous recorded frame; estimatedCaptureFps = rows / recording time so far;
+    /// capturePtsMsFromFirstFrame = the exact capture timestamp used as the MP4 sample time.
+    /// </summary>
+    public void AppendRecordedFrame(CameraFrameTimestampInfo info)
     {
-        double recRelMs  = info.WallClockElapsed.TotalMilliseconds - _csvStartOffsetMs;
-        double recRelSec = recRelMs / 1000.0;
-        double intervalMs = info.PtsDelta?.TotalMilliseconds ?? 0;
+        var queue = _csvQueue;
+        if (!_csvOpen || queue is null) return;
+
+        var index = Interlocked.Increment(ref _csvRowIndex) - 1;
+        var wallMs = info.WallClockElapsed.TotalMilliseconds;
+        if (index == 0)
+        {
+            _csvFirstPts = info.PresentationTimestamp;
+            _csvFirstWallMs = wallMs;
+            _csvLastPts = info.PresentationTimestamp;
+        }
+
+        double recRelMs   = wallMs - _csvFirstWallMs;
+        double recRelSec  = recRelMs / 1000.0;
+        double intervalMs = index == 0 ? 0 : (info.PresentationTimestamp - _csvLastPts).TotalMilliseconds;
+        _csvLastPts = info.PresentationTimestamp;
+        bool anomaly      = index > 0 && intervalMs > _expectedIntervalMs * 2.0;
+        double estFps     = recRelSec > 0 ? index / recRelSec : 0;
+        double ptsRelMs   = (info.PresentationTimestamp - _csvFirstPts).TotalMilliseconds;
         long   ticks      = Stopwatch.GetTimestamp();
 
-        return string.Join(",",
-            info.FrameIndex,
+        // Formatting is pure string work (no I/O); TryWrite on an unbounded channel never blocks.
+        queue.Writer.TryWrite(string.Join(",",
+            index,
             info.WallClockTimestamp.ToString("O", CultureInfo.InvariantCulture),
             recRelMs.ToString("F3", CultureInfo.InvariantCulture),
             recRelSec.ToString("F6", CultureInfo.InvariantCulture),
             ticks,
             intervalMs.ToString("F3", CultureInfo.InvariantCulture),
             estFps.ToString("F2", CultureInfo.InvariantCulture),
-            info.HasTimingAnomaly ? "1" : "0"
-        );
+            anomaly ? "1" : "0",
+            ptsRelMs.ToString("F3", CultureInfo.InvariantCulture),
+            // 2.1.0: absolute capture time on the system (QPC) clock that Windows uses for every camera
+            // (MediaFrameReference.SystemRelativeTime) — subtract between cameras for exact alignment.
+            info.PresentationTimestamp.TotalMilliseconds.ToString("F3", CultureInfo.InvariantCulture)));
     }
 
     /// <summary>

@@ -189,7 +189,7 @@ Do not ask users to disable antivirus. If a tool flags the app, verify signature
 
 If you use MultiCamApp in research, education, or published work, please cite:
 
-Mun AY, Koketsu S. **MultiCamApp: Offline multi-camera recording, metadata capture, and video verification platform for research and educational workflows.** Version v2.0.5. 2026.
+Mun AY, Koketsu S. **MultiCamApp: Offline multi-camera recording, metadata capture, and video verification platform for research and educational workflows.** Version v2.1.0. 2026.
 
 ## Attribution
 
@@ -203,7 +203,7 @@ Modern application architecture, UI/UX redesign, offline packaging, verification
 
 ## License
 
-© 2026–Present Aung Ye Mun and contributors.
+© 2026 Aung Ye Mun and contributors.
 
 MultiCamApp is available for non-commercial academic, scientific, educational, evaluation, and personal use.
 
