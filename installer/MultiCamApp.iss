@@ -86,7 +86,7 @@ Name: "{group}\{#AppName} Offline Diagnostic"; Filename: "{app}\runtime\run_offl
 Name: "{userdesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#AppExeName}"; Tasks: desktopicon; BeforeInstall: RemoveExistingDesktopShortcuts
 
 [Run]
-Filename: "{cmd}"; Parameters: "/c ""{app}\runtime\setup_runtime.bat"" install"; WorkingDir: "{app}"; StatusMsg: "Configuring bundled runtimes..."; Flags: waituntilterminated; BeforeInstall: RunVCRedistBeforeRuntime; Check: ShouldRunRuntimeSetup
+Filename: "{cmd}"; Parameters: "/c ""{app}\runtime\setup_runtime.bat"" install"; WorkingDir: "{app}"; StatusMsg: "Configuring bundled runtimes..."; Flags: waituntilterminated runhidden; BeforeInstall: RunVCRedistBeforeRuntime; Check: ShouldRunRuntimeSetup
 
 [InstallDelete]
 ; Pre-install cleanup on upgrade only (before new files are copied). Preserves logs, backups, user_settings, config_user, and video files.
@@ -333,9 +333,11 @@ begin
   Result := True;
   if not IsMultiCamAppRunning() then Exit;
 
-  if MsgBox('MultiCamApp is currently running. Please close it to continue installation.' + #13#10 + #13#10 +
+  { SuppressibleMsgBox: a silent install (/SUPPRESSMSGBOXES) answers No, i.e. cancels instead of
+    force-closing a running MultiCamApp. }
+  if SuppressibleMsgBox('MultiCamApp is currently running. Please close it to continue installation.' + #13#10 + #13#10 +
     'Click Yes to close MultiCamApp automatically, or No to cancel setup.',
-    mbConfirmation, MB_YESNO) = IDNO then
+    mbConfirmation, MB_YESNO, IDNO) = IDNO then
   begin
     Result := False;
     Exit;
@@ -343,14 +345,14 @@ begin
 
   if not TerminateMultiCamApp() then
   begin
-    MsgBox('Could not close MultiCamApp automatically. Please close it manually and run setup again.', mbError, MB_OK);
+    SuppressibleMsgBox('Could not close MultiCamApp automatically. Please close it manually and run setup again.', mbError, MB_OK, IDOK);
     Result := False;
     Exit;
   end;
 
   if IsMultiCamAppRunning() then
   begin
-    MsgBox('MultiCamApp is still running. Please close it manually and run setup again.', mbError, MB_OK);
+    SuppressibleMsgBox('MultiCamApp is still running. Please close it manually and run setup again.', mbError, MB_OK, IDOK);
     Result := False;
   end;
 end;
@@ -677,16 +679,17 @@ begin
   begin
     AppendToInstallLog('Final checks FAILED (Core installation incomplete).');
     AppendToUpdateLog('=== Installation verification FAILED ===');
-    MsgBox('MultiCamApp installation did not complete correctly.' + #13#10 + #13#10 +
+    SuppressibleMsgBox('MultiCamApp installation did not complete correctly.' + #13#10 + #13#10 +
            'Reason: Critical dependency, version mismatch, or setup failure.' + #13#10 +
-           'Please check ' + ExpandConstant('{app}') + '\logs\install_update.log for details.', mbError, MB_OK);
+           'Please check ' + ExpandConstant('{app}') + '\logs\install_update.log for details.', mbError, MB_OK, IDOK);
     Result := False;
   end;
 end;
 
 function InitializeUninstall(): Boolean;
 begin
-  Result := MsgBox('This will remove MultiCamApp and all application components installed by Setup.exe. Your recorded videos and exported project files will not be removed. Do you want to continue?', mbConfirmation, MB_YESNO) = IDYES;
+  { SuppressibleMsgBox: a silent uninstall (/VERYSILENT /SUPPRESSMSGBOXES) no longer stops on this prompt. }
+  Result := SuppressibleMsgBox('This will remove MultiCamApp and the files Setup installed. Your recorded videos, exported reports and any other files you placed in the install folder will not be removed. Do you want to continue?', mbConfirmation, MB_YESNO, IDYES) = IDYES;
 end;
 
 procedure DeinitializeUninstall();

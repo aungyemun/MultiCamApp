@@ -27,12 +27,14 @@ function Seed($dir) {  # user data that must survive upgrade and uninstall
   Set-Content (Join-Path $dir 'user_settings\appsettings.user.json') '{"releaseTest":true}'
   [IO.File]::WriteAllBytes((Join-Path $dir 'MyRecordings\s1\cam1\cam1.mp4'), [byte[]](1..64))
   Set-Content (Join-Path $dir 'notes_from_user.txt') 'unrelated user file' }
+function TestUninstaller { $u = (Get-ItemProperty $TestKey -ErrorAction Stop).UninstallString.Trim('"'); if (-not $u.StartsWith($T, [StringComparison]::OrdinalIgnoreCase)) { throw "refusing to run uninstaller outside the test folder" }; $u }
 function Hash($f) { (Get-FileHash $f -Algorithm SHA256).Hash }
 
 $R = [ordered]@{ iscc = Split-Path $Iscc -Leaf; realBefore = RealState }
 Guard
 $fixed = Variant (Join-Path $inst 'MultiCamApp.iss') 'RT_fixed'
-$prefix = Variant (Join-Path $T 'MultiCamApp_pre_fix.iss') 'RT_prefix'
+# Pre-fix variant (old uninstaller deleted the whole folder) was demonstrated once on 2026-11-06; not rebuilt:
+# its uninstall prompt cannot be suppressed and would appear on screen.
 $dist = Join-Path $McRoot 'dist'
 $distFiles = Get-ChildItem $dist -Recurse -File | ? { $_.Name -notlike '*.pdb' } | % { $_.FullName.Substring($dist.Length + 1) }
 
@@ -40,6 +42,9 @@ $distFiles = Get-ChildItem $dist -Recurse -File | ? { $_.Name -notlike '*.pdb' }
 $A = Join-Path $T 'appA'; if (Test-Path $A) { Remove-Item $A -Recurse -Force }
 $loc = (Get-ItemProperty $RealKey).InstallLocation
 Copy-Item $loc $A -Recurse
+# The copy contains the REAL installation's uninstaller (unins000.exe/.dat records the real install path); remove it
+# so it can never be run from here (this harness once uninstalled the real app this way).
+Get-ChildItem $A -Filter 'unins*' | Remove-Item -Force
 $R.A_copiedFromVersion = (Get-ItemProperty $RealKey).DisplayVersion
 $R.A_before = (Get-Item (Join-Path $A 'MultiCamApp.exe')).VersionInfo.ProductVersion
 Seed $A; Set-Content (Join-Path $A 'logs\release_test_marker.log') 'marker'
@@ -71,7 +76,7 @@ for ($i = 0; $i -lt 25; $i++) { Start-Sleep 1; $p.Refresh(); if ($p.MainWindowHa
 $R.A_launchWindow = $win; $R.A_networkEndpoints = @($net | Select -Unique)
 $p.CloseMainWindow() | Out-Null; if (-not $p.WaitForExit(30000)) { $p.Kill() }
 Start-Sleep 2; Guard
-$R.A_uninstallExit = Run (Join-Path $A 'unins000.exe') @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$T\A_uninstall.log`"")
+$R.A_uninstallExit = Run (TestUninstaller) @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$T\A_uninstall.log`"")
 Start-Sleep 3
 $R.A_afterUninstall_exe = Test-Path (Join-Path $A 'MultiCamApp.exe')
 $R.A_afterUninstall_recording = Test-Path (Join-Path $A 'MyRecordings\s1\cam1\cam1.mp4')
@@ -79,13 +84,13 @@ $R.A_afterUninstall_userFile = Test-Path (Join-Path $A 'notes_from_user.txt')
 $R.A_afterUninstall_left = @(Get-ChildItem $A -Recurse -File -ErrorAction SilentlyContinue | % { $_.FullName.Substring($A.Length + 1) })
 $R.A_testKeyAfterUninstall = Test-Path $TestKey
 
-# ---- B: same uninstall with the pre-fix installer (demonstrates the old behaviour) ----
-foreach ($case in @(@{ n = 'B_prefix'; exe = $prefix }, @{ n = 'C_fixed_fresh'; exe = $fixed })) {
+# ---- C: fresh install + uninstall with the fixed installer ----
+foreach ($case in @(@{ n = 'C_fixed_fresh'; exe = $fixed })) {
   $D = Join-Path $T ("app" + $case.n); if (Test-Path $D) { Remove-Item $D -Recurse -Force }
   Guard
   $R["$($case.n)_installExit"] = Run $case.exe @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', "/DIR=`"$D`"", '/TASKS=""', "/LOG=`"$T\$($case.n)_install.log`"")
-  if ($case.n -eq 'B_prefix') { Seed $D }
-  $R["$($case.n)_uninstallExit"] = Run (Join-Path $D 'unins000.exe') @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART')
+  Seed $D   # user files placed in the install folder must survive the uninstall
+  $R["$($case.n)_uninstallExit"] = Run (TestUninstaller) @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART')
   Start-Sleep 3
   $R["$($case.n)_folderExists"] = Test-Path $D
   $R["$($case.n)_recordingKept"] = Test-Path (Join-Path $D 'MyRecordings\s1\cam1\cam1.mp4')
