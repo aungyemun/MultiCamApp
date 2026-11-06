@@ -110,15 +110,21 @@ This design is intended to preserve scientific transparency.
 
 ## Download
 
-End users should download the installer from the **GitHub Releases** page.
+End users should download the installer from the [latest GitHub Release](https://github.com/aungyemun/MultiCamApp/releases/latest) (currently [v2.1.0](https://github.com/aungyemun/MultiCamApp/releases/tag/v2.1.0)).
 
-Recommended:
+| File | Use |
+| --- | --- |
+| `MultiCamApp_2.1.0.339_Setup.exe` | Recommended: the installer |
+| `installer.zip` | The same installer (as `Setup.exe`) together with the main documentation |
+| `SHA256SUMS.txt` | SHA-256 checksums of both files |
 
-* Download `Setup.exe` to install MultiCamApp directly.
+To check the download, compare the result of this PowerShell command with `SHA256SUMS.txt`:
 
-Optional:
+```powershell
+Get-FileHash .\MultiCamApp_2.1.0.339_Setup.exe -Algorithm SHA256
+```
 
-* Download `installer.zip` if you want the installer together with important documentation.
+The installer is not code-signed, so Windows SmartScreen may ask you to confirm before it runs.
 
 The source repository is for development, review, documentation, and reproducible building. Installer binaries such as `Setup.exe` and `installer.zip` are not committed directly to the repository.
 
@@ -126,7 +132,7 @@ The source repository is for development, review, documentation, and reproducibl
 
 ## Quick Start
 
-1. Download `Setup.exe` or `installer.zip` from GitHub Releases.
+1. Download `MultiCamApp_2.1.0.339_Setup.exe` (or `installer.zip`) from the [latest release](https://github.com/aungyemun/MultiCamApp/releases/latest).
 2. Run the installer.
 3. Launch **MultiCamApp** from the Desktop or Start Menu.
 4. Select a 1–4 camera layout.

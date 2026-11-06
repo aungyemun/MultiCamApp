@@ -4,7 +4,8 @@
 
 | Version | Status        |
 |---------|---------------|
-| 2.0.x   | Active        |
+| 2.1.x   | Active        |
+| 2.0.x   | Superseded — please upgrade to 2.1.x |
 | < 2.0.0 | Not supported |
 
 ## Reporting a Vulnerability
