@@ -17,8 +17,7 @@
         </Style>
         <Style x:Key="SummaryGroupBorder" TargetType="Border" BasedOn="{StaticResource SectionCardStyle}">
             <Setter Property="Padding" Value="12,10"/>
-            <Setter Property="Margin" Value="0,0,10,10"/>
-            <Setter Property="MinWidth" Value="320"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
         </Style>
         <Style x:Key="SummaryGroupTitle" TargetType="TextBlock" BasedOn="{StaticResource BodyText}">
             <Setter Property="FontSize" Value="14"/>
@@ -29,14 +28,16 @@
         <Style x:Key="SummaryCardLabel" TargetType="TextBlock" BasedOn="{StaticResource BodyText}">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Opacity" Value="0.82"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
         <Style x:Key="SummaryCardValue" TargetType="TextBlock">
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="Margin" Value="0,2,0,0"/>
             <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
         </Style>
-        <Style x:Key="VerifySessionExpander" TargetType="Expander">
+        <Style x:Key="VerifySessionExpander" TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
             <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrushMain}"/>
@@ -44,7 +45,6 @@
         </Style>
         <Style x:Key="VerifySessionSummaryText" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource AppSecondaryTextBrush}"/>
-            <Setter Property="FontFamily" Value="Consolas"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
@@ -69,7 +69,8 @@
         </Style>
     </UserControl.Resources>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <ScrollViewer x:Name="PageScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                  SizeChanged="PageScrollViewer_SizeChanged">
         <Grid Margin="6,4,6,6">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -146,7 +147,7 @@
         </Border>
 
         <!-- Summary cards -->
-        <Border Grid.Row="1" Style="{StaticResource SectionCardStyle}" Margin="0,0,0,4" Padding="8,6">
+        <Border x:Name="ResultsCardBorder" Grid.Row="1" Style="{StaticResource SectionCardStyle}" Margin="0,0,0,4" Padding="8,6">
             <StackPanel>
                 <TextBlock x:Name="StableTimingNoteText"
                            Style="{StaticResource BodyText}" FontSize="13" TextWrapping="Wrap" Opacity="0.92" Margin="2,0,2,10"/>
@@ -158,15 +159,16 @@
                         BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="2,0,2,8" Visibility="Collapsed">
                     <TextBlock x:Name="ContainerDurationWarningText" Style="{StaticResource BodyText}" FontSize="13" TextWrapping="Wrap" Foreground="#FDE68A"/>
                 </Border>
-                <WrapPanel x:Name="SummaryCardsPanel">
+                <!-- 2.1.0: groups are full-width rows; cards share one width (ItemWidth) instead of sizing to their text -->
+                <StackPanel x:Name="SummaryCardsPanel">
                     <Border Style="{StaticResource SummaryGroupBorder}">
                         <StackPanel>
                             <TextBlock x:Name="VerificationSummaryGroupTitle" Style="{StaticResource SummaryGroupTitle}"/>
-                            <WrapPanel>
+                            <WrapPanel ItemWidth="200">
                                 <Border Style="{StaticResource SummaryCardBorder}">
                                     <StackPanel>
                                         <TextBlock x:Name="CardOverallLabel" Style="{StaticResource SummaryCardLabel}"/>
-                                        <TextBlock x:Name="CardOverallValue" FontSize="14" FontWeight="Bold" Margin="0,2,0,0"/>
+                                        <TextBlock x:Name="CardOverallValue" FontSize="14" FontWeight="Bold" Margin="0,2,0,0" TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Border>
                                 <Border Style="{StaticResource SummaryCardBorder}">
@@ -200,8 +202,8 @@
                     <Border Style="{StaticResource SummaryGroupBorder}">
                         <StackPanel>
                             <TextBlock x:Name="TimingQualityGroupTitle" Style="{StaticResource SummaryGroupTitle}"/>
-                            <WrapPanel>
-                                <Border Style="{StaticResource SummaryCardBorder}" MinWidth="150">
+                            <WrapPanel ItemWidth="200">
+                                <Border Style="{StaticResource SummaryCardBorder}">
                                     <StackPanel>
                                         <TextBlock x:Name="CardSourceLabel" Style="{StaticResource SummaryCardLabel}"/>
                                         <TextBlock x:Name="CardSourceValue" Style="{StaticResource SummaryCardValue}" TextWrapping="Wrap"/>
@@ -219,19 +221,19 @@
                                         <TextBlock x:Name="CardFpsSpreadValue" Style="{StaticResource SummaryCardValue}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource SummaryCardBorder}" MinWidth="170">
+                                <Border Style="{StaticResource SummaryCardBorder}">
                                     <StackPanel>
                                         <TextBlock x:Name="ScientificTimingConfidenceLabel" Style="{StaticResource SummaryCardLabel}"/>
                                         <TextBlock x:Name="CardTimingConfidenceValue" Style="{StaticResource SummaryCardValue}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource SummaryCardBorder}" MinWidth="155">
+                                <Border Style="{StaticResource SummaryCardBorder}">
                                     <StackPanel>
                                         <TextBlock x:Name="RecordingModeLabel" Style="{StaticResource SummaryCardLabel}"/>
                                         <TextBlock x:Name="CardTimingModeValue" Style="{StaticResource SummaryCardValue}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource SummaryCardBorder}" MinWidth="170">
+                                <Border Style="{StaticResource SummaryCardBorder}">
                                     <StackPanel>
                                         <TextBlock x:Name="ScientificTimingSourceLabel" Style="{StaticResource SummaryCardLabel}"/>
                                         <TextBlock x:Name="CardTrimSourceValue" Style="{StaticResource SummaryCardValue}" TextWrapping="Wrap"/>
@@ -244,8 +246,8 @@
                     <Border Style="{StaticResource SummaryGroupBorder}">
                         <StackPanel>
                             <TextBlock x:Name="FrameIntegrityGroupTitle" Style="{StaticResource SummaryGroupTitle}"/>
-                            <WrapPanel>
-                                <Border Style="{StaticResource SummaryCardBorder}" MinWidth="145">
+                            <WrapPanel ItemWidth="200">
+                                <Border Style="{StaticResource SummaryCardBorder}">
                                     <StackPanel>
                                         <TextBlock x:Name="FrameIntegrityLabel" Style="{StaticResource SummaryCardLabel}"/>
                                         <TextBlock x:Name="CardOriginalFramesValue" Style="{StaticResource SummaryCardValue}"/>
@@ -257,25 +259,25 @@
                                         <TextBlock x:Name="CardDuplicateFramesValue" Style="{StaticResource SummaryCardValue}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource SummaryCardBorder}" MinWidth="145">
+                                <Border Style="{StaticResource SummaryCardBorder}">
                                     <StackPanel>
                                         <TextBlock x:Name="PlaceholderFramesLabel" Style="{StaticResource SummaryCardLabel}"/>
                                         <TextBlock x:Name="CardPlaceholderFramesValue" Style="{StaticResource SummaryCardValue}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource SummaryCardBorder}" MinWidth="140">
+                                <Border Style="{StaticResource SummaryCardBorder}">
                                     <StackPanel>
                                         <TextBlock x:Name="WriterDropsLabel" Style="{StaticResource SummaryCardLabel}"/>
                                         <TextBlock x:Name="CardQueueDropsValue" Style="{StaticResource SummaryCardValue}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource SummaryCardBorder}" MinWidth="155">
+                                <Border Style="{StaticResource SummaryCardBorder}">
                                     <StackPanel>
                                         <TextBlock x:Name="TimestampCsvStatusLabel" Style="{StaticResource SummaryCardLabel}"/>
                                         <TextBlock x:Name="CardTimestampCsvValue" Style="{StaticResource SummaryCardValue}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource SummaryCardBorder}" MinWidth="155">
+                                <Border Style="{StaticResource SummaryCardBorder}">
                                     <StackPanel>
                                         <TextBlock x:Name="HardwareCalibrationLockLabel" Style="{StaticResource SummaryCardLabel}"/>
                                         <TextBlock x:Name="CardEnvLockValue" Style="{StaticResource SummaryCardValue}"/>
@@ -290,35 +292,53 @@
                             <TextBlock x:Name="DeepVerifyGroupTitle" Style="{StaticResource SummaryGroupTitle}"/>
                             <TextBlock x:Name="DeepVerifyExplanationText" Style="{StaticResource BodyText}"
                                        FontSize="12" Opacity="0.85" TextWrapping="Wrap" Margin="0,0,0,8"/>
-                            <WrapPanel>
-                                <Border Style="{StaticResource SummaryCardBorder}" MinWidth="130">
+                            <WrapPanel ItemWidth="200">
+                                <Border Style="{StaticResource SummaryCardBorder}">
                                     <StackPanel>
                                         <TextBlock x:Name="DeepVerifyStatusLabel" Style="{StaticResource SummaryCardLabel}"/>
                                         <TextBlock x:Name="CardDeepVerifyStatusValue" Style="{StaticResource SummaryCardValue}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource SummaryCardBorder}" MinWidth="120">
+                                <Border Style="{StaticResource SummaryCardBorder}">
                                     <StackPanel>
                                         <TextBlock x:Name="DeepVerifyFilesLabel" Style="{StaticResource SummaryCardLabel}"/>
                                         <TextBlock x:Name="CardDeepVerifyFilesValue" Style="{StaticResource SummaryCardValue}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource SummaryCardBorder}" MinWidth="150">
+                                <Border Style="{StaticResource SummaryCardBorder}">
                                     <StackPanel>
                                         <TextBlock x:Name="DeepVerifyDuplicatesLabel" Style="{StaticResource SummaryCardLabel}"/>
                                         <TextBlock x:Name="CardDeepVerifyDuplicatesValue" Style="{StaticResource SummaryCardValue}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource SummaryCardBorder}" MinWidth="200">
+                                <Border Style="{StaticResource SummaryCardBorder}">
                                     <StackPanel>
                                         <TextBlock x:Name="DeepVerifyWorstFileLabel" Style="{StaticResource SummaryCardLabel}"/>
                                         <TextBlock x:Name="CardDeepVerifyWorstFileValue" Style="{StaticResource SummaryCardValue}" TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Border>
+                                <Border Style="{StaticResource SummaryCardBorder}">
+                                    <StackPanel>
+                                        <TextBlock x:Name="VisualBandsLabel" Style="{StaticResource SummaryCardLabel}"/>
+                                        <TextBlock x:Name="CardVisualBandsValue" Text="—" Style="{StaticResource SummaryCardValue}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource SummaryCardBorder}">
+                                    <StackPanel>
+                                        <TextBlock x:Name="VisualFlashLabel" Style="{StaticResource SummaryCardLabel}"/>
+                                        <TextBlock x:Name="CardVisualFlashValue" Text="—" Style="{StaticResource SummaryCardValue}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource SummaryCardBorder}">
+                                    <StackPanel>
+                                        <TextBlock x:Name="VisualNoiseLabel" Style="{StaticResource SummaryCardLabel}"/>
+                                        <TextBlock x:Name="CardVisualNoiseValue" Text="—" Style="{StaticResource SummaryCardValue}"/>
+                                    </StackPanel>
+                                </Border>
                             </WrapPanel>
                         </StackPanel>
                     </Border>
-                </WrapPanel>
+                </StackPanel>
             </StackPanel>
         </Border>
 

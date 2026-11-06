@@ -1,7 +1,9 @@
-ffprobe.exe — bundled for in-app Video Verification (offline, fast metadata-only checks).
-ffmpeg.exe  — bundled for the on-demand Deep Verify per-frame MD5 duplicate-frame check
-              on the Video Verification page (opt-in only, never runs automatically;
-              see DeepVerifyService.cs).
+ffprobe.exe — bundled for in-app Video Verification and interrupted-recording recovery
+              (offline, fast metadata-only checks).
+ffmpeg.exe  — bundled for the on-demand Deep Verify checks on the Video Verification page:
+              per-frame MD5 duplicate-frame check and visual stability audit
+              (opt-in only, never runs automatically; see DeepVerifyService.cs and
+              VisualStabilityAuditService.cs). Recording does not use FFmpeg.
 
 Both are shipped to end users. The installer's final validation step fails the install
 if either file is missing (see MultiCamApp.iss).

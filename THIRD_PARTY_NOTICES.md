@@ -9,13 +9,12 @@ MultiCamApp is published as a self-contained `win-x64` application and includes 
 - Source references:
   - `tools/dotnet/ThirdPartyNotices.txt`
   - `tools/dotnet/shared/Microsoft.AspNetCore.App/8.0.27/THIRD-PARTY-NOTICES.txt`
-  - `tools/dotnet/shared/Microsoft.WindowsDesktop.App/8.0.27/THIRD-PARTY-NOTICES.txt`
-  - `tools/nuget-packages/microsoft.netcore.app.runtime.win-x64/8.0.27/THIRD-PARTY-NOTICES.TXT`
   - `tools/nuget-packages/microsoft.net.illink.tasks/8.0.27/THIRD-PARTY-NOTICES.TXT`
+- Version: .NET 8 runtime **8.0.27** (bundled SDK 8.0.421, `tools/dotnet/shared/*/8.0.27`). The self-contained runtime packs (`Microsoft.NETCore.App.Runtime.win-x64`, `Microsoft.WindowsDesktop.App.Runtime.win-x64`) are restored from NuGet when `scripts/build/build_release.ps1` publishes; they are not stored in `tools/nuget-packages/`.
 
 ## OpenCvSharp and OpenCV
 
-MultiCamApp uses OpenCvSharp managed and native packages for live camera preview, DirectShow access, recording support, and diagnostics.
+MultiCamApp uses OpenCvSharp (4.10.0.20240616) for the legacy (STABLE_CORE_V1) capture pipeline, DirectShow camera-index mapping and startup diagnostics. The default recording engine (VideoEngineV2) does not use OpenCV: it captures through Windows Media Capture and encodes with Windows Media Foundation (see Vortice.Windows below).
 
 - Package metadata:
   - `tools/nuget-packages/opencvsharp4/4.10.0.20240616/opencvsharp4.nuspec`
@@ -35,7 +34,9 @@ The `opencv_videoio_ffmpeg4100_64.dll` runtime component is included through the
 
 ## FFmpeg / ffprobe / ffmpeg
 
-MultiCamApp bundles `ffprobe.exe` for offline video verification and video/container metadata inspection, and `ffmpeg.exe` for the on-demand "Deep Verify" independent per-frame MD5 duplicate-frame check on the Video Verification page (opt-in only — never runs automatically).
+MultiCamApp bundles `ffprobe.exe` for offline video verification, video/container metadata inspection and recovery of interrupted recordings, and `ffmpeg.exe` for the on-demand "Deep Verify" checks on the Video Verification page — the independent per-frame MD5 duplicate-frame check and the visual stability audit (light-flicker bands, brightness flashes, temporal noise). Deep Verify is opt-in only and never runs automatically.
+
+Bundled version at the time of this release: FFmpeg 8.1.1 "essentials" build (as reported by `ffmpeg -version`).
 
 The bundled `ffprobe.exe`/`ffmpeg.exe` binaries are from the gyan.dev Windows FFmpeg build:
 
@@ -53,7 +54,7 @@ Source code and license information:
 - gyan.dev build scripts and patches: https://github.com/GyanD/codexffmpeg
 - GPL v3 license text: https://www.gnu.org/licenses/gpl-3.0.txt
 
-MultiCamApp uses `ffprobe.exe` and `ffmpeg.exe` only as external standalone executables, invoked as separate processes for post-recording video metadata inspection and (for `ffmpeg.exe`) per-frame hashing. No FFmpeg source code was modified. Neither binary is linked into the `MultiCamApp.exe` binary.
+MultiCamApp uses `ffprobe.exe` and `ffmpeg.exe` only as external standalone executables, invoked as separate processes for post-recording video metadata inspection and (for `ffmpeg.exe`) per-frame hashing and the visual stability audit. Recording itself does not use FFmpeg. No FFmpeg source code was modified. Neither binary is linked into the `MultiCamApp.exe` binary.
 
 Bundled runtime files and references:
 
@@ -79,16 +80,18 @@ The managed Vortice assemblies are bundled inside the single-file `MultiCamApp.e
 
 Python is used only as a developer/build tool and is not included in the normal installed MultiCamApp release unless a specific release package explicitly states otherwise.
 
+- Bundled interpreter: Python 3.12.10 (`tools/python/`), with pip 26.1.2 and Pillow 12.2.0 (Pillow is used only by `scripts/build/build_app_icon.py`). The real-camera test harness (`scripts/autotest/`) uses the standard library only.
 - Reference files:
   - `tools/python/LICENSE.txt`
-  - `tools/python/Lib/site-packages/pip-26.1.1.dist-info/licenses/LICENSE.txt`
+  - `tools/python/Lib/site-packages/pip-26.1.2.dist-info/licenses/LICENSE.txt`
   - `tools/python/Lib/site-packages/pip/_vendor/*/LICENSE*`
+  - `tools/python/Lib/site-packages/pillow-12.2.0.dist-info/licenses/LICENSE` (MIT-CMU)
 
 ## xUnit
 
 MultiCamApp's unit test suite (`MultiCamApp.Tests`) uses xUnit as its test framework.
 
-- Package: `xunit` v2.9.2, `xunit.runner.visualstudio` v2.8.2, `Microsoft.NET.Test.Sdk` v17.12.0
+- Package: `xunit` v2.9.3, `xunit.runner.visualstudio` v2.8.2, `Microsoft.NET.Test.Sdk` v17.14.1
 - License: Apache 2.0 (xUnit); see `tools/nuget-packages/xunit/` for package metadata
 - xUnit is a developer/build-time dependency only. It is not shipped in the installed application or installer package.
 
@@ -96,23 +99,17 @@ MultiCamApp's unit test suite (`MultiCamApp.Tests`) uses xUnit as its test frame
 
 The release process may redistribute or stage runtime assets from these package families:
 
-**Shipped in release (`dist\`):**
+**Shipped in release (`dist\`)** — versions as resolved in the app's `MultiCamApp.deps.json`:
 
-- `OpenCvSharp4`
-- `OpenCvSharp4.runtime.win`
-- `Vortice.Direct3D11`
-- `Vortice.DXGI`
-- `Vortice.MediaFoundation`
-- `Vortice.DirectX` (transitive dependency of the above)
-- `Microsoft.NETCore.App.Runtime.win-x64`
-- `Microsoft.AspNetCore.App.Runtime.win-x64`
-- `Microsoft.WindowsDesktop.App.Runtime.win-x64`
-- `Microsoft.NET.ILLink.Tasks`
-- `System.Management`
-- `System.CodeDom`
-- `System.Memory`
-- `System.Runtime.CompilerServices.Unsafe`
-- `System.Windows.Extensions`
+- `OpenCvSharp4` 4.10.0.20240616, `OpenCvSharp4.runtime.win` 4.10.0.20240616
+- `Vortice.Direct3D11` 3.8.3, `Vortice.DXGI` 3.8.3, `Vortice.MediaFoundation` 3.8.3
+- `Vortice.DirectX` 3.8.3, `Vortice.Mathematics` 2.1.0, `SharpGen.Runtime` 2.4.2-beta, `SharpGen.Runtime.COM` 2.4.2-beta (dependencies of the above)
+- `System.Management` 10.0.14, `System.CodeDom` 10.0.14
+- `System.Text.Json` 9.0.1, `System.Text.Encodings.Web` 9.0.1, `System.IO.Pipelines` 9.0.1
+- `System.Memory` 4.5.5, `System.Runtime.CompilerServices.Unsafe` 6.0.0
+- .NET 8 runtime packs `Microsoft.NETCore.App.Runtime.win-x64` and `Microsoft.WindowsDesktop.App.Runtime.win-x64` (8.0.27, self-contained publish)
+
+**Build-time only:** `Microsoft.NET.ILLink.Tasks` 8.0.27 (publish trimming/analysis tasks).
 
 **Developer/build-time only (not shipped in release):**
 
@@ -128,16 +125,16 @@ MultiCamApp's installer (`Setup.exe`) is built with Inno Setup, a free installer
 
 - Copyright © 1997–2026 Jordan Russell. All rights reserved.
 - Portions copyright © 2000–2026 Martijn Laan. All rights reserved.
-- License: Inno Setup License. See `tools/inno/license.txt` for the full license terms.
+- License: Inno Setup License. `installer/build_release.bat` uses an installed Inno Setup 7 or 6 (Inno Setup 6 on the build machine at this release); the full license text (`license.txt`) is in that installation folder. `tools/inno/` holds only a copy of `ISCC.exe` (copied by `scripts/maintenance/audit_environment.ps1`), used as a last fallback.
 - Homepage: https://jrsoftware.org/isinfo.php
 
-The Inno Setup compiler and runtime files (`tools/inno/`) are used to produce `installer/Setup.exe` and are not redistributed to end users as part of the installed application. The compiled Setup.exe contains Inno Setup runtime components as is standard for Inno Setup-built installers.
+The Inno Setup compiler is used to produce `installer/MultiCamApp_<version>_Setup.exe` and is not redistributed to end users as part of the installed application. The compiled Setup.exe contains Inno Setup runtime components as is standard for Inno Setup-built installers.
 
 ## Microsoft Visual C++ Redistributable
 
 The installer (`Setup.exe`) bundles and installs the Microsoft Visual C++ 2015–2022 Redistributable (x64) to satisfy runtime dependencies of OpenCV and related native components.
 
-- File: `vc_redist.x64.exe` is bundled inside or alongside the installer package and may be installed during setup to satisfy native runtime dependencies.
+- File: `runtime/vc_runtime/vc_redist.x64.exe`, version 14.44.35211.0, bundled with the installer and installed during setup if needed.
 - License: Microsoft Software License Terms for Visual C++ Redistributable Packages
 - Reference: https://docs.microsoft.com/en-us/cpp/windows/redistributing-visual-cpp-files
 

@@ -67,7 +67,14 @@ public partial class HardwareDiagnosticsPage : UserControl
             ? string.Format(L["hwDiagLastScanTemplate"], _lastScanTimeLocal.Value.ToString("yyyy-MM-dd HH:mm:ss"))
             : L["hwDiagLastScanNotRun"];
         RecommendedPresetText.Text = BuildPresetAdvisory(Math.Max(1, _getLayoutCount()));
-        StatusText.Text = L["hwDiagReady"];
+        // ApplyLanguage also runs on every main-window UI refresh; only reset the status line on
+        // first use or a real language change, otherwise "scan complete"/"failed"/"copied"
+        // messages were wiped almost immediately.
+        if (_statusLanguage != lang.CurrentLanguage)
+        {
+            StatusText.Text = L["hwDiagReady"];
+            _statusLanguage = lang.CurrentLanguage;
+        }
         SystemCardTitleText.Text = L["hwDiagSystemCardTitle"];
         CameraDevicesCardTitleText.Text = L["hwDiagCameraDevicesCardTitle"];
         UsbStatusCardTitleText.Text = L["hwDiagUsbCardTitle"];
@@ -192,13 +199,25 @@ public partial class HardwareDiagnosticsPage : UserControl
         }
     }
 
+    private string? _statusLanguage;
+
     private void CopySummaryButton_Click(object sender, RoutedEventArgs e)
     {
         var text = string.IsNullOrWhiteSpace(_lastSummary)
             ? (_lang?["hwDiagNoScanYet"] ?? "No hardware scan has been run yet.")
             : _lastSummary;
-        Clipboard.SetText(text);
-        StatusText.Text = _lang?["hwDiagSummaryCopied"] ?? "Diagnostic summary copied.";
+        try
+        {
+            Clipboard.SetText(text);
+            StatusText.Text = _lang?["hwDiagSummaryCopied"] ?? "Diagnostic summary copied.";
+        }
+        catch (System.Runtime.InteropServices.ExternalException ex) // includes COMException
+        {
+            // Clipboard can be locked by another process (RDP, clipboard managers). Unhandled, this
+            // reached the global exception handler.
+            StatusText.Text = string.Format(T("hwDiagCopyFailed", "Could not copy to the clipboard: {0}"),
+                PrivacySanitizer.SanitizeForOutput(ex.Message));
+        }
     }
 
     private string T(string key, string fallback) => _lang?[key] is { Length: > 0 } v ? v : fallback;
@@ -212,7 +231,7 @@ public partial class HardwareDiagnosticsPage : UserControl
         sb.AppendLine(string.Format(T("hwDiagRamLine", "RAM: {0}"), FormatBytes(profile.TotalPhysicalMemoryBytes)));
         sb.AppendLine(T("hwDiagDisplayAdaptersLabel", "Display adapters:"));
         foreach (var gpu in profile.DisplayAdapters)
-            sb.AppendLine($"- {gpu.Name} | provider={gpu.DriverProvider} | version={gpu.DriverVersion} | date={gpu.DriverDate}");
+            sb.AppendLine($"- {gpu.Name} | provider={gpu.DriverProvider} | version={gpu.DriverVersion} | date={gpu.DriverDate} | memory={gpu.AdapterRam}");
         AppendList(sb, T("hwDiagWarningsLabel", "Warnings"), profile.Warnings);
         AppendList(sb, T("hwDiagEncoderHintsLabel", "Encoder hints"), profile.EncoderHints);
         sb.AppendLine(T("hwDiagPrivacyNote", "Note: Hardware diagnostics are privacy-safe and do not store hardware IDs or user/computer identifiers."));
@@ -332,6 +351,8 @@ public partial class HardwareDiagnosticsPage : UserControl
                     string.Equals(cam.UsbControllerOrHub, "Unknown", StringComparison.OrdinalIgnoreCase)
                         ? T("hwDiagNotDeterminedByDiagnostics", "not determined by diagnostics")
                         : cam.UsbControllerOrHub));
+                if (cam.UsbHubs.Count > 0)
+                    sb.AppendLine(string.Format(T("hwDiagUsbHubLine", "USB hub: {0}"), string.Join(" → ", cam.UsbHubs)));
                 sb.AppendLine();
             }
         }
@@ -350,7 +371,10 @@ public partial class HardwareDiagnosticsPage : UserControl
         {
             string.Format(T("hwDiagUsbCamerasCheckedCount", "{0} selected camera(s) checked"), report.SelectedCameras.Count)
         };
-        if (report.Notes.Count > 0)
+        // A shared-hub warning matters more than the general notes.
+        if (report.Warnings.Count > 0)
+            lines.Add(report.Warnings[0]);
+        else if (report.Notes.Count > 0)
             lines.Add(report.Notes[0]);
         return string.Join(Environment.NewLine, lines);
     }
@@ -359,9 +383,9 @@ public partial class HardwareDiagnosticsPage : UserControl
     // recommended "4-camera 1080p" settings even for a 1-camera layout, which was misleading.
     private string BuildPresetAdvisory(int layoutCount) => layoutCount switch
     {
-        1 => T("hwDiagPresetAdvisory1Cam", "1-camera layout: USB bandwidth is rarely a concern. Bright, even room lighting still helps focus and exposure stability."),
-        2 => T("hwDiagPresetAdvisory2Cam", "2-camera layout: prefer separate USB ports for each camera if available. Bright room lighting and preview FPS Balanced are recommended."),
-        _ => T("hwDiagPresetAdvisory", "Recommended for 3-4 camera 1080p: use separate USB ports or powered USB hub, bright room lighting, preview FPS Balanced, and High-Stability Recording Mode ON.")
+        1 => T("hwDiagPresetAdvisory1Cam", "1 camera: USB bandwidth is rarely a limit. Bright, even room lighting still helps focus and exposure stability."),
+        2 => T("hwDiagPresetAdvisory2Cam", "2 cameras: connect each camera to a separate USB port if available, and use bright, even room lighting."),
+        _ => T("hwDiagPresetAdvisory", "3–4 cameras at 1080p: connect each camera to a separate USB port (or a powered USB hub) and use bright, even room lighting.")
     };
 
     private string BuildFullSummary(SystemProfile system, CameraCapabilityReport camera, UsbTopologyReport usb, int layoutCount)

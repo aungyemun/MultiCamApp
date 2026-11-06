@@ -31,6 +31,8 @@
                            VerticalAlignment="Center" Margin="0,0,8,0"/>
                 <ComboBox x:Name="LanguageBox" Style="{StaticResource InputComboBoxStyle}"
                           MinWidth="110" VerticalAlignment="Center"
+                          ToolTipService.ShowOnDisabled="True"
+                          AutomationProperties.LabeledBy="{Binding ElementName=LangLabel}"
                           SelectionChanged="LanguageBox_SelectionChanged">
                     <ComboBoxItem Content="English" Tag="en"/>
                     <ComboBoxItem Content="日本語" Tag="ja"/>

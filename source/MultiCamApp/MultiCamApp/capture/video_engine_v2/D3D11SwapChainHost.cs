@@ -222,7 +222,7 @@ public sealed class D3D11SwapChainHost : HwndHost
     {
         _disposed = true;
         _frameSignal.Set();  // unblock render thread's Wait so it can see _disposed and exit
-        _renderThread.Join(TimeSpan.FromSeconds(2));
+        var renderThreadExited = _renderThread.Join(TimeSpan.FromSeconds(2));
 
         lock (_pendingLock)
         {
@@ -236,12 +236,21 @@ public sealed class D3D11SwapChainHost : HwndHost
         }
 
         // All D3D11 objects were created/used only on the render thread.
-        // Safe to release here because render thread has fully exited.
-        ReleaseStagingTex();
-        _swapChain?.Dispose();     _swapChain   = null;
-        _dxgiFactory?.Dispose();   _dxgiFactory = null;
-        _context?.Dispose();       _context     = null;
-        _device?.Dispose();        _device      = null;
+        // STABLE_CORE_V2 exception #3: only release them if the render thread actually exited.
+        // If it is still inside Map/CopyResource/Present (GPU hang / TDR), releasing the device
+        // under it is a use-after-free; leaking the objects for this one panel is the safe choice.
+        if (renderThreadExited)
+        {
+            ReleaseStagingTex();
+            _swapChain?.Dispose();     _swapChain   = null;
+            _dxgiFactory?.Dispose();   _dxgiFactory = null;
+            _context?.Dispose();       _context     = null;
+            _device?.Dispose();        _device      = null;
+        }
+        else
+        {
+            AppDiagnosticLogger.Runtime("D3D11_HOST: render thread did not exit within 2s; D3D11 objects intentionally not released");
+        }
         SharedWinRtDevice = null;
 
         Win32Window.Destroy(hwnd.Handle);

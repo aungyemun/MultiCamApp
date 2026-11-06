@@ -4,7 +4,7 @@
 **Status:** SUPERSEDED (2026-07-02) — the "Windows Native Camera Engine Core Update" this study planned for was implemented as **VideoEngineV2** (`capture/video_engine_v2/`), shipped starting v1.1.7 and made the default/exclusive engine as of v1.2.22-alpha (V3/V3B experimental alternatives removed). Sections 6–10 below were never filled in during the planning phase, but real, empirical Windows Camera vs MultiCamApp comparisons were later run directly against shipping VideoEngineV2 code (side-by-side frame extraction, ffprobe stream comparison, real recordings) — see the v1.2.24-alpha through v1.2.27-alpha entries in [CHANGELOG.md](../CHANGELOG.md) for the actual findings, since they supersede the open questions in this document. Kept for historical/design-rationale reference.
 
 **Update (2026-07-05, v1.2.65–v1.2.67):** the "investigate `IMFSinkWriter` directly" follow-up this study's Section 10 flagged as the path to real VUI color tagging was in fact carried out — `MediaFoundationEncoderService` was rewritten around a raw `IMFSinkWriter` pipeline (v1.2.65, also fixing forced-CFR muxing into real per-frame VFR timestamps), and BT.709 color primaries/transfer/matrix + limited-range tagging shipped in v1.2.66, exposed in metadata/verification in v1.2.67. `color_primaries`/`color_transfer`/`color_space` no longer read `unknown`.
-**Working directory:** `D:\Software testing\MultiCamApp_Version_Develop`
+**Working directory:** the development working copy
 
 This document studies how Windows Camera and Windows camera settings behave so that MultiCamApp can later be upgraded with a safer, more reliable Windows-native camera engine. This phase is for observation and documentation only. No current MultiCamApp code is changed in this phase.
 

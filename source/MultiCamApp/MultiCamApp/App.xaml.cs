@@ -44,7 +44,12 @@ public partial class App : System.Windows.Application
             return;
 
         if (!isSmokeTest && !isExternal4PreviewStress)
-            RuntimeBootstrapper.EnsureRuntimeReady("App.Application_Startup");
+        {
+            // Runtime self-repair is best-effort: a failure here must not prevent the app from
+            // starting (verification reports "ffprobe not available" on its own if tools are missing).
+            try { RuntimeBootstrapper.EnsureRuntimeReady("App.Application_Startup"); }
+            catch (Exception ex) { _log.Error("startup", $"Runtime bootstrap failed: {ex.Message}", ex); }
+        }
 
         if (isSmokeTest)
         {
@@ -119,6 +124,7 @@ public partial class App : System.Windows.Application
             SessionEnding += OnSessionEnding;
             Exit += OnExit;
             _mainWindow = new MainWindow();
+            FitWindowToWorkArea(_mainWindow);
             _mainWindow.Show();
         }
         catch (Exception ex)
@@ -227,14 +233,18 @@ public partial class App : System.Windows.Application
                 return (false, $"Failed to start {fileName}");
             }
 
+            // Drain both pipes while waiting: ffprobe -version output can exceed the pipe buffer,
+            // which blocked the child and produced a false "timed out" smoke-test result.
+            var stdoutTask = process.StandardOutput.ReadToEndAsync();
+            var stderrTask = process.StandardError.ReadToEndAsync();
             if (!process.WaitForExit((int)timeout.TotalMilliseconds))
             {
                 try { process.Kill(true); } catch { }
                 return (false, $"{Path.GetFileName(fileName)} timed out after {timeout.TotalSeconds:0}s");
             }
 
-            var stdout = process.StandardOutput.ReadToEnd();
-            var stderr = process.StandardError.ReadToEnd();
+            var stdout = stdoutTask.GetAwaiter().GetResult();
+            var stderr = stderrTask.GetAwaiter().GetResult();
             sb.AppendLine($"[{Path.GetFileName(fileName)} exit={process.ExitCode}]");
             if (!string.IsNullOrWhiteSpace(stdout)) sb.AppendLine(stdout);
             if (!string.IsNullOrWhiteSpace(stderr)) sb.AppendLine(stderr);
@@ -429,13 +439,31 @@ public partial class App : System.Windows.Application
         }
     }
 
+    /// <summary>
+    /// The default 1280x800 window (MinHeight 640) does not fit common laptop work areas at
+    /// 125-150% scaling (e.g. 1920x1080 @150% = 1280x672 DIP), which pushed the footer and lower
+    /// controls off-screen. Shrink to the work area when needed and center.
+    /// </summary>
+    private static void FitWindowToWorkArea(Window window)
+    {
+        var area = SystemParameters.WorkArea;
+        if (area.Width <= 0 || area.Height <= 0) return;
+        window.MinWidth = Math.Min(window.MinWidth, area.Width);
+        window.MinHeight = Math.Min(window.MinHeight, area.Height);
+        window.Width = Math.Min(window.Width, area.Width);
+        window.Height = Math.Min(window.Height, area.Height);
+        window.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+    }
+
+    private DateTime _lastNonFatalErrorNoticeUtc = DateTime.MinValue;
+
     private void OnUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         LogCrash(e.Exception);
         _log.Error("crash", e.Exception.Message, e.Exception);
-        _ = _mainWindow?.ForceCleanupAsync();
         if (_mainWindow == null || !_mainWindow.IsLoaded)
         {
+            _ = _mainWindow?.ForceCleanupAsync();
             var language = StartupLanguage.Load();
             MessageBox.Show(
                 string.Format(language["startupCrashMessage"], e.Exception.Message),
@@ -446,7 +474,24 @@ public partial class App : System.Windows.Application
             return;
         }
 
+        // The exception is handled and the window keeps running, so do NOT tear down the camera
+        // engine here. Previously ForceCleanupAsync() ran for every handled UI exception (e.g. a
+        // clipboard error on the Hardware page): it silently stopped an active recording and left
+        // the app on a disposed engine, so the next Start Preview failed. Log, tell the user once,
+        // and keep recording.
         e.Handled = true;
+        var now = DateTime.UtcNow;
+        if (now - _lastNonFatalErrorNoticeUtc > TimeSpan.FromSeconds(30))
+        {
+            _lastNonFatalErrorNoticeUtc = now;
+            var language = StartupLanguage.Load();
+            var title = language["nonFatalErrorTitle"] is { Length: > 0 } t && t != "nonFatalErrorTitle" ? t : "MultiCamApp";
+            var body = language["nonFatalErrorMessage"] is { Length: > 0 } m && m != "nonFatalErrorMessage"
+                ? m : "An unexpected error occurred. Recording and preview were not stopped. Details: {0}";
+            _ = Dispatcher.BeginInvoke(new Action(() =>
+                MessageBox.Show(_mainWindow, string.Format(body, PrivacySanitizer.SanitizeForLog(e.Exception.Message)),
+                    title, MessageBoxButton.OK, MessageBoxImage.Warning)));
+        }
     }
 
     private void OnDomainUnhandled(object? sender, UnhandledExceptionEventArgs e)
@@ -481,8 +526,30 @@ public partial class App : System.Windows.Application
         catch { }
     }
 
-    private void OnSessionEnding(object sender, SessionEndingCancelEventArgs e) =>
-        _mainWindow?.ForceCleanupAsync().GetAwaiter().GetResult();
+    /// <summary>
+    /// Windows logoff/shutdown. Blocking with GetAwaiter().GetResult() deadlocked: the cleanup's
+    /// continuations need this same dispatcher thread. Instead, run a nested dispatcher frame until
+    /// cleanup finishes (bounded, so Windows' own end-session timeout is respected).
+    /// </summary>
+    private void OnSessionEnding(object sender, SessionEndingCancelEventArgs e)
+    {
+        if (_mainWindow == null) return;
+        try
+        {
+            var cleanup = _mainWindow.ForceCleanupAsync();
+            if (cleanup.IsCompleted) return;
+            var frame = new DispatcherFrame();
+            var timeout = Task.Delay(TimeSpan.FromSeconds(20));
+            Task.WhenAny(cleanup, timeout).ContinueWith(_ => frame.Continue = false, TaskScheduler.Default);
+            Dispatcher.PushFrame(frame);
+            if (!cleanup.IsCompleted)
+                _log.Error("shutdown", "Session-ending cleanup did not finish within 20s", null);
+        }
+        catch (Exception ex)
+        {
+            _log.Error("shutdown", $"Session-ending cleanup failed: {ex.Message}", ex);
+        }
+    }
 
     private void OnExit(object sender, ExitEventArgs e)
     {

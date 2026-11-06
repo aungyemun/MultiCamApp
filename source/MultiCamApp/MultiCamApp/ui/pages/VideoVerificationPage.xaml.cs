@@ -25,6 +25,7 @@ public partial class VideoVerificationPage : UserControl
     // without a LanguageManager reference) can localize their display text. There is
     // only ever one VideoVerificationPage instance per running app.
     internal static LanguageManager? CurrentLanguage;
+    internal const string ReadyForVerificationStatus = "Ready for verification";
 
     public sealed class SessionGroupViewModel
     {
@@ -39,7 +40,9 @@ public partial class VideoVerificationPage : UserControl
         public ObservableCollection<VerificationTableRowViewModel> CameraRows { get; } = [];
         public bool IsExpanded { get; set; } = true;
         public string HeaderText =>
-            $"{Audit.SessionLabel} — {Audit.SessionStatus} ({string.Join(", ", Audit.CamerasFound)})";
+            $"{Audit.SessionLabel} — {NormalizeSessionResult(Audit.SessionStatus)} ({string.Join(", ", Audit.CamerasFound)})";
+        // Expander headers treat "_" as an access-key marker; doubling keeps session names intact.
+        public string DisplayHeaderText => HeaderText.Replace("_", "__");
         public string ComparisonSummary => Audit.ComparisonSummaryText;
         public string SimpleComparisonSummary => BuildFriendlySessionSummary(Audit);
 
@@ -51,6 +54,18 @@ public partial class VideoVerificationPage : UserControl
             var cameraCount = audit.CamerasFound.Count > 0
                 ? audit.CamerasFound.Count
                 : audit.CameraVideos.Select(v => v.Entry.CameraSlot).Distinct().Count();
+            // 2.1.0: before a run nothing has been checked, so show only what the folder scan knows.
+            // Previously this also printed "Writer drops: 0", a frame-integrity line and
+            // "Note: ready for analysis." for sessions that had not been verified.
+            if (string.Equals(audit.SessionStatus, ReadyForVerificationStatus, StringComparison.OrdinalIgnoreCase))
+                return string.Join(Environment.NewLine, new[]
+                {
+                    string.Format(T("verifySessionLabel", "Session: {0}"), audit.SessionLabel),
+                    string.Format(T("verifyCamerasLabel", "Cameras: {0}"), cameraCount),
+                    string.Format(T("verifyResultLabel", "Result: {0}"), T("verifyNotVerifiedYet", "Not verified yet")),
+                    T("verifyScanFoundVideosPending", "Scan found videos. Detailed verification has not been run yet. Click Verify All to calculate timing, frame integrity, and metadata results.")
+                });
+
             var mode = DisplayTimingMode(audit.SessionTimingMode);
             var realFramesOnly = string.Equals(audit.SessionTimingMode, OriginalCaptureAuditPolicy.Mode, StringComparison.OrdinalIgnoreCase)
                 && audit.TotalDuplicates == 0
@@ -61,6 +76,10 @@ public partial class VideoVerificationPage : UserControl
             var frameIntegrity = realFramesOnly
                 ? T("verifyRealFramesOnlyText", "Real frames only; no duplicates/placeholders")
                 : T("verifyReviewFrameIntegrityText", "review frame integrity details");
+            // 2.1.0 release check: without any camera metadata the writer-drop count is unknown, not 0
+            // (interrupted recordings showed "Writer drops: 0").
+            var noMetadata = audit.CameraVideos.Count > 0 && audit.CameraVideos.All(v => !v.Entry.MetadataJsonFound && !v.Entry.MetadataFound);
+            var writerDrops = noMetadata ? T("verifyUnknownNoMetadata", "unknown (no metadata)") : audit.TotalQueueDrops.ToString();
 
             return string.Join(Environment.NewLine, new[]
             {
@@ -69,7 +88,7 @@ public partial class VideoVerificationPage : UserControl
                 string.Format(T("verifyCamerasLabel", "Cameras: {0}"), cameraCount),
                 string.Format(T("verifyRecordingModeLabelColon", "Recording mode: {0}"), mode),
                 string.Format(T("verifyFrameIntegrityLabelColon", "Frame integrity: {0}"), frameIntegrity),
-                string.Format(T("verifyWriterDropsLabelColon", "Writer drops: {0}"), audit.TotalQueueDrops),
+                string.Format(T("verifyWriterDropsLabelColon", "Writer drops: {0}"), writerDrops),
                 string.Format(T("verifyTimingSourceLabelColon", "Timing source: {0}"), timingSource),
                 string.Format(T("verifyNoteLabel", "Note: {0}"), FriendlySessionNote(audit))
             });
@@ -83,6 +102,9 @@ public partial class VideoVerificationPage : UserControl
                 "PASS" or "PASS_ORIGINAL_TIMING" or "PASS_ORIGINAL_TIMING_WITH_NOTE" => "PASS",
                 "PASS_WITH_WARNING" or "WARNING" => "WARNING",
                 "FAIL" => "FAIL",
+                // 2.1.0: stored in English (exports unchanged), shown in the current UI language.
+                _ when string.Equals(status, ReadyForVerificationStatus, StringComparison.OrdinalIgnoreCase)
+                    => CurrentLanguage?["verifyReadyForVerification"] is { Length: > 0 } ready ? ready : ReadyForVerificationStatus,
                 _ => string.IsNullOrWhiteSpace(status) ? "-" : status
             };
         }
@@ -95,7 +117,16 @@ public partial class VideoVerificationPage : UserControl
             if (audit.FrameCountDifferenceAcceptedBecauseOriginalMode)
                 return T("verifyNoteFrameCountDifference", OriginalCaptureVerificationPolicy.FrameCountDifferenceNote);
             if (audit.Failures.Count > 0)
-                return T("verifyNoteFailedInspect", "verification failed; inspect details.");
+            {
+                // 2.1.0 release check: name the recorded reasons instead of only "inspect details".
+                var reasons = audit.Failures
+                    .Where(f => !f.Contains("individual camera audit failed", StringComparison.OrdinalIgnoreCase))
+                    .Select(f => { var i = f.IndexOf(": ", StringComparison.Ordinal); return i > 0 && i < 8 ? f[(i + 2)..] : f; })
+                    .Distinct(StringComparer.OrdinalIgnoreCase).Take(3).ToList();
+                return reasons.Count == 0
+                    ? T("verifyNoteFailedInspect", "verification failed; inspect details.")
+                    : string.Format(T("verifyNoteFailedReasons", "verification failed: {0}."), string.Join("; ", reasons));
+            }
             if (audit.Warnings.Count > 0)
                 return T("verifyNoteWarningsPresent", "warnings present; inspect details.");
             if (audit.InterpretationNotes.Count > 0)
@@ -200,6 +231,7 @@ public partial class VideoVerificationPage : UserControl
 
         private static string ShortTimingSource(string value) =>
             string.Equals(value, "PerFrameCaptureTimestamps", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "timestamp CSV", StringComparison.OrdinalIgnoreCase)
                 ? T("verifyTimestampCsvSource", "Timestamp CSV")
                 : value;
     }
@@ -224,8 +256,23 @@ public partial class VideoVerificationPage : UserControl
     // Deep Verify — independent, on-demand per-frame MD5 duplicate-frame check (not STABLE_CORE_V1,
     // not part of the Scan/Verify flow above; see DeepVerifyService for why this needs full ffmpeg.exe).
     private DeepVerifyService? _deepVerifyService;
+    // Visual stability audit (rolling light-flicker bands, flashes, noise) — runs with Deep Verify.
+    private VisualStabilityAuditService? _visualAuditService;
+    private readonly Dictionary<string, VisualStabilityResult> _visualResults = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DeepVerifyFileResult> _deepVerifyResults =
         new(StringComparer.OrdinalIgnoreCase);
+
+    // 2.1.0: building an expanded DataGrid for every session (~50 in a busy folder) froze the UI for
+    // ~3 s the first time this page was shown. Only the first sessions and failed ones open
+    // automatically; the others stay collapsed until the user expands them.
+    private const int AutoExpandSessionLimit = 5;
+
+    private void AddSessionGroup(SessionGroupViewModel group)
+    {
+        group.IsExpanded = _sessionGroups.Count < AutoExpandSessionLimit
+            || SessionGroupViewModel.NormalizeSessionResult(group.Audit.SessionStatus) == "FAIL";
+        _sessionGroups.Add(group);
+    }
 
     public VideoVerificationPage()
     {
@@ -249,7 +296,7 @@ public partial class VideoVerificationPage : UserControl
         {
             Mode = BindingMode.TwoWay
         });
-        factory.SetValue(Expander.HeaderProperty, new Binding(nameof(SessionGroupViewModel.HeaderText)));
+        factory.SetValue(Expander.HeaderProperty, new Binding(nameof(SessionGroupViewModel.DisplayHeaderText)));
         factory.SetValue(Expander.MarginProperty, new Thickness(0, 0, 0, 8));
 
         var stack = new FrameworkElementFactory(typeof(StackPanel));
@@ -427,6 +474,21 @@ public partial class VideoVerificationPage : UserControl
         });
     }
 
+    /// <summary>
+    /// 2.1.0 release check: the page scrolls as a whole, so the "*" rows of the results grid get
+    /// unlimited height and the session list and detail box grew to their full length — with 64
+    /// sessions the page became ~30 screens tall and the session list's own scrolling never engaged.
+    /// Both are now limited to the visible height; the list scrolls inside itself and hands the wheel
+    /// to the page at its top and bottom (<see cref="SessionResultsScrollViewer_PreviewMouseWheel"/>).
+    /// </summary>
+    private void PageScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var viewport = PageScrollViewer.ViewportHeight > 0 ? PageScrollViewer.ViewportHeight : e.NewSize.Height;
+        if (viewport <= 0) return;
+        SessionResultsScrollViewer.MaxHeight = Math.Max(320, viewport - 140);
+        DetailBox.MaxHeight = Math.Max(240, viewport * 0.6);
+    }
+
     private static ScrollViewer? FindAncestorScrollViewer(DependencyObject d)
     {
         var parent = VisualTreeHelper.GetParent(d);
@@ -564,17 +626,61 @@ public partial class VideoVerificationPage : UserControl
 
     private string _verificationProfile = "Standard";
 
+    // 2.1.0: some card values are data strings produced in English by the verification service
+    // (also written to the exports, so the data itself stays English) or in the language active
+    // when they were computed. They are shown in the current UI language, in both directions.
+    private static readonly (string En, string Ja)[] CardTextPairs =
+    [
+        ("per-session ({0} sessions)", "セッションごと（{0}セッション）"),
+        ("{0} sessions audited separately", "{0}セッションを個別に監査"),
+        ("Original Capture Mode", "オリジナルキャプチャモード"),
+        ("Timestamp CSV", "タイムスタンプCSV"),
+    ];
+
+    private void LocalizeCardTexts()
+    {
+        var ja = string.Equals(_language.CurrentLanguage, "ja", StringComparison.OrdinalIgnoreCase);
+        foreach (var tb in new[] { CardSourceValue, CardDurSpreadValue, CardFpsSpreadValue, CardTimingModeValue, CardTrimSourceValue, CardTimingConfidenceValue })
+        {
+            var text = tb.Text;
+            if (string.IsNullOrEmpty(text)) continue;
+            // Same verdict vocabulary as the Overall card (PASS / WARNING / FAIL).
+            if (string.Equals(text, CameraAuditStatus.PassWithWarning, StringComparison.Ordinal)) { tb.Text = "WARNING"; continue; }
+            foreach (var (en, jp) in CardTextPairs)
+            {
+                var hit = false;
+                foreach (var template in new[] { en, jp })
+                {
+                    var rx = "^" + System.Text.RegularExpressions.Regex.Escape(template).Replace("\\{0}", "(\\d+)") + "$";
+                    var m = System.Text.RegularExpressions.Regex.Match(text, rx);
+                    if (!m.Success) continue;
+                    tb.Text = string.Format(ja ? jp : en, m.Groups.Count > 1 ? m.Groups[1].Value : "");
+                    hit = true;
+                    break;
+                }
+                if (hit) break;
+            }
+        }
+    }
+
     public void Initialize(AppConfig config, LanguageManager language)
     {
         _config = config;
         _language = language;
         _service = new VideoVerificationService(config.Verification);
         _deepVerifyService = new DeepVerifyService(config.Verification);
+        _visualAuditService = new VisualStabilityAuditService(config.Verification);
         PopulateVerificationProfiles();
         SelectVerificationProfile("Standard");
         if (string.IsNullOrWhiteSpace(FolderBox.Text))
         {
-            var defaultFolder = PathHelper.DefaultVideosFolder();
+            // Test hook (off unless set): MULTICAMAPP_TEST_VERIFY_FOLDER preselects the folder for the
+            // automated page tests (scripts/autotest/pages_func.ps1), which cannot drive the Windows
+            // folder picker reliably.
+            var testFolder = Environment.GetEnvironmentVariable("MULTICAMAPP_TEST_VERIFY_FOLDER");
+            var defaultFolder = !string.IsNullOrWhiteSpace(testFolder) && Directory.Exists(testFolder)
+                ? testFolder
+                : PathHelper.DefaultVideosFolder();
             if (Directory.Exists(defaultFolder))
                 FolderBox.Text = defaultFolder;
         }
@@ -683,8 +789,15 @@ public partial class VideoVerificationPage : UserControl
         DeepVerifyFilesLabel.Text = L["verifyDeepVerifyFilesLabel"];
         DeepVerifyDuplicatesLabel.Text = L["verifyDeepVerifyDuplicatesLabel"];
         DeepVerifyWorstFileLabel.Text = L["verifyDeepVerifyWorstFileLabel"];
+        VisualBandsLabel.Text = L["verifyVisualBandsLabel"];
+        VisualBandsLabel.ToolTip = L["verifyVisualBandsTooltip"];
+        VisualFlashLabel.Text = L["verifyVisualFlashLabel"];
+        VisualNoiseLabel.Text = L["verifyVisualNoiseLabel"];
+        VisualNoiseLabel.ToolTip = L["verifyVisualNoiseTooltip"];
 
         RebuildSessionItemTemplate();
+        LocalizeCardTexts();
+        AnnotateOverallFail();
         PopulateVerificationProfiles();
         SelectVerificationProfile(_verificationProfile);
         UpdateFfprobeWarning();
@@ -744,6 +857,7 @@ public partial class VideoVerificationPage : UserControl
         _lastV2Groups = [];
         _v2MetadataByPath.Clear();
         _deepVerifyResults.Clear();
+        _visualResults.Clear();
         _selectedTableRow = null;
         DetailBox.Text = "";
         SearchBox.Text = "";
@@ -794,20 +908,47 @@ public partial class VideoVerificationPage : UserControl
 
     private void ApplyFilter()
     {
-        var filter = SearchBox.Text?.Trim().ToLowerInvariant();
+        var filter = CurrentFilter();
         _filteredSessionGroups.Clear();
         foreach (var session in _sessionGroups)
         {
-            if (string.IsNullOrEmpty(filter)
-                || session.HeaderText.ToLowerInvariant().Contains(filter)
-                || session.CameraRows.Any(r =>
-                    r.FileName.ToLowerInvariant().Contains(filter)
-                    || r.Camera.ToLowerInvariant().Contains(filter)
-                    || r.Details.ToLowerInvariant().Contains(filter)))
-            {
+            if (MatchesFilter(session, filter))
                 _filteredSessionGroups.Add(session);
-            }
         }
+    }
+
+    private string? CurrentFilter() => SearchBox.Text?.Trim().ToLowerInvariant();
+
+    private static bool MatchesFilter(SessionGroupViewModel session, string? filter) =>
+        string.IsNullOrEmpty(filter)
+        || session.HeaderText.ToLowerInvariant().Contains(filter)
+        || session.CameraRows.Any(r =>
+            r.FileName.ToLowerInvariant().Contains(filter)
+            || r.Camera.ToLowerInvariant().Contains(filter)
+            || r.Details.ToLowerInvariant().Contains(filter));
+
+    /// <summary>
+    /// 2.1.0: per-file progress used to call <see cref="ApplyFilter"/>, which empties and refills the
+    /// bound collection, so WPF rebuilt every session's expander and table after each verified file
+    /// (115 files / 62 sessions: UI frozen for 54 s). Only the changed session is updated now; its
+    /// position follows <see cref="_sessionGroups"/> order.
+    /// </summary>
+    private void RefreshFilterFor(SessionGroupViewModel session)
+    {
+        var matches = MatchesFilter(session, CurrentFilter());
+        var index = _filteredSessionGroups.IndexOf(session);
+        if (matches && index < 0)
+        {
+            var target = 0;
+            foreach (var s in _sessionGroups)
+            {
+                if (ReferenceEquals(s, session)) break;
+                if (_filteredSessionGroups.Contains(s)) target++;
+            }
+            _filteredSessionGroups.Insert(Math.Min(target, _filteredSessionGroups.Count), session);
+        }
+        else if (!matches && index >= 0)
+            _filteredSessionGroups.RemoveAt(index);
     }
 
     private async void FolderBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -862,23 +1003,39 @@ public partial class VideoVerificationPage : UserControl
             return;
         }
 
+        // 2.1.0: the filter matching the button is preselected (it always opened on JSON), the dialog
+        // starts in the verified folder, and write errors are reported instead of escaping an
+        // async void handler.
         var dlg = new Microsoft.Win32.SaveFileDialog
         {
             Filter = "JSON report|*.json|Text report|*.txt|CSV report|*.csv",
+            FilterIndex = extension switch { ".txt" => 2, ".csv" => 3, _ => 1 },
+            DefaultExt = extension,
+            AddExtension = true,
             FileName = $"verification_report{extension}"
         };
+        var folder = FolderBox.Text?.Trim();
+        if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
+            dlg.InitialDirectory = folder;
         if (dlg.ShowDialog() != true) return;
 
-        var writer = new VerificationReportWriter(_language);
-        var ext = Path.GetExtension(dlg.FileName).ToLowerInvariant();
-        if (ext == ".csv")
-            await writer.ExportCsvAsync(_lastReport, dlg.FileName);
-        else if (ext == ".txt")
-            await writer.ExportTextAsync(_lastReport, dlg.FileName);
-        else
-            await writer.ExportJsonAsync(_lastReport, dlg.FileName);
+        try
+        {
+            var writer = new VerificationReportWriter(_language);
+            var ext = Path.GetExtension(dlg.FileName).ToLowerInvariant();
+            if (ext == ".csv")
+                await writer.ExportCsvAsync(_lastReport, dlg.FileName);
+            else if (ext == ".txt")
+                await writer.ExportTextAsync(_lastReport, dlg.FileName);
+            else
+                await writer.ExportJsonAsync(_lastReport, dlg.FileName);
 
-        AppendLog(string.Format(_language["verifyExported"], dlg.FileName));
+            AppendLog(string.Format(_language["verifyExported"], dlg.FileName));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            AppendLog(string.Format(_language["verifyExportError"], ex.Message));
+        }
     }
 
     private void CancelBtn_Click(object sender, RoutedEventArgs e)
@@ -921,7 +1078,7 @@ public partial class VideoVerificationPage : UserControl
                 {
                     SessionFolder = group.Key,
                     SessionLabel = label,
-                    SessionStatus = "Ready for verification"
+                    SessionStatus = ReadyForVerificationStatus
                 };
                 auditPlaceholder.CamerasFound.AddRange(group.Select(g => g.CameraSlot).Distinct());
                 var rows = group.Select(entry =>
@@ -930,14 +1087,14 @@ public partial class VideoVerificationPage : UserControl
                     var row = VerificationReportMapper.ScanPlaceholderRow(entry, _language);
                     return new VerificationTableRowViewModel(row);
                 });
-                _sessionGroups.Add(new SessionGroupViewModel(auditPlaceholder, rows));
+                AddSessionGroup(new SessionGroupViewModel(auditPlaceholder, rows));
             }
 
             ApplyFilter();
 
             var v2Count = _v2MetadataByPath.Count;
             AppendLog(string.Format(_language["verifyScanComplete"], sessions, entries.Count)
-                + (v2Count > 0 ? $"  ({v2Count} VideoEngineV2 slot(s) detected)" : ""));
+                + (v2Count > 0 ? string.Format(_language["verifyV2SlotsDetected"], v2Count) : ""));
             RefreshSummaryScanned(entries.Count);
 
             if (entries.Count == 0)
@@ -1028,20 +1185,39 @@ public partial class VideoVerificationPage : UserControl
 
             if (entries.Count > 0)
             {
-                _lastReport = await _service.VerifyAsync(
-                    folder, entries, _config, progress, _cts.Token, _verificationProfile, _language);
+                // 2.1.0: run on the thread pool. Awaited directly, every continuation inside VerifyAsync
+                // (metadata/CSV parsing, statistics between the ffprobe calls) resumed on the UI thread
+                // and froze the window for ~18 s on 6 videos. The service touches no WPF objects;
+                // progress still reaches the UI through the Progress<T> created above.
+                var token = _cts.Token;
+                var profile = _verificationProfile;
+                _lastReport = await Task.Run(() => _service.VerifyAsync(
+                    folder, entries, _config, progress, token, profile, _language), token);
+                AppDiagnosticLogger.Runtime("VERIFY_UI_PHASE_TIMING verifyReturned");
 
                 if (_lastReport != null)
                 {
+                    // 2.1.0 release check: per-phase timing of the UI-thread work after a run, to find
+                    // the end-of-run freeze on large folders (diagnostic log only).
+                    var phase = System.Diagnostics.Stopwatch.StartNew();
+                    long applyMs = 0, enrichMs = 0, reconcileMs = 0, resaveMs = 0;
                     ApplyFullReport(_lastReport);
+                    applyMs = phase.ElapsedMilliseconds;
                     // Enrich rows for V2 sessions detected alongside ffprobe results
                     if (_lastV2Groups.Count > 0)
                     {
+                        phase.Restart();
                         EnrichV2SessionGroups();
                         EnrichV2VideoMetadata();
+                        enrichMs = phase.ElapsedMilliseconds; phase.Restart();
                         ReconcileV2Summary(entries.Count);
+                        reconcileMs = phase.ElapsedMilliseconds; phase.Restart();
                         await ResaveAuditReportAfterEnrichment(folder);
+                        resaveMs = phase.ElapsedMilliseconds;
                     }
+                    AppDiagnosticLogger.Runtime($"VERIFY_UI_PHASE_TIMING files={entries.Count} sessions={_sessionGroups.Count} " +
+                        $"logLines={_lastReport.LogLines.Count} applyReportMs={applyMs} (logAppendMs={_lastLogAppendMs}) " +
+                        $"enrichMs={enrichMs} reconcileMs={reconcileMs} resaveMs={resaveMs}");
                 }
             }
             else if (_lastV2Groups.Count > 0)
@@ -1059,6 +1235,7 @@ public partial class VideoVerificationPage : UserControl
         }
         finally
         {
+            if (_lastReport != null || _lastV2Groups.Count > 0) { LocalizeCardTexts(); AnnotateOverallFail(); }
             SetBusy(false, "");
         }
     }
@@ -1084,7 +1261,7 @@ public partial class VideoVerificationPage : UserControl
             };
             audit.CamerasFound.AddRange(group.Slots.Select(s => s.SlotName));
             var vms = rows.Select(r => new VerificationTableRowViewModel(r));
-            _sessionGroups.Add(new SessionGroupViewModel(audit, vms));
+            AddSessionGroup(new SessionGroupViewModel(audit, vms));
 
             foreach (var r in rows)
             {
@@ -1097,7 +1274,7 @@ public partial class VideoVerificationPage : UserControl
         ApplyFilter();
 
         // Populate summary cards manually (no VerificationReport)
-        SummaryCardsPanel.Visibility = Visibility.Visible;
+        SetResultsVisible(true);
         int total = totalPassed + totalFailed + totalWarn;
         CardFoundValue.Text = total.ToString();
         CardPassValue.Text  = totalPassed.ToString();
@@ -1310,6 +1487,9 @@ public partial class VideoVerificationPage : UserControl
         var audit = sessionGroup.Audit;
         if (audit.SessionStatus != CameraAuditStatus.Fail) return false;
         if (sessionGroup.CameraRows.Count == 0) return false;
+        // STABLE_CORE_V2 exception #5: a file ffprobe could not read is a real failure, not a
+        // schema-blind false positive — never clear it with the recording-time session verdict.
+        if (audit.CameraVideos.Any(v => v.Probe?.FileUnreadable == true)) return false;
 
         var v2Results = new List<string>();
         foreach (var vm in sessionGroup.CameraRows)
@@ -1445,10 +1625,46 @@ public partial class VideoVerificationPage : UserControl
         return (found, passed, warned, failed);
     }
 
+    /// <summary>
+    /// 2.1.0: when some videos have no app metadata (e.g. interrupted recordings), the full V2
+    /// reconciliation is skipped and the cards kept the legacy texts "MISSING/INCOMPLETE",
+    /// "FAILED" and "(legacy pipeline)" for the whole folder, even when one session out of 62 was the
+    /// cause. Those cards now report what is known, as explicit counts; files without metadata are
+    /// counted as incomplete, never guessed as passing.
+    /// </summary>
+    private void ApplyPartialV2Cards(int totalEntriesScanned)
+    {
+        if (_v2MetadataByPath.Count == 0 || totalEntriesScanned <= 0) return;
+        var withMeta = _v2MetadataByPath.Count;
+        var csvCount = _v2MetadataByPath.Values.Count(m => m.TimestampCsvWritten && m.TimestampCsvRows > 0);
+        CardTimestampCsvValue.Text = string.Format(_language["verifyTimestampCsvPartialCount"], csvCount, totalEntriesScanned);
+
+        var lockSlots = _v2MetadataByPath.Values.Count(m => m.EnvironmentalLockActive);
+        CardEnvLockValue.Text = (lockSlots == 0
+                ? _language["verifyNotActive"]
+                : string.Format(_language["verifyActiveSlotsTemplate"], lockSlots, lockSlots == 1 ? "" : "s"))
+            + string.Format(_language["verifyFilesWithMetadataSuffix"], withMeta, totalEntriesScanned);
+        CardEnvLockValue.Foreground = lockSlots > 0
+            ? System.Windows.Media.Brushes.LightGreen
+            : (System.Windows.Media.Brush)FindResource("AppSecondaryTextBrush");
+
+        var sessions = _sessionGroups.Count;
+        var failedSessions = _sessionGroups.Count(g => SessionGroupViewModel.NormalizeSessionResult(g.Audit.SessionStatus) == CameraAuditStatus.Fail);
+        if (sessions > 1 && failedSessions > 0
+            && string.Equals(CardTimingConfidenceValue.Text, ScientificTimingConfidence.Failed, StringComparison.OrdinalIgnoreCase))
+            CardTimingConfidenceValue.Text = string.Format(_language["verifyFailedInSessions"], failedSessions, sessions);
+
+        AppendLog(string.Format(_language["verifyPartialMetadataNote"], totalEntriesScanned - withMeta, totalEntriesScanned));
+    }
+
     private void ReconcileV2Summary(int totalEntriesScanned)
     {
         if (_lastReport == null) return;
-        if (_v2MetadataByPath.Count < totalEntriesScanned) return; // mixed/partial V2 — don't guess
+        if (_v2MetadataByPath.Count < totalEntriesScanned) // mixed/partial V2 — don't guess verdicts
+        {
+            ApplyPartialV2Cards(totalEntriesScanned);
+            return;
+        }
 
         // DetailBox's per-session text is built from the same RecordingSessionAuditResult objects
         // ReconcileV2SessionVerdict already mutated in place (report.SessionAudits and
@@ -1615,7 +1831,12 @@ public partial class VideoVerificationPage : UserControl
         try
         {
             var auditReportPath = Path.Combine(folder, "video_audit_report.txt");
-            await new VerificationReportWriter(_language).ExportVideoAuditReportAsync(_lastReport, auditReportPath);
+            // 2.1.0 release check: built and written off the UI thread (0.84 s of UI freeze on 121 files).
+            // The writer only reads the report and the language strings; the page is busy (inputs
+            // disabled) until this completes, so nothing modifies the report meanwhile.
+            var report = _lastReport;
+            var writer = new VerificationReportWriter(_language);
+            await Task.Run(() => writer.ExportVideoAuditReportAsync(report, auditReportPath));
         }
         catch (Exception ex)
         {
@@ -1645,7 +1866,7 @@ public partial class VideoVerificationPage : UserControl
                 if (string.Equals(session.CameraRows[i].Row.FilePath, row.FilePath, StringComparison.OrdinalIgnoreCase))
                 {
                     session.CameraRows[i] = vm;
-                    ApplyFilter();
+                    RefreshFilterFor(session);
                     return;
                 }
             }
@@ -1658,8 +1879,9 @@ public partial class VideoVerificationPage : UserControl
             SessionStatus = row.AuditStatus
         };
         audit.CamerasFound.Add(row.Camera);
-        _sessionGroups.Add(new SessionGroupViewModel(audit, [vm]));
-        ApplyFilter();
+        var added = new SessionGroupViewModel(audit, [vm]);
+        AddSessionGroup(added);
+        RefreshFilterFor(added);
     }
 
     private void ApplyFullReport(VerificationReport report)
@@ -1672,7 +1894,7 @@ public partial class VideoVerificationPage : UserControl
             var rows = report.TableRows
                 .Where(r => string.Equals(r.SessionFolder, audit.SessionFolder, StringComparison.OrdinalIgnoreCase))
                 .Select(r => new VerificationTableRowViewModel(r));
-            _sessionGroups.Add(new SessionGroupViewModel(audit, rows));
+            AddSessionGroup(new SessionGroupViewModel(audit, rows));
         }
 
         if (_sessionGroups.Count == 0)
@@ -1686,25 +1908,36 @@ public partial class VideoVerificationPage : UserControl
                     SessionStatus = row.AuditStatus
                 };
                 audit.CamerasFound.Add(row.Camera);
-                _sessionGroups.Add(new SessionGroupViewModel(audit, [new VerificationTableRowViewModel(row)]));
+                AddSessionGroup(new SessionGroupViewModel(audit, [new VerificationTableRowViewModel(row)]));
             }
         }
 
         ApplyFilter();
 
+        // 2.1.0 release check: one append for the whole report log. Appending line by line (each
+        // AppendText + ScrollToEnd re-lays out the whole text box) took 4.0 s of UI freeze for 1,140
+        // lines on a 121-file folder.
+        var logWatch = System.Diagnostics.Stopwatch.StartNew();
+        var reportLog = new System.Text.StringBuilder();
         foreach (var line in report.LogLines)
         {
             if (_simpleTableView && IsRawAuditDebugLine(line))
                 continue;
-            AppendLog(line, stamp: false);
+            reportLog.Append(line).Append(Environment.NewLine);
         }
+        if (reportLog.Length > 0)
+        {
+            LogBox.AppendText(reportLog.ToString());
+            LogBox.ScrollToEnd();
+        }
+        _lastLogAppendMs = logWatch.ElapsedMilliseconds;
 
         ApplySummary(report);
     }
 
     private void ApplySummary(VerificationReport report)
     {
-        SummaryCardsPanel.Visibility = Visibility.Visible;
+        SetResultsVisible(true);
         var s = report.Summary;
         CardOverallValue.Text = FriendlyVerdict(s.OverallVerdict);
         CardOverallValue.Foreground = VerificationUiBrushes.ForVerdict(s.OverallVerdict);
@@ -1739,6 +1972,22 @@ public partial class VideoVerificationPage : UserControl
         DetailBox.Text = BuildSummaryText(report);
     }
 
+    /// <summary>
+    /// 2.1.0 release check: "Overall result: FAIL" did not say where the failure is. One failed video
+    /// makes the whole folder FAIL (unchanged rule), so in a folder with many sessions the card now
+    /// names how many sessions failed and lists them in the tooltip. Display only.
+    /// </summary>
+    private void AnnotateOverallFail()
+    {
+        var text = CardOverallValue.Text ?? "";
+        if (!text.StartsWith("FAIL", StringComparison.Ordinal)) { CardOverallValue.ToolTip = null; return; }
+        var failed = _sessionGroups.Where(g => SessionGroupViewModel.NormalizeSessionResult(g.Audit.SessionStatus) == "FAIL").ToList();
+        if (failed.Count == 0 || _sessionGroups.Count < 2) { CardOverallValue.Text = "FAIL"; CardOverallValue.ToolTip = null; return; }
+        CardOverallValue.Text = string.Format(_language["verifyOverallFailSessions"], failed.Count, _sessionGroups.Count);
+        CardOverallValue.ToolTip = string.Join(Environment.NewLine, failed.Take(15).Select(g => g.Audit.SessionLabel))
+            + (failed.Count > 15 ? Environment.NewLine + "…" : "");
+    }
+
     private static string FriendlyVerdict(VerificationVerdict verdict) => verdict switch
     {
         VerificationVerdict.Pass => "PASS",
@@ -1751,6 +2000,7 @@ public partial class VideoVerificationPage : UserControl
 
     private static string ShortTimingSource(string value) =>
         string.Equals(value, "PerFrameCaptureTimestamps", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(value, "timestamp CSV", StringComparison.OrdinalIgnoreCase)
             ? (CurrentLanguage?["verifyTimestampCsvShort"] is { Length: > 0 } v ? v : "Timestamp CSV")
             : value;
 
@@ -1856,9 +2106,34 @@ public partial class VideoVerificationPage : UserControl
         return sb.ToString().TrimEnd();
     }
 
+    /// <summary>
+    /// 2.1.0: result cards and the Original Capture explanation ("real frames only…") are shown only
+    /// once a Verify or Deep Verify run has produced results — before that the page showed a summary
+    /// full of "Pending"/"—" cards and a statement that read like a verified result.
+    /// </summary>
+    private void SetResultsVisible(bool visible)
+    {
+        var v = visible ? Visibility.Visible : Visibility.Collapsed;
+        ResultsCardBorder.Visibility = v;   // no empty bordered strip before a run
+        SummaryCardsPanel.Visibility = v;
+        StableTimingNoteText.Visibility = v;
+        OriginalCaptureExplanationBox.Visibility = v;
+        UpdateExportButtons();
+    }
+
+    private string _scanHint = "";
+
+    private void UpdateExportButtons()
+    {
+        // Exports need a verification report; before a run they could only log "nothing to export".
+        var canExport = !_isBusy && _lastReport != null;
+        ExportTxtBtn.IsEnabled = ExportJsonBtn.IsEnabled = ExportCsvBtn.IsEnabled = ExportAllBtn.IsEnabled = canExport;
+    }
+
     private void RefreshSummaryEmpty()
     {
-        SummaryCardsPanel.Visibility = Visibility.Collapsed;
+        SetResultsVisible(false);
+        _scanHint = "";
         CardOverallValue.Text = _language["verifyNotVerifiedYet"];
         CardOverallValue.Foreground = VerificationUiBrushes.ForVerdict(VerificationVerdict.NotChecked);
         CardFoundValue.Text = "0";
@@ -1885,7 +2160,7 @@ public partial class VideoVerificationPage : UserControl
     private void RefreshSummaryScanned(int entriesCount)
     {
         RefreshSummaryEmpty();
-        SummaryCardsPanel.Visibility = entriesCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+        _scanHint = entriesCount > 0 ? string.Format(_language["verifyFoundCountHint"], entriesCount) : NoVideoMessage;
         CardFoundValue.Text = entriesCount.ToString();
         CardOverallValue.Text = entriesCount > 0 ? _language["verifyNotVerifiedYet"] : NoVideoMessage;
         CardOverallValue.Foreground = VerificationUiBrushes.ForVerdict(VerificationVerdict.NotChecked);
@@ -1903,6 +2178,14 @@ public partial class VideoVerificationPage : UserControl
     }
 
     // ── Deep Verify summary card ────────────────────────────────────────────────
+
+    /// <summary>"session folder / camN.mp4": every session has its own cam1, cam2…</summary>
+    private static string SessionFileLabel(string filePath)
+    {
+        var camDir = Path.GetDirectoryName(filePath);
+        var sessionName = Path.GetFileName(Path.GetDirectoryName(camDir ?? "") ?? "");
+        return string.IsNullOrEmpty(sessionName) ? Path.GetFileName(filePath) : $"{sessionName} / {Path.GetFileName(filePath)}";
+    }
 
     private void RefreshDeepVerifySummary()
     {
@@ -1931,11 +2214,37 @@ public partial class VideoVerificationPage : UserControl
         CardDeepVerifyStatusValue.Foreground = errorCount > 0 || totalDuplicates > 0
             ? VerificationUiBrushes.ForVerdict(VerificationVerdict.Warning)
             : VerificationUiBrushes.ForVerdict(VerificationVerdict.Pass);
+        ResultsCardBorder.Visibility = Visibility.Visible;
+        SummaryCardsPanel.Visibility = Visibility.Visible;   // Deep Verify results are results too
         CardDeepVerifyFilesValue.Text = _deepVerifyResults.Count.ToString();
         CardDeepVerifyDuplicatesValue.Text = totalDuplicates.ToString();
         CardDeepVerifyWorstFileValue.Text = worst is { DuplicateFrameCount: > 0 }
-            ? $"{Path.GetFileName(worst.FilePath)} ({worst.DuplicateFrameCount}/{worst.TotalFramesHashed})"
+            ? $"{SessionFileLabel(worst.FilePath)} ({worst.DuplicateFrameCount}/{worst.TotalFramesHashed})"
             : "—";
+        RefreshVisualSummary();
+    }
+
+    private void RefreshVisualSummary()
+    {
+        var ok = _visualResults.Values.Where(r => r.Success).ToList();
+        if (ok.Count == 0)
+        {
+            CardVisualBandsValue.Text = CardVisualFlashValue.Text = CardVisualNoiseValue.Text = "—";
+            CardVisualBandsValue.Foreground = VerificationUiBrushes.ForVerdict(VerificationVerdict.NotChecked);
+            return;
+        }
+        var ic = System.Globalization.CultureInfo.InvariantCulture;
+        var worstBand = ok.OrderByDescending(r => r.BandStrengthPct).First();
+        // 2.1.0: session folder + camera file, because every session has its own cam1/cam2…
+        var camTag = SessionFileLabel(worstBand.FilePath);
+        CardVisualBandsValue.Text = $"{worstBand.BandStrengthPct.ToString("F2", ic)} % — {camTag}";
+        CardVisualBandsValue.Foreground = VerificationUiBrushes.ForVerdict(
+            worstBand.BandStrengthPct >= VisualStabilityResult.BandWarnPct ? VerificationVerdict.Warning : VerificationVerdict.Pass);
+        var flashes = ok.Sum(r => r.FlashFrames);
+        CardVisualFlashValue.Text = flashes.ToString(ic);
+        CardVisualFlashValue.Foreground = VerificationUiBrushes.ForVerdict(flashes > 0 ? VerificationVerdict.Warning : VerificationVerdict.Pass);
+        var noise = ok.Where(r => r.TemporalNoiseYdif is not null).Select(r => r.TemporalNoiseYdif!.Value).DefaultIfEmpty(0).Max();
+        CardVisualNoiseValue.Text = noise > 0 ? noise.ToString("F2", ic) : "—";
     }
 
     private async void DeepVerifyBtn_Click(object sender, RoutedEventArgs e) => await RunDeepVerifyAsync();
@@ -1978,13 +2287,28 @@ public partial class VideoVerificationPage : UserControl
                 ProgressText.Text = string.Format(_language["verifyDeepVerifyProgress"], index, entries.Count, entry.FileName);
                 AppendLog(string.Format(_language["verifyDeepVerifyProgress"], index, entries.Count, entry.FileName));
 
-                var result = await _deepVerifyService.VerifyFileAsync(entry.FullPath, _cts.Token);
+                var token = _cts.Token; var deep = _deepVerifyService; var path = entry.FullPath;
+                var result = await Task.Run(() => deep.VerifyFileAsync(path, token), token);  // 2.1.0: off the UI thread
                 _deepVerifyResults[entry.FullPath] = result;
 
                 AppendLog(!result.Success
                     ? string.Format(_language["verifyDeepVerifyFileError"], entry.FileName, result.Error)
                     : string.Format(_language["verifyDeepVerifyFileDone"],
                         entry.FileName, result.TotalFramesHashed, result.DuplicateFrameCount, result.Elapsed.TotalSeconds));
+
+                // Visual stability (light-flicker bands, flashes, noise) on the first 30 s of the file.
+                if (_deepVerifyService.ResolvedFfmpegPath is { } ffmpegPath && _visualAuditService is not null)
+                {
+                    var vis = await Task.Run(() => _visualAuditService.AuditAsync(ffmpegPath, entry.FullPath, 30, token), token);  // 2.1.0: FFT off the UI thread
+                    _visualResults[entry.FullPath] = vis;
+                    AppendLog(!vis.Success
+                        ? string.Format(_language["verifyVisualFileError"], entry.FileName, vis.Error)
+                        : string.Format(_language["verifyVisualFileDone"], entry.FileName, vis.BandStrengthPct, vis.BandsPerFrame,
+                            vis.BandDriftHz, vis.BandDirection, vis.FlashFrames,
+                            vis.TemporalNoiseYdif?.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) ?? "—", vis.Verdict));
+                    if (vis.Success && vis.BandStrengthPct >= VisualStabilityResult.BandWarnPct)
+                        AppendLog(string.Format(_language["verifyVisualBandsAdvice"], VisualStabilityResult.BandWarnPct));
+                }
 
                 RefreshDeepVerifySummary();
             }
@@ -2018,13 +2342,13 @@ public partial class VideoVerificationPage : UserControl
         DeepVerifyBtn.IsEnabled = !busy;
         BrowseFolderBtn.IsEnabled = !busy;
         ClearBtn.IsEnabled = !busy;
-        ExportTxtBtn.IsEnabled = !busy;
-        ExportJsonBtn.IsEnabled = !busy;
-        ExportCsvBtn.IsEnabled = !busy;
-        ExportAllBtn.IsEnabled = !busy;
+        UpdateExportButtons();
         CancelBtn.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
-        ProgressText.Text = message;
+        // Before any verification, the idle line tells how many videos were found and what to do next.
+        ProgressText.Text = !busy && string.IsNullOrEmpty(message) && _lastReport == null ? _scanHint : message;
     }
+
+    private long _lastLogAppendMs;
 
     private void AppendLog(string line, bool stamp = true)
     {

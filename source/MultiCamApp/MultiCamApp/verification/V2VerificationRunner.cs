@@ -203,7 +203,10 @@ public sealed class V2VerificationRunner
         // ReconcileV2SessionVerdict already uses to correct row.AuditStatus on-screen — not the
         // ScientificTimingStatus/timing-confidence value above, which is a differently-scoped field
         // and would otherwise disagree with what the table already shows for this same camera.
-        if (video.Verdict == VerificationVerdict.Fail)
+        // STABLE_CORE_V2 exception #5: only reconcile schema-blind false positives. If ffprobe ran
+        // and could not read this file (corrupt / no moov atom / no video stream), the FAIL is real
+        // and must survive regardless of the session verdict written at recording time.
+        if (video.Verdict == VerificationVerdict.Fail && video.Probe?.FileUnreadable != true)
         {
             var sessionResult = meta.VerificationGlobalSessionResult is { Length: > 0 } gr ? gr : meta.VerificationSessionResult;
             if (sessionResult is { Length: > 0 })

@@ -4,7 +4,7 @@
 
 MultiCamApp is a Windows desktop application designed to support reproducible video-based workflows. It allows users to record from 1–4 cameras, capture metadata, generate per-frame timestamp files, and verify recorded videos after acquisition.
 
-Current release: **v2.0.5** (Stable)
+Current release: **v2.1.0** (Stable)
 
 ---
 
@@ -60,8 +60,33 @@ MultiCamApp is especially useful when users need offline recording, metadata cap
 * Hardware diagnostics page
 * High-stability recording mode (always enabled internally)
 * Coordinated software start gate with timing verification for multi-camera sessions
+* **Crash-safe recording:** videos are written as fragmented MP4, which stays playable if the app is closed unexpectedly, crashes, or the PC loses power. Interrupted sessions are recovered automatically at the next start, with a `RECOVERY_REPORT.txt`
+* **Camera-independent mode selection:** uncompressed camera formats are preferred, and if a camera mode delivers no frames the app switches to the next compatible mode automatically (reported in the camera panel and metadata)
+* **Anti-flicker (mains frequency) control**, default *Auto (camera)*, to prevent moving horizontal bands under fluorescent/LED light
+* **Visual stability audit** in Deep Verify: light-flicker bands, brightness flashes, and temporal noise for every video
+* **Manual exposure and focus that reach the camera** (standard UVC webcams included), confirmed by camera readback and recorded in the metadata
+* **Video quality / file size presets:** Maximum (default, constant bitrate), High, Compact, and Efficient (constant quality — file size follows scene detail); expected MB per minute shown for the selected resolution and FPS
+* **Fast recording start:** the hardware encoder is prepared in the background while previewing, so Start Recording takes about 0.3 s
 * Offline installer
 * Third-party notices and FFmpeg/ffprobe license files included
+
+---
+
+## Screenshots
+
+Screenshots of the real application (v2.1.0, Windows 11). Video preview is off, so no camera images are shown. The verification pages show two demo sessions recorded for this purpose.
+
+| Main window (4-camera layout) | Advanced camera controls |
+| --- | --- |
+| ![Main window](docs/images/main_en.png) | ![Advanced camera controls](docs/images/main_advanced_en.png) |
+
+| Video Verification: before a run | Video Verification: after Verify All and Deep Verify |
+| --- | --- |
+| ![Video Verification before a run](docs/images/verify_ready_en.png) | ![Video Verification results](docs/images/verify_results_en.png) |
+
+| Hardware Diagnostics | Japanese UI |
+| --- | --- |
+| ![Hardware Diagnostics](docs/images/hardware_en.png) | ![Japanese UI](docs/images/verify_results_ja.png) |
 
 ---
 
@@ -147,6 +172,7 @@ Typical outputs may include:
 * Human-readable metadata TXT summaries
 * Session summary files
 * Video verification reports
+* `RECOVERY_REPORT.txt` / `recovery_report.json` and `session_interrupted.json` — only for a session that was interrupted (app closed, crash, power loss) and recovered at the next start
 
 The exact output structure depends on the selected camera layout and recording session.
 
@@ -171,6 +197,9 @@ The verification system can help users review:
 * Measured camera FPS
 * Inter-camera timing differences
 * Scientific timing confidence
+* Visual stability (Deep Verify): strength of moving light-flicker bands (% of brightness), brightness flashes, and temporal noise
+
+Results and export buttons appear only after a verification run. Before a run, the page lists the sessions found as "Ready for verification". Reports can be exported as TXT, JSON and CSV, or all at once to the session folder.
 
 Verification results are intended to help users decide whether a recording session is suitable for downstream analysis.
 
@@ -188,6 +217,10 @@ Diagnostics may include information related to:
 * Timing stability
 * Writer queue behavior
 * System-level recording risks
+* Graphics adapters (name, driver version and date, memory as reported by Windows)
+* USB topology: which USB host controller and which external USB hubs each selected camera is connected through, with a warning when two cameras share one hub
+
+Only device names are reported; hardware IDs and serial numbers are not stored.
 
 Recording stability can depend on camera hardware, USB bandwidth, CPU, RAM, disk speed, and camera drivers.
 
@@ -201,6 +234,12 @@ Recording stability can depend on camera hardware, USB bandwidth, CPU, RAM, disk
 * Multi-camera recordings may have small hardware/driver-dependent start-time offsets.
 * MultiCamApp provides software-based recording coordination and verification, but not hardware-triggered camera synchronization.
 * Preview FPS is optimized for camera checking and usability; recorded video quality and timing information are the priority.
+* **Moving horizontal bands** under fluorescent or LED light come from the light flickering at twice the mains frequency. Set *Anti-flicker* to your mains frequency (Japan: east 50 Hz, west 60 Hz) or *Auto*. Some cameras accept but ignore this setting (observed on one webcam model); for those, use non-flickering (DC) lighting.
+* Manual exposure on standard USB webcams is limited to power-of-two shutter steps (for example 1/64 s, 1/32 s). These are not multiples of the light-flicker period and can produce bands; keep auto exposure with the anti-flicker setting unless a fixed shutter is required. A shutter longer than the frame interval lowers the frame rate (the app warns about this).
+* Two webcams on one USB 2.0 hub may not both stream 720p or higher (USB bandwidth). Connect cameras to separate USB ports/controllers.
+* Focus is locked at Start Recording at the position the camera reached during preview (research default). Some webcams' autofocus does not search again by itself; check sharpness in the preview, or set focus manually, before recording.
+* The "Efficient" preset lowers file size most on clean, static scenes and smooths sensor noise more than "Maximum"; keep "Maximum" when pixel-level intensity or subtle motion is analysed.
+* After an interrupted recording, the last fraction of a second to about one second may be missing, and per-camera metadata files are replaced by the recovery report.
 * Not intended for clinical diagnosis, medical decision-making, or regulated medical use.
 
 ---
@@ -266,7 +305,7 @@ The uninstaller removes application files and bundled runtime components while p
 
 If you use MultiCamApp in research, education, or published work, please cite:
 
-Mun AY, Koketsu S. **MultiCamApp: Offline multi-camera recording, metadata capture, and video verification platform for research and educational workflows.** Version v2.0.5. 2026.
+Mun AY, Koketsu S. **MultiCamApp: Offline multi-camera recording, metadata capture, and video verification platform for research and educational workflows.** Version v2.1.0. 2026.
 
 ---
 
@@ -284,7 +323,7 @@ Modern application architecture, UI/UX redesign, offline packaging, verification
 
 ## License
 
-© 2026–Present Aung Ye Mun and contributors.
+© 2026 Aung Ye Mun and contributors.
 
 MultiCamApp is available for non-commercial academic, scientific, educational, evaluation, and personal use.
 

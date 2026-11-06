@@ -1,0 +1,20 @@
+<UserControl x:Class="MultiCamApp.Ui.VideoQualitySelector"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- H.264 bitrate preset (file size vs. compression headroom). Applied when recording starts. -->
+    <StackPanel>
+        <TextBlock x:Name="HeaderText" Style="{StaticResource BodyText}"
+                   Foreground="{StaticResource AppForegroundBrush}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+        <ComboBox x:Name="QualityBox" Style="{StaticResource InputComboBoxStyle}"
+                  AutomationProperties.LabeledBy="{Binding ElementName=HeaderText}"
+                  DropDownOpened="QualityBox_DropDownOpened"
+                  SelectionChanged="QualityBox_SelectionChanged">
+            <ComboBoxItem Tag="WindowsCameraLike"/>
+            <ComboBoxItem Tag="High"/>
+            <ComboBoxItem Tag="Standard"/>
+            <ComboBoxItem Tag="Efficient"/>
+        </ComboBox>
+        <TextBlock x:Name="HintText" Style="{StaticResource BodyText}" FontSize="12" TextWrapping="Wrap"
+                   Foreground="{StaticResource AppSecondaryTextBrush}" Margin="0,4,0,0"/>
+    </StackPanel>
+</UserControl>

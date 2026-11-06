@@ -2,6 +2,365 @@
 
 All notable changes to MultiCamApp will be documented in this file.
 
+## [v2.1.0] - 2026-11-06 (build 339)
+
+> **Version:** released as **2.1.0** rather than the earlier "proposed 2.0.6". `docs/developer_notes/versioning.md` reserves the patch number for fixes. This release also adds features: quality presets, interrupted-recording recovery, the visual stability audit and the shared-clock CSV column. Version files bumped together: `version.json` (build 339, 2026-11-06), both `.csproj` files, `MultiCamApp.iss`, `VideoEngineRegistry.BackendVersion` and its test, plus the README, INSTALLATION, LICENSE and installer-licence citations.
+
+### Release-readiness round (2026-11-06)
+* **Visual stability audit — timing source (exception #22):** each video now uses only its own `camN_timestamps.csv`, and only if the CSV matches the video (same frame count, continuous index, increasing times, duration within 5 %). Before, the first timestamp CSV in the folder was used without checks. Otherwise container timestamps are used and the reason is reported. Measured on real files: the MP4 timeline runs up to 0.75 % short of the capture clock, so the CSV is the better clock when it is valid.
+* **Visual stability audit — scale (exception #22):** band strength and brightness range were reported too high: by about ×1.15 for this app's (full-range) recordings and ×1.33 for limited-range files, because of how ffmpeg converts luma to 16-bit grey. Values are now % of the luma above black level. Validated on lossless synthetic videos with known answers and against a separate Python implementation. Thresholds are unchanged; real recordings now read about 15 % lower.
+* **Verify All freeze on large folders (exception #23):** 8.4 s → 1.7 s on 121 files. The report log is appended in one step and the audit report is written off the UI thread.
+* **Video Verification with many sessions:** the session list and the detail box now fit the window and scroll inside themselves; with 64 sessions the page was about 30 screens tall. Failed sessions without metadata (interrupted recordings) now show the reasons ("metadata.json missing; Inter-camera frame difference too large (22 frames)") and "Writer drops: unknown (no metadata)" instead of "0". "timestamp CSV" is capitalised consistently. When several sessions are checked, an overall FAIL now says how many sessions failed ("FAIL — 3 of 64 sessions"; the tooltip lists them). The rule is unchanged: one failed video makes the folder FAIL. In a folder that contains interrupted recordings (no metadata), the overall result is therefore always FAIL until those sessions are moved out.
+* **Uninstaller no longer deletes the whole install folder.** It removes what Setup installed and the folders the app creates, then the install folder only if it is empty. Before, anything else in the install folder was deleted too, including a recording folder chosen inside it or the contents of a non-empty folder typed as the install location.
+* **Installer prompts and console window:** silent installs and uninstalls (`/VERYSILENT /SUPPRESSMSGBOXES`) no longer stop on confirmation dialogs; a silent install cancels rather than closing a running MultiCamApp. The post-install runtime check no longer flashes a console window. The uninstall prompt now says that files you placed in the install folder are kept.
+* **Documentation:** visual stability accuracy and limits (`docs/user_guide/video_verification.md`), uninstall behaviour (`INSTALLATION.md`).
+
+### Verification, diagnostics and release round (2026-11-06, after the UI round below)
+* **Video Verification (exception #20):**
+  * **Before a run** the page shows only the sessions found ("Ready for verification") and a hint. Summary cards, results and export buttons appear only after Verify / Verify All / Deep Verify. Previously, placeholder values such as "FAIL" or "MISSING" were visible before anything had been checked.
+  * **UI freeze fixed:** Verify All on a folder with 115 videos froze the UI for 54 s. Verification, Deep Verify and the visual audit now run off the UI thread, and the session list is updated incrementally. Measured: 5.9–7 s of UI freeze remain at the end of a 115-file run (building the result tables); none on a 6-file set.
+  * **JSON export was invalid:** the privacy filter treated decimal numbers as hex IDs and broke the JSON. The export now filters string values only, and the filter no longer matches decimals. A test parses the exported JSON.
+  * Export errors (file locked, folder not writable) are now reported in the log instead of being unhandled.
+  * Interrupted recordings with partial metadata no longer show legacy-pipeline texts ("MISSING", "FAILED"). They show what the files actually contain.
+  * Session names with underscores were shown without the first underscore in the session header. Fixed.
+  * **Deep Verify counted the wrong frames (exception #21):** the independent duplicate check let ffmpeg convert variable-frame-rate video to a constant rate before hashing. It hashed 535 of 536 frames on a real file, and could equally have repeated frames and reported them as duplicates. Every decoded frame is now hashed exactly once; on 6 real files the hashed counts equal the file frame counts.
+  * **Before a run** the session summary also said "Writer drops: 0", gave a frame-integrity line and ended with "Note: ready for analysis." for sessions that had not been checked. It now shows only the session name, camera count, "Not verified yet" and what to click.
+  * Displayed values were checked against the files after Verify All and Deep Verify, in English and Japanese (2 demo sessions, 6 videos): frame counts, CSV rows, real capture FPS (within 0.03 fps of an independent calculation from the CSV), duplicates, drops and timing source all match. "Brightness flashes" is now labelled as a total.
+  * Japanese UI: card values ("per-session", "sessions audited separately", recording mode, timing source) are now in Japanese. "PASS_WITH_WARNING" is shown as "WARNING".
+* **Hardware Diagnostics:**
+  * **GPU query fixed:** the graphics query was invalid, so no adapter was listed. Name, driver version and date, and memory are now shown (memory is capped at 4 GB by Windows for this query; this is stated in the report).
+  * **USB topology is now real:** previously every camera was listed as "Unknown" and 3–4 camera layouts only got "USB topology unavailable". The app now walks the Windows device tree (cfgmgr32, read-only) for each selected camera and reports its USB host controller and any external USB hubs. Two cameras on the same hub produce a warning; cameras sharing a controller produce a note. Tested on the development PC: 4 cameras on one Intel USB 3.10 controller, two JVU250 cameras behind one "Generic USB Hub" (warning shown). This matches the device tree listed independently with the Windows PnP API.
+* **Icons and layout:** the header logo and window icon are generated from the same artwork (`scripts/build/build_app_icon.py`). Summary cards share one width. Page titles use the same style on every page.
+* **Screenshots** for the README (`docs/images/`, preview off, no camera images), made with `scripts/autotest/screenshots.ps1`.
+* **Tests:** 409 unit tests, all passing. New this round: GPU formatting, privacy filter on decimals and JSON, USB topology ID conversion and grouping, Deep Verify frame-hashing arguments, visual-audit timestamp selection and luma range handling. Page functions tested on real hardware with `scripts/autotest/pages_func.ps1`: no errors, no UI freeze reported by the watchdog.
+
+### UI, text and output-language round (2026-11-06, after the real-hardware rounds below)
+* **UI tour on real cameras** (`scripts/autotest/ui_tour.ps1`): screenshots of every page and the About dialog in English and Japanese, page-switch timing, and the app's own UI-freeze log.
+* **Unnecessary lines:** the camera tiles had a second, inner border around the video inside the coloured camera frame. It was removed. The status dot no longer touches the frame, and the video keeps a small gap above the bottom edge.
+* **Smooth page switching:**
+  * The first visit to Video Verification froze the UI for **3.1 s**. The page built an expanded table for every session in the folder (~50).
+  * Now only the first 5 sessions and any FAIL sessions open automatically; the rest stay collapsed until clicked.
+  * Measured after the fix: first switch 0.6 s with no UI freeze; later switches 0.15 s; the Hardware page about 0.55 s (almost all of it the test tool's own lookup time). The watchdog reported `maxFreezeMs=0` for the whole tour.
+* **Status text:** "Starting preview…" / 「プレビューを開始しています…」 is shown while cameras open. "Idle" was shown before.
+* **Japanese UI:**
+  * The footer is now translated.
+  * About shows the release stage as 安定版 / Stable instead of the raw "stable".
+  * Verify-page session headers and results show 検証待ち instead of the English "Ready for verification". The summary text no longer uses a monospace font that mixed badly with Japanese.
+  * Hardware Diagnostics advice no longer mentions settings that are not in the UI ("preview FPS Balanced", "High-Stability Recording Mode").
+  * Ellipses are unified to "…".
+* **Japanese metadata output** (`camN_metadata.txt` written while the UI is Japanese) no longer contains English sentences:
+  * camera-control warnings (low-light, anti-flicker, UVC exposure and focus);
+  * the reference-camera reason;
+  * timing-model notes;
+  * colour range;
+  * release stage;
+  * metadata language.
+* **Metadata accuracy:** exposure/focus controls handled through the standard UVC control were listed as "Exposure control: Unknown". They are now listed as "Supported (standard UVC control)". The hardware-timestamp line now also names the `capturePtsMsSystemClock` column.
+* **Tested after the rebuild:** two 2-camera recordings (C922 + built-in, 720p30) with the UI in English and two with it in Japanese. All passed: CSV rows = MP4 frames (diff 0), 0 timing gaps > 1.5×, 0 duplicate frames, no temp files, no privacy leaks in the metadata, about 8.2 Mbit/s per camera. Japanese and English metadata were read line by line.
+* **Investigated and reverted (exception #19):**
+  * Opening cameras froze the UI for **2.7 s** at one Start Preview (cold start, logged by the watchdog).
+  * Creating `MediaCapture` on a worker thread cut camera initialisation to 0.2 s. But the first app close afterwards hung inside `MediaCapture.Dispose()` and left a process Windows could not terminate (0 threads, still locking the executable until reboot).
+  * Reliability comes first, so the original UI-thread path was restored. Only a timing log (`V2_CAPTURE_OPEN_TIMING`) was kept.
+  * In the following runs on the restored path, initialisation took 0.2–0.3 s with no freeze. The 2.7 s stall was not reproduced and is listed as a known, unresolved cold-start effect.
+* **Third-party notices corrected to what is actually in the repository:**
+  * .NET 8.0.27 runtime with SDK 8.0.421;
+  * exact package versions from `MultiCamApp.deps.json`, including `Vortice.Mathematics`, `SharpGen.Runtime` and `System.Text.Json`;
+  * xUnit 2.9.3 and Test SDK 17.14.1;
+  * pip 26.1.2 and Pillow 12.2.0 in the bundled Python 3.12.10;
+  * VC++ Redistributable 14.44.35211.0;
+  * the real Inno Setup arrangement;
+  * OpenCV now described as used only by the legacy engine and diagnostics.
+* **Licence:** `docs/license/LICENSE.txt` (the installer licence) changed "2026-Present" to "2026" and now lists the bundled components. `runtime/ffmpeg/README.txt` now names the visual audit and recovery uses.
+* **Tests:** 369 passing. The new display-language helpers were checked through the UI and real metadata files, not by unit tests.
+
+> **Requested: a full upgrade/audit pass over the UI, components and backend.** The code was reviewed in three independent passes (UI layer, non-frozen backend/scripts, and a bug hunt in STABLE_CORE_V2). Every finding below was re-verified against the source before it was changed. Speculative items, cosmetic refactors and legacy-engine-only (dormant OpenCV path) findings were deliberately left out. Frozen-core changes follow the STABLE_CORE_V2 exception process. They are logged as exceptions #1–#6 in `docs/STABLE_CORE_V2_EXCEPTIONS.md`.
+>
+> **Validation done:** Release build has 0 errors and only the two intentional `CS1030` freeze warnings. `dotnet test` passes **314/314**: the 295 baseline tests plus 19 new ones, including a test that runs the real `runtime/setup_runtime.bat` in a throwaway folder whose name contains parentheses and spaces. The app launched and was screenshot-checked on the Main, Video Verification and Hardware Diagnostics pages in English and Japanese. `--smoke-test` passes (exit 0).
+>
+> **Not yet done:** the real-camera sections of `docs/STABLE_CORE_V2_REGRESSION_CHECKLIST.md`. That covers recordings, `ffprobe` frame-count cross-checks, a mid-recording USB unplug and GPU fallback. Run them before tagging a release.
+
+### Fixed — STABLE_CORE_V2 (freeze exceptions, see exception log)
+* **#1 App could not close after a metadata write failure.** Example: the disk is full at the end of a session. `RunPostRecordingMetadataAsync` throws, and the faulted `_postRecordingMetadataTask` used to be re-awaited by every later Stop Preview and by app close. That aborted `CleanupForCloseAsync` before cameras and encoders were released, and `Window_Closing` then cancelled every further close attempt. The earlier failure is now logged instead of re-thrown. Shutdown cleanup always continues, and the window always finishes closing (`MainWindow.xaml.cs`).
+* **#2 Start Recording failure paths could wedge a slot or leak resources.**
+  * `OpenCsv` ran outside the try block, so an IO error left the slot stuck in `StartingRecording`.
+  * The timestamp CSV was not closed when the encoder failed to open.
+  * A rejected sink-writer media type leaked the `IMFSinkWriter`, which kept `camN.tmp.mp4` open.
+  * Every retry added another Media Foundation platform ref.
+  * A failed camera open left `MediaCapture` exclusively locked. It also released the MF ref while the capture object was still alive, which is the native-crash ordering documented in `MediaFoundationCaptureService`.
+  * Files: `CameraPipelineV2.cs`, `MediaFoundationEncoderService.cs`.
+* **#3 Preview teardown races.**
+  * `Direct3DPreviewRenderer.PresentFrame` read `_gpuHost` twice. A concurrent GPU→WPF fallback could null it in between, causing a `NullReferenceException` on the capture thread.
+  * `D3D11SwapChainHost.DestroyWindowCore` released the D3D11 device even when the render thread had not exited within 2 s, for example on a GPU hang or TDR. It now leaks that panel's objects instead of a use-after-free.
+* **#4 ffprobe had no timeout on the Stop Recording path.** The post-finalize frame check runs `VideoProbeService.ProbeAsync` with no bound, so a hung ffprobe hung Stop Recording and app close. It is now limited to 60 s and the process is killed on timeout. stdout and stderr are drained concurrently.
+* **#5 Verification could turn a genuinely unreadable file into PASS.** V2 verdict reconciliation, in `V2VerificationRunner.EnrichLegacyMetadataRecord` and `VideoVerificationPage.ReconcileV2SessionVerdict`, replaced any per-file FAIL with the session verdict written at recording time. That included "moov atom not found" and "no video stream". Reconciliation is now skipped when ffprobe actually ran and could not read the file (`VideoProbeData.FileUnreadable`). When ffprobe is simply not installed, the previous behaviour is unchanged. The new properties are `[JsonIgnore]`, so export schemas are unchanged.
+* **#6 A camera lost mid-recording was silently dropped from the session.** `MediaCapture.Failed` (USB unplug or driver reset) moves the pipeline to `Error` while the sink writer is still open. Stop Recording skipped such slots. As a result, the MP4 was never finalized (no moov atom), never renamed and never given metadata, and verification did not list that camera at all. Interrupted recordings are now finalized and get metadata like a normal stop. The slot then returns to `Error`. Files: `CameraPipelineV2.cs`, `VideoEngineV2.cs`, `MainWindow.xaml.cs`.
+
+### Fixed — application / backend (not frozen)
+* **Any handled UI exception stopped an active recording.** `App.OnUnhandledException` ran `ForceCleanupAsync()` (which disposes the whole camera engine) for every exception it then marked handled. One example is a clipboard error on the Hardware page. The app kept running on a disposed engine, so the next Start Preview failed. The handler now logs the exception and shows one non-blocking notice (rate-limited, localized EN/JA). Recording continues. Full cleanup still runs on the fatal pre-window path.
+* **Logoff/shutdown deadlock.** `OnSessionEnding` blocked the UI thread with `GetAwaiter().GetResult()` on a cleanup that needs that same thread. It now pumps a nested dispatcher frame, bounded to 20 s.
+* **`setup_runtime.bat` ran on every launch.** The script never wrote the `APP_ROOT=` line that `RuntimeBootstrapper.IsRuntimeInitialized` requires, so setup re-ran synchronously at every start.
+  * The script now writes `APP_ROOT=<normalized app folder>`.
+  * It uses redirect-first `echo` lines and delayed expansion, so paths containing `)` no longer break parsing.
+  * `RunSetupSilent` no longer throws (crashing startup) when the script exceeds 2 minutes.
+  * Startup wraps the bootstrap in try/catch.
+* **Privacy sanitizer corrupted JSON and missed paths.** On already-serialized JSON, `"C:\\Users\\..."` matched only `C:\`. That produced an invalid `\U` escape, so `startup_diagnostics.json` was unparsable, and left the rest of the path unredacted. Drive paths now accept `\`, `\\` and `/` separators (URLs are excluded), and UNC paths (`\\server\share\...`) are redacted. User and computer names are replaced only as whole tokens: a user named `cam` used to turn `CameraName` into `[user]eraName`.
+* **Config loader renamed a valid shipped config on a transient lock.** For example, an antivirus scan right after install led to `JsonLoader` renaming `config/*.json` to `.bad_<ts>`, and the next launch failed startup diagnostics. IO and permission errors are now retried and never rename the file. Only real JSON parse errors still do.
+* **Localization:**
+  * Japanese now falls back to English for any missing key instead of showing the raw key.
+  * A malformed localization file degrades to English instead of throwing.
+  * New keys `nonFatalErrorTitle`, `nonFatalErrorMessage` and `hwDiagCopyFailed` were added to both EN and JA (798 keys each, parity enforced by a test).
+* **Smoke test:** it read ffprobe's stdout and stderr only after `WaitForExit`, so large `-version` output could fill the pipe and give a false "timed out" result. Both pipes are now drained concurrently.
+* **Diagnostics never break Start Preview:** `PreviewStartTrace.Dispose` now guards its file write and always clears the trace session. `AsyncBoundedTextFileLogger.Dispose` now drains queued lines before cancelling, so the final session summary lines are no longer lost.
+* **Hardware Diagnostics page:**
+  * "Copy Diagnostic Summary" no longer throws when the clipboard is locked.
+  * The status line ("scan complete", "copied", errors) is no longer reset to "Ready" on every main-window refresh.
+* **About page:** double-clicking a copy button no longer leaves it permanently showing "✓".
+* `SessionBox.TextChanged` was subscribed twice, in XAML and in code. The XAML subscription was removed.
+
+### Changed — UI
+* **Dark theme completed** (`ui/theme/DarkCodingTheme.xaml`):
+  * Several controls had kept the light Windows chrome: ComboBoxes and their drop-downs (including disabled items), scrollbars, radio buttons, checkboxes, expanders and nav-tab hover. They now have full dark templates.
+  * The old scrollbar style only set `Width=8`, which the stock template overrode, and it also squashed horizontal scrollbars.
+  * Inputs are now dark, with hover and focus borders.
+* **Keyboard focus is visible:** an accent focus ring on buttons, radio buttons, checkboxes and expanders, and accent borders on focused inputs.
+* **Start/Stop and live status are always visible.** On the Main page the Controls (5) and Status (6) cards are now pinned to the bottom of the sidebar. Only the setup sections (1–4) scroll. Previously, at the default window size, Start/Stop Recording and the elapsed timer were below the fold.
+  * The Preview and Recording buttons are a 2×2 grid.
+  * Status is shown as compact inline rows, with the timers in a monospaced font.
+  * All control names and handlers are unchanged (verified: 94/94 `x:Name`s, identical handler set).
+* **Contrast:** the Start Recording button colour changed from `#16A34A` to `#15803D`, raising white-text contrast from 3.15:1 to about 4.8:1 (WCAG AA). Hovering a selected verification row no longer hides the selection colour.
+* **Accessibility:** screen-reader labels (`AutomationProperties.LabeledBy`) were added for the camera and video combo boxes, sliders, value boxes, output and session fields, and the language selector. Tooltips on disabled buttons (for example, why a control is locked during recording) are now shown.
+* **Window fits small screens:** the 1280×800 default (MinHeight 640) is clamped to the work area and centred. Example: 1920×1080 at 150 % scaling is 1280×672 DIP.
+* The Video Verification page subtitle no longer repeats the sentence shown in the info box directly below it (EN and JA).
+
+### Build environment
+* `global.json`: an uncommitted bump to SDK `8.0.427` was reverted to the committed `8.0.421` floor. The repo's own `env/activate.ps1` environment (`tools/dotnet` = 8.0.421) could not build at all with 8.0.427 pinned. `rollForward: major` still lets a system 8.0.427 / 9.x SDK build it. The other pending package bumps (System.Management 10.0.14, Test SDK 17.14.1, xunit 2.9.3, launcher version fields) were kept, and they restore and build with both SDKs.
+
+### Tests
+* New tests:
+  * `PrivacySanitizerTests` (JSON validity, UNC, URL safety, whole-token replacement)
+  * `LocalizationParityTests` (EN/JA key parity, JA→EN fallback)
+  * `ProbeFailureGuardTests`
+  * `RuntimeSetupScriptTests` (runs the real batch script)
+* 314 passing (was 295).
+
+### Real-hardware test round (2 × j5 JVU250 USB webcams + integrated laptop webcam)
+> **Setup:** every recording was driven through the app's own UI by a UI-Automation harness: layout, camera selection, resolution, FPS, anti-flicker, session title, Start/Stop Preview and Start/Stop Recording. Each output was then checked independently of the app with ffprobe, an exact per-frame MD5 (`framemd5`), PTS interval statistics, ffmpeg `blurdetect`/`signalstats`/`freezedetect`/`blackdetect`, timestamp-CSV parsing, and metadata-vs-file-vs-UI comparison. Camera format and control capabilities were probed with a standalone WinRT tool, not the app.
+>
+> **Hardware facts established, so that limits are not mistaken for software bugs:**
+> * The two JVU250 cameras share one USB 2.0 hub. The second camera fails at 720p with `0x800718CF` (not enough USB bandwidth) at 15, 20 and 30 fps. Both run at 640×480.
+> * The JVU250 exposes no MJPEG path that the WinRT frame reader can decode on this system (`OutputFormatNotSupported` for every output subtype), so NV12 is the only usable format.
+> * The JVU250 sensor delivers 32.0 ms frame intervals with a regular gap about every 30 frames, i.e. **29.06–29.10 fps**. The raw-reader probe measured this with no app involved, with auto or locked exposure, and with or without the app's BGRA conversion. The integrated camera delivers 29.96 fps.
+> * Neither camera offers more than 30 fps, and the integrated camera's maximum is 1280×720.
+
+#### Long-duration run (PASS): 2 cameras, JVU250 + built-in, 720p30, 10 min 05 s
+* 1280x720 on both cameras; video frames equal timestamp CSV rows (cam1 17,593; cam2 18,133).
+* Frame rate per 60 s window: cam1 29.05-29.10 fps; cam2 29.95-29.97 fps. No drift over the run.
+* 0 duplicate, frozen or black frames; 0 non-monotonic timestamps; 0 frame-index gaps; no PTS interval above 2.5x nominal.
+* Sharpness and brightness stable across the run (blur SD 0.01-0.02; mean luma SD 0.3-0.6). Bitrate 7.7-8.0 Mbit/s.
+* Inter-camera CSV first-row offset 3.8 ms; last-row offset 36 ms.
+* Private memory rose about 18 MB in the first 4-5 minutes, then stayed at 456-459 MB until stop (warm-up plateau, not a leak). Handles 1631 -> 1571, threads 107 -> 95, average CPU 0.56 cores.
+
+#### Matrix results (all PASS)
+Columns: layout · cameras · requested settings · result.
+
+* **1-cam · JVU250 · 1080p30:** 1920×1080, 29.06 fps, 17.6 Mbit/s.
+* **1-cam · built-in · 720p30:** 1280×720, 29.95 fps, 8.1 Mbit/s.
+* **2-cam · 2×JVU250 · 480p15:** 640×480, 14.5 fps, 1.9 Mbit/s.
+* **2-cam · 2×JVU250 · 480p, 60 fps requested:** 30 fps fallback, reported in metadata and now in the UI.
+* **2-cam · JVU250 + built-in · 1080p30:** 1080p plus 720p fallback for the built-in camera, reported.
+* **3-cam · 2×JVU250 + built-in · 480p30:** all three cameras recorded.
+* **4-cam layout · 3 cameras + "(none)" · 480p30:** three cameras recorded; the empty slot is labelled.
+* **2-cam · JVU250 + built-in · 720p30, 60 s:** both at 1280×720.
+
+For every camera in every run:
+* Timestamp CSV rows equal video frames (**0 difference**).
+* 0 exact duplicate frames, 0 frozen segments, 0 black segments.
+* BT.709 / full-range colour tags and square pixels.
+* No absolute paths or user names in the metadata.
+* Inter-camera start offsets of 1–54 ms.
+* App start to UI ready: 2.7–2.9 s. Preview ready: 2.7–3.4 s for 1–3 cameras. Start Recording active: about 4 s, including 1–2 s of harness polling. Stop: about 3 s. Peak RAM: 430–630 MB.
+
+#### Fixed — STABLE_CORE_V2 (exceptions #7–#12)
+* **#7 A failed camera looked like a working one.** A camera that failed after opening, for example with the USB-bandwidth error above, showed a silent black panel next to a green "Previewing" status. The error was only in a log file.
+  * The engine now raises `SlotFailed`.
+  * The panel header shows a localized, actionable message in red with a red dot. For example: "cam2: not enough USB bandwidth for 1280×720. Choose a lower resolution … or connect each camera to a different USB port / controller". `CameraErrorExplainer` maps the known HRESULTs (bandwidth, camera busy, access denied, device lost).
+  * The per-camera header line previously read the dormant legacy pipeline and was always blank under VideoEngineV2. It now shows the real `resolution · live fps · REC frame count`, plus "camera max" (tooltip with the reason) when the camera could not provide the requested format, and "No camera selected" for an empty slot.
+* **#8 Timestamp CSV rows did not match video frames (scientific accuracy).** Rows were written for every delivered frame, including the 1–2 s while the encoder was opening and closing. On real data that meant +71 rows and about 2.4 s with no matching video frame, and `frameIndex` started at the preview count, so row *k* was not frame *k*.
+  * Rows are now written only after the encoder accepts the frame. `frameIndex` is 0-based and equals the MP4 frame number. App time is relative to the first recorded frame.
+  * A new last column, `capturePtsMsFromFirstFrame`, holds the exact camera capture timestamp used as the MP4 sample time. Existing columns are unchanged.
+  * `estimatedCaptureFps` is now correct; previously it was preview-inclusive and wrong from the second recording on.
+  * Verified on every run: CSV rows − MP4 frames = 0.
+* **#9 Camera controls were reported "Not supported" although the cameras support them.** The app only used `ExposureControl`/`FocusControl`/`WhiteBalanceControl`, which typical UVC webcams don't implement. The standard UVC controls (`VideoDeviceController.Exposure/Focus/WhiteBalance`) were never tried, and `FlickerReductionControl` was assumed to be the only anti-flicker API.
+  * Verified on all three cameras: UVC exposure, white balance and power-line frequency are present, and so is focus on the JVU250.
+  * **Anti-flicker:** `TrySetPowerlineFrequency` is now applied at camera open and read back; 50 Hz was set and confirmed. A new **Anti-flicker (mains frequency)** selector (Camera default / 50 Hz / 60 Hz / Auto) is in Advanced Camera Controls, and `powerLineFrequencyHz` is in appsettings. Japan: east 50 Hz, west 60 Hz.
+  * **Focus:** autofocus runs during preview and is locked at Start Recording at the settled position (readback is live, e.g. 180 / 100), then released at Stop.
+  * **Exposure and white balance:** kept on camera auto by default. A first implementation also locked them at Start Recording. Real recordings showed a strong cyan cast because UVC white-balance readback during auto returns the stored default (4600 K), not the live value. Exposure readback has the same problem, and UVC exposure steps (1/64 s, 1/32 s) cannot match 50/60 Hz periods, so a forced lock would defeat anti-flicker. Both locks are therefore off by default (`LockUvcExposureDuringRecording`, `LockWhiteBalanceDuringRecording`). Manual exposure, Environmental Lock and One-Shot Calibrate now work on UVC cameras.
+  * Metadata reports the real state (Supported / Applied / readback) instead of "Not supported".
+* **#10 Bitrate ignored resolution.** The 18 Mbit/s 1080p30 target was used at every resolution, so 640×480 was about 18.7 Mbit/s: 140 MB per camera-minute. The bitrate now scales with pixel rate at the same bits-per-pixel as 1080p30 (floor 2 Mbit/s, cap 1.5×).
+  * Measured: 480p 2.6 Mbit/s (6.6× smaller files, blur metric unchanged), 720p 8.0 Mbit/s, 1080p 17.6 Mbit/s.
+  * Metadata records the per-resolution target.
+* **#11 Metadata said "ffprobe not available" while ffprobe was available.** The post-recording metadata step passed empty ffprobe results, so every file showed "Unknown (ffprobe not available)" and an empty ffprobe audit. The step now runs a header-only probe per file (tens of ms).
+* **#12 Absolute path with the Windows user name in `camN_metadata.json`.** `recording.outputFilePath` contained `C:\Users\<name>\…`, which violates the project's privacy rule. It now holds the session-relative path (`cam1/cam1.mp4`).
+
+#### Changed — UI
+* **Two-camera layout:** cameras are stacked when that shows the 16:9 video larger. In the default window, side by side gave each video about 40 % of its panel. Resizing no longer tears down and re-adds the preview cells (or their GPU HwndHost) when the arrangement is unchanged.
+* **Status card is concise:**
+  * Removed the duplicate "Session Time" (always equal to Elapsed), the "Preview" row (Status already says Idle/Previewing/Recording), and the redundant "Preview/Recording Controls" sub-labels.
+  * After Stop, the card keeps **"Last recording: hh:mm:ss"** instead of resetting to 00:00:00.
+  * "Recording" and its dot are now red, consistent with the Stop Recording button.
+* **Small fixes:**
+  * The "Start preview to enable calibration controls" hint is no longer shown during preview.
+  * The final-folder preview shows `…_YYYYMMDD_HHMMSS (set at recording start)` instead of the time the title was typed.
+  * Footer and About copyright now read "© 2026".
+
+#### Metadata text (camN_metadata.txt)
+* **Corrected statements:**
+  * The nominal-duration line now quotes the recorded frame count, not the preview-inclusive one.
+  * The timestamp section now states that row *k* = video frame *k* and that hardware capture timestamps are recorded.
+  * The variable-frame-timing note no longer claims the driver reports ffprobe's `r_frame_rate` estimate.
+  * Low-light compensation that was not changed is no longer reported as "disable failed".
+* **Condensed:** about 25 "Not available" lines for duplicate-frame and visual-quality analysis that is not run at recording time are now one line each, pointing to Deep Verify.
+
+#### Removed (dead code, zero references verified)
+* `diagnostics/RuntimeCapabilityDetector.cs`
+* `experiment/ExperimentRecordingController.cs`
+* `experiment/ExperimentPreflightService.cs`
+* `recording/writers/RecordingOutputManager.cs`
+* `recording/writers/IVideoFileWriter.cs`
+* `recording/writers/RecordingWriteHealth.cs`
+* `ui/VideoEngineV2TestPanel.xaml(.cs)` (never shown)
+
+The legacy OpenCV engine is kept as the dormant safety net defined in STABLE_CORE_V1_FREEZE.md.
+
+#### Tests
+* New: `CameraErrorExplainerTests` (uses the exact HRESULT text observed on hardware) and `RecordingAccuracyRegressionTests` (one CSV row per encoded frame, indexed from 0; UVC exposure units; bitrate scaling; two-camera layout rule).
+* **332 passing.**
+
+### Real-hardware test round 3 — video artefacts, sudden close, any-camera support, focus, file size, start lag (2026-11-06)
+> Hardware: Core i9-12900H, Intel Iris Xe + NVIDIA RTX 3080 Laptop GPU, 32 GB RAM; cameras: Logitech C922, 2 × j5 JVU250, integrated webcam. Every recording was driven through the UI and analysed independently (ffprobe, framemd5, blurdetect, blockdetect, signalstats, a row-profile band analysis written for this round). All harness child processes run under hard time limits.
+
+#### Moving horizontal lines (light-flicker bands) — measured and fixed
+* Each video was reduced to 180-row brightness profiles. Drifting bands were measured as amplitude in % of brightness, then checked with kymographs.
+* With anti-flicker at 50 Hz, under this room's 120 Hz light flicker, the C922 showed 1.30 % drifting bands.
+* Same scene, same moment: C922 1.30 / **0.095** / **0.076** % at 50 / 60 / Auto; built-in camera 0.60 / 0.038 / 0.16 %.
+* **Default anti-flicker changed from "Camera default" to Auto.** With Auto, the C922 reports that it selected 60 Hz.
+* The JVU250 shows about 2.1 % bands with every setting: it accepts the setting but ignores it (firmware limitation, documented).
+* No brightness flashes in any recording. Temporal noise is 0.5–1.6 8-bit levels and blockiness 1.1–1.4 (1.0 = none).
+
+#### Sudden close during recording — fixed (exception #15)
+* **Before:** after a force-kill, both `camN.tmp.mp4` files were unplayable ("moov atom not found"); 15–17 MB per camera was lost.
+* **After:** the recording is fragmented MP4 with a 1 s keyframe interval. Kill test: 448/450 and 470/470 frames playable. On the next start the app recovers the session and writes `RECOVERY_REPORT.txt`.
+
+#### Any camera — fixed (exception #14)
+* Uncompressed camera formats are preferred over MJPG/H.264; the CPU frame reader refused MJPG on real hardware.
+* A first-frame watchdog switches to the next compatible mode. Hardware test with MJPG forced first on the C922: refused, switched to NV12 in 0.2 s, recording correct.
+* Only colour streams are used (RGB+IR cameras).
+* Camera-mode ranking is unit-tested on simulated format lists: MJPG listed first, YUY2 only, 29.97 fps, MJPG-only exact mode, unusual resolutions.
+
+#### Manual exposure and focus — fixed (exceptions #13, #17)
+* Both Apply buttons went to the dormant legacy pipeline and never reached the camera. Exposure was reported as "Not supported".
+* Now both are applied through VideoEngineV2 and confirmed by camera readback. C922 results: exposure 15.6 ms → 59.4 fps; 250 ms → 5.0 fps with a frame-interval warning; focus position 0 → blur 4.07; 250 → blur 18.2.
+* When the camera closes, the camera's own exposure and its original lens position plus autofocus are restored. The C922's autofocus does not search again by itself; its lens stayed at 250.
+* Metadata exposure and focus lines now come from the camera readback instead of fixed text.
+
+#### File size and quality
+* **Video quality presets:** Maximum (default), High, Compact, and **Efficient (constant quality, encoder quality 80)**. Expected MB per minute is shown for the selected mode.
+* **Measured at 720p30, same scene:**
+
+| Preset | C922 | Built-in |
+|---|---|---|
+| Maximum | 58.5 MB/min, blur 4.08, blockiness 1.22, noise 0.51 | 58 MB/min |
+| Compact | 24 MB/min | blur 5.34 (smoothed) |
+| Efficient | **26 MB/min**, blur 4.10, blockiness 1.36, noise 0.23 | 60 MB/min (noisier sensor needs the bits) |
+* Quality 70 smooths too much (noise 0.13); quality 85 is larger than CBR (10–17 Mbit/s). CBR "Maximum" stays the default because it preserves the camera's noise floor.
+* Hardware H.264 encoding and the Direct3D 11 GPU preview were already in use. Windows chooses the encoder; this PC has Intel Quick Sync and NVIDIA NVENC.
+
+#### Start / stop lag — fixed (exception #18)
+* The first Start Recording per process took 2.28 s (one-time hardware encoder initialisation); later starts took 0.31 s. An encoder warm-up in the background after preview starts makes the first start about **0.26 s**.
+* Stop: files are finalized and metadata written within about 1.5 s.
+* The status shows "Starting recording…" / "Saving recording…" instead of "Previewing" during these transitions.
+* UI freezes during recording: 0 ms (UI freeze watchdog). Preview measured 30.00 fps on a 30 fps camera.
+
+#### Multi-camera alignment and layouts 1–4 (exception #8 extension)
+* Measured software start offsets between cameras: 28 ms (2 cameras), 106 ms (3), 159 ms (4). File start times are therefore not exact sync points.
+* `camN_timestamps.csv` gains a 10th column, `capturePtsMsSystemClock`: the capture time on the Windows system clock shared by all cameras. Subtract it between cameras to align them; existing columns are unchanged.
+* Regression, layouts 1–4 (C922 1080p30; +built-in 720p; +JVU250 720p; 4 cameras 480p): all PASS, start 205–417 ms, CSV rows = frames (diff 0/−1), RAM peak 531–657 MB.
+* Metadata: "Focus during recording" (autofocus on / fixed / fixed-focus camera) and "Focus position (camera units)".
+* Verified on real files: `capturePtsMsSystemClock` lies on the same clock as `monotonicTicks` (camera capture is 12–42 ms before app arrival). CSV rows = MP4 frames (786/786, 785/785). By capture time, the second camera started 11.9 ms *before* the first, whereas app arrival order said 17.9 ms *after*: the column corrects the sign as well as the size.
+* The regression harness moved from `data/temp/autotest` (ignored) to `scripts/autotest` (tracked), with repository-relative paths, environment-variable overrides, camera names as parameters and a README. Smoke-tested from the new location: recording, `analyze.py`, `visual_audit.py`, AuditCheck build/run.
+
+#### Tests
+* New:
+  * `CameraModeRankingTests`
+  * `VisualStabilityAuditTests` (synthetic bands, flash and clean video with known answers)
+  * `InterruptedRecordingRecoveryTests`
+  * focus step-snapping, slider mapping and file-size estimate tests
+* **369 passing.**
+* The in-app visual audit equals the independent Python audit to 3 decimals on 6 real files.
+
+### Real-hardware test round 2 (Logitech C922 Pro Stream added, 2026-11-06)
+> Same method as round 1. Every recording was driven through the UI and checked independently. All harness child processes now run under hard time limits (see Test harness below).
+
+#### Results
+Columns: layout · cameras · requested settings · result. Unless noted, video frames equal timestamp CSV rows (**0 difference**), with 0 duplicate, frozen or black frames.
+
+* **1-cam · C922 · 720p60, auto exposure:** 1280×720, **59.44 fps**, 15.7 Mbit/s. Repeated three times with the camera's state checked.
+* **1-cam · C922 · 1080p30:** 1920×1080, 30.00 fps, 18.2 Mbit/s.
+* **2-cam · C922 + JVU250 · 720p30:** both cameras at 1280×720 (29.97 and 29.03 fps). Each camera on its own USB controller, so the two-JVU250 720p bandwidth limit does not apply.
+* **2-cam · C922 + built-in · 720p60:** C922 at 59.43 fps. The built-in camera fell back to 720p30, reported as a fallback.
+* **4-cam · built-in + 2×JVU250 + C922 · 480p30:** all four cameras recorded (29.07–30.00 fps).
+* **Manual exposure through the UI (C922, 720p60):**
+  * 15.6 ms: confirmed by the camera, 59.44 fps.
+  * 250 ms: confirmed, with the new frame-interval warning; 4.99 fps, as physics requires.
+  * In both cases auto exposure was back on in the camera after the app closed.
+
+#### Fixed — STABLE_CORE_V2 (exception #13)
+* **Manual exposure did nothing, and the app called it a hardware limitation.**
+  * The Advanced Camera Controls "Apply" button sent the request to the dormant legacy pipeline. That pipeline opened a `SharedReadOnly` MediaCapture, which cannot change controls.
+  * The capability probe checked only the newer `ExposureControl` API.
+  * As a result, UVC-only webcams (C922, JVU250, laptop cameras) showed "Exposure: Not supported by this device/driver" although their exposure works. A slider value of 255 (250 ms) still recorded at 59.4 fps.
+  * The button now uses the VideoEngineV2 camera:
+    * The 0–255 slider maps onto the camera's own range.
+    * The status shows the value the camera confirmed, for example "manual 15.6 ms (confirmed by camera)", or the real error.
+    * A warning appears when the shutter is longer than the frame interval.
+  * The capability probe now reports UVC exposure and focus ranges.
+  * A manual exposure set by the user is kept for the recording and reported as such. Auto exposure is restored when the camera closes, because UVC settings persist in the camera and would otherwise affect other apps and later sessions.
+* **Exposure lines in camN_metadata were fixed text.** "Auto exposure requested: Off" and "Manual exposure requested: No" were written for every recording. With the default UVC settings, auto exposure actually stays on.
+  * The lines now come from the camera readback at recording start: "Auto exposure during recording: On (camera auto exposure kept)" / "Off", plus the manual value and its readback.
+  * JSON `autoExposureActive` uses the same readback.
+  * The low-light-compensation note no longer predicts the exposure state at camera open.
+
+#### Changed — UI
+* **Lock Environmental Settings / One-Shot Calibrate:** a warning appears when the locked shutter is longer than the frame interval at the selected FPS, because the camera will then deliver fewer frames.
+* **Status panel:** the camera count reads "2/2 selected" when idle and "2/2 ready" in preview, instead of an unlabelled "2 / 2".
+* **Status dots:** the idle and starting colours come from theme brushes (`IdleDotBrush`, `StartingDotBrush`) instead of hard-coded colours.
+
+#### Test harness (data/temp/autotest, not shipped)
+* Every child process (UI automation, screenshots, recordings, ffmpeg/ffprobe, analysis) runs under a hard timeout that kills the whole process tree. ffmpeg runs with `-nostdin`. A timed-out analysis step is recorded in `timedOutSteps` instead of crashing the run.
+* Long recordings: blur and brightness are sampled on about 3,000 frames. Freeze and black detection still decode every frame.
+* Fixed:
+  * The Japanese language name in `ui_tests.ps1` was corrupted.
+  * UI readback is now UTF-8.
+* **Probe tool problem found and fixed:**
+  * Its `lockexp` mode left the C922 in manual exposure, so an app run immediately afterwards recorded 39 fps at 720p60.
+  * The probe now reports and restores the exposure, power-line and exposure-priority state.
+* **Open question (probe vs app):** with auto exposure and NV12, the probe receives 29.7 fps from the C922 at 720p60, while the app receives 59.4 fps in the same light. Power-line frequency (50/60 Hz) and exposure priority (not supported by the C922) were ruled out. The cause is not known. The app's result was verified on the recorded files.
+
+#### Tests
+* New: `ExposureSlider_MapsOntoUvcRange` (5 cases on the real C922 range). **337 passing.**
+
+### Known issues found but not changed (need an owner decision or more hardware)
+* **Finalize failure not in recording-time metadata:** a failed `IMFSinkWriter.Finalize()` (for example, disk full) is only logged, so recording-time metadata can still say PASS. Fix #5 ensures Video Verification reports the file as FAIL.
+* **Installer and release scripts:**
+  * `taskkill /F` on upgrade kills an active recording.
+  * `[UninstallDelete] {app}` is recursive.
+  * Signing runs before ISCC builds the new installer.
+  * Vendor downloads are not hash-verified.
+  * The PFX password is passed on the command line.
+  * These need a real install/uninstall test cycle.
+* **Two cameras on one USB 2.0 hub cannot both run 720p/1080p** (hardware bandwidth; see above). The app now says so in the camera panel. Connecting each camera to a separate USB port or controller should remove this limit; round 2 confirmed it with a C922 on a separate controller (C922 + JVU250 both at 720p30). Two JVU250 cameras on separate ports were still not tested.
+* **Inter-camera start offset outlier:** in one run (C922 at 60 fps + built-in at 30 fps) the first recorded frames were 113 ms apart; all other runs were 4–54 ms. Single observation, cause not investigated.
+
 ## [v2.0.5] - 2026-07-10 (build 338)
 
 > **User re-ran the actual v2.0.4.337 `Setup.exe` on the same machine used for development** (not a different tester's PC this time — the install target, `C:\Users\<user>\AppData\Local\Programs\MultiCamApp`, was directly readable) and reported the same "installation did not complete correctly" error. Because the install target was directly accessible, `logs\install_update.log` could be read directly instead of relying on a screenshot — this is what actually cracked the case.
@@ -1399,7 +1758,7 @@ Full sweep of every project `.md`/`.cff` doc for staleness against the current v
 
 ## [v1.2.42] - 2026-07-04 (build 262)
 
-> **Full audit of a fresh 720p test batch (test19-23, C:\Users\1\Videos\, 1/2/3/4-camera layouts) — confirms the v1.2.39-41 fixes work, and finds the actual root cause of the GPU rendering failure.** Requested resolution now correctly reads "720p" and matches "Selected resolution: 1280x720" across every layout size — directly confirmed with ffprobe against the real MP4 files (all 4 cameras genuinely 1280x720, not just metadata claims). Zero mid-session timestamp gaps across all cameras in all 5 sessions, re-verified directly against encoded frame timing (max delta 48ms, zero irregular deltas) — the v1.2.37 freeze fix continues to hold at 720p. Ran ffmpeg's `mpdecimate` filter for a rigorous duplicate-frame check; an initial ~93-frame "duplicate" count in a 1850-frame clip was investigated further by comparing MD5 hashes of 5 consecutive frames from the flagged region — all 5 had different hashes and file sizes, confirming these are genuinely distinct captures of a relatively static scene (natural sensor noise), not app-level duplicated frames. Visually inspected extracted frames: colors, sharpness, and framing all correct at 720p across two different camera models (j5 Webcam JVU250, OBSBOT Meet SE). Confirmed zero `CAPABILITY_PROBE_ERROR` occurrences (v1.2.38 fix holding) and a clean `UiFreezeWatchdog` result (`freezeCount=0`) across the whole batch. **Found and fixed the actual root cause of the 100%-fallback GPU rendering issue flagged in v1.2.38.** The v1.2.38 diagnostics upgrade (explicit `QueryInterface` + HRESULT logging) paid off immediately: the fresh test batch's log showed the exact failure is `hresult=0x80004002` (`E_NOINTERFACE`) when querying for `IDXGISwapChain1`. Tracing the C# interop declaration showed the interface only ever calls methods within the *base* `IDXGISwapChain`'s vtable range (`Present`/`GetBuffer`/`ResizeBuffers`, slots 8-17) — never any of `IDXGISwapChain1`'s own extended members (slots 18+, e.g. `Present1`/`GetDesc1`). The code never actually needed `IDXGISwapChain1` at all. Fixed by querying for the base `IDXGISwapChain` IID (`310d36a0-d2e7-4c0a-aa04-6a9d23b8886a`) instead, which is guaranteed to be supported by any swap chain regardless of which DXGI factory version created it. This is a genuine attempted fix, not just more diagnostics — but GPU rendering itself still needs a fresh test run to confirm it now actually initializes (look for `V2_RENDERER_INIT renderer=D3D11` with no following swap-chain-init-failure line). Exposure/shutter control remains "Not supported by device/driver" for all cameras — this is an unchanged, pre-existing hardware/driver limitation, not a regression. V2 stable recording workflow, STABLE_CORE_V1 components, and CSV schema unchanged.
+> **Full audit of a fresh 720p test batch (test19-23, the Videos folder, 1/2/3/4-camera layouts) — confirms the v1.2.39-41 fixes work, and finds the actual root cause of the GPU rendering failure.** Requested resolution now correctly reads "720p" and matches "Selected resolution: 1280x720" across every layout size — directly confirmed with ffprobe against the real MP4 files (all 4 cameras genuinely 1280x720, not just metadata claims). Zero mid-session timestamp gaps across all cameras in all 5 sessions, re-verified directly against encoded frame timing (max delta 48ms, zero irregular deltas) — the v1.2.37 freeze fix continues to hold at 720p. Ran ffmpeg's `mpdecimate` filter for a rigorous duplicate-frame check; an initial ~93-frame "duplicate" count in a 1850-frame clip was investigated further by comparing MD5 hashes of 5 consecutive frames from the flagged region — all 5 had different hashes and file sizes, confirming these are genuinely distinct captures of a relatively static scene (natural sensor noise), not app-level duplicated frames. Visually inspected extracted frames: colors, sharpness, and framing all correct at 720p across two different camera models (j5 Webcam JVU250, OBSBOT Meet SE). Confirmed zero `CAPABILITY_PROBE_ERROR` occurrences (v1.2.38 fix holding) and a clean `UiFreezeWatchdog` result (`freezeCount=0`) across the whole batch. **Found and fixed the actual root cause of the 100%-fallback GPU rendering issue flagged in v1.2.38.** The v1.2.38 diagnostics upgrade (explicit `QueryInterface` + HRESULT logging) paid off immediately: the fresh test batch's log showed the exact failure is `hresult=0x80004002` (`E_NOINTERFACE`) when querying for `IDXGISwapChain1`. Tracing the C# interop declaration showed the interface only ever calls methods within the *base* `IDXGISwapChain`'s vtable range (`Present`/`GetBuffer`/`ResizeBuffers`, slots 8-17) — never any of `IDXGISwapChain1`'s own extended members (slots 18+, e.g. `Present1`/`GetDesc1`). The code never actually needed `IDXGISwapChain1` at all. Fixed by querying for the base `IDXGISwapChain` IID (`310d36a0-d2e7-4c0a-aa04-6a9d23b8886a`) instead, which is guaranteed to be supported by any swap chain regardless of which DXGI factory version created it. This is a genuine attempted fix, not just more diagnostics — but GPU rendering itself still needs a fresh test run to confirm it now actually initializes (look for `V2_RENDERER_INIT renderer=D3D11` with no following swap-chain-init-failure line). Exposure/shutter control remains "Not supported by device/driver" for all cameras — this is an unchanged, pre-existing hardware/driver limitation, not a regression. V2 stable recording workflow, STABLE_CORE_V1 components, and CSV schema unchanged.
 
 ### Fixed
 * **`capture/video_engine_v2/D3D11Interop.cs`, `D3D11SwapChainHost.cs`** — The swap-chain interface query now requests the base `IDXGISwapChain` GUID instead of `IDXGISwapChain1`'s (which the code never actually needed and which failed with `E_NOINTERFACE` on the audited machine), fixing the underlying cause of the 100% GPU-rendering-fallback issue found in v1.2.38.
@@ -1443,7 +1802,7 @@ Full sweep of every project `.md`/`.cff` doc for staleness against the current v
 
 ## [v1.2.38] - 2026-07-04 (build 258)
 
-> **Full audit of 19 test sessions (test1-18, C:\Users\1\Videos\, systematic 1/2/3/4-camera matrix, all 1080p/30fps) — confirms the v1.2.37 fix worked, and finds two new issues.** Every session across all four camera-layout sizes recorded successfully: 0 FAIL results, 0 writer errors, 0 unfinalized recordings, and — critically — **0 mid-session timestamp gaps in all 38 individual camera recordings**, up from real gaps observed pre-fix (v1.2.34 audit). Directly re-verified via ffprobe on a 4-camera session's actual MP4 (not just the self-reported CSV) — zero irregular frame-timing deltas across the full recording, confirming the freeze fix is working. No camera-slot-specific (cam1 vs cam2 vs cam3 vs cam4) or layout-size-specific failure pattern found anywhere. The recurring `PASS_WITH_WARNING` verdict in multi-camera sessions is fully explained and confirmed correct, not a bug: sessions mixing the OBSBOT Meet SE (~29.98fps average) with j5 Webcam JVU250 units (~29.67fps average) show a ~19-22 frame count spread over a ~60s recording — matching the predicted 0.31fps × 60s ≈ 18.6 frames almost exactly. This is an honest report of genuine hardware frame-rate differences between camera models, not an app defect; sessions using only one camera model show near-zero spread. Confirmed the known `cam1_metadata.json`/`metadata.json` duplicate pair (legacy `VideoScanner.cs` compatibility, STABLE_CORE_V1) is still present and still byte-identical — intentional, not a new bug. **Could not compare 1080p vs 720p stability as requested — all 19 sessions in this batch were recorded at 1080p; no 720p test data exists to compare against.** Found two new issues while checking the runtime log: (1) the GPU (Direct3D11) preview renderer **failed to initialize in all 38 camera-slot inits across the entire batch** — every single preview silently fell back to the CPU/WPF rendering path, with only a bare `InvalidCastException: Specified cast is not valid` logged (no HRESULT, no detail). This is a major, unverified-root-cause finding directly relevant to why GPU real-time rendering hasn't been engaging at all; replaced the implicit RCW cast with an explicit `QueryInterface` call and richer exception logging (HRESULT, InnerException) so the actual COM-level cause is diagnosable from the next test run instead of requiring a live debugger attach — did not attempt a blind fix of the interop itself without being able to verify against real hardware. (2) A lower-severity, already-diagnosed cosmetic bug: the Advanced Camera Controls capability probe (exposure/focus range display) threw "The object has been closed" 58 times across the batch, always for slot 0, triggered by the camera-target selector changing while that slot's camera was mid-teardown/reopen during a layout transition — fixed with a pipeline-state guard that skips the probe unless the slot is actually open; this never affected recording, only the displayed range text. V2 stable recording workflow, STABLE_CORE_V1 components, and CSV schema unchanged.
+> **Full audit of 19 test sessions (test1-18, the Videos folder, systematic 1/2/3/4-camera matrix, all 1080p/30fps) — confirms the v1.2.37 fix worked, and finds two new issues.** Every session across all four camera-layout sizes recorded successfully: 0 FAIL results, 0 writer errors, 0 unfinalized recordings, and — critically — **0 mid-session timestamp gaps in all 38 individual camera recordings**, up from real gaps observed pre-fix (v1.2.34 audit). Directly re-verified via ffprobe on a 4-camera session's actual MP4 (not just the self-reported CSV) — zero irregular frame-timing deltas across the full recording, confirming the freeze fix is working. No camera-slot-specific (cam1 vs cam2 vs cam3 vs cam4) or layout-size-specific failure pattern found anywhere. The recurring `PASS_WITH_WARNING` verdict in multi-camera sessions is fully explained and confirmed correct, not a bug: sessions mixing the OBSBOT Meet SE (~29.98fps average) with j5 Webcam JVU250 units (~29.67fps average) show a ~19-22 frame count spread over a ~60s recording — matching the predicted 0.31fps × 60s ≈ 18.6 frames almost exactly. This is an honest report of genuine hardware frame-rate differences between camera models, not an app defect; sessions using only one camera model show near-zero spread. Confirmed the known `cam1_metadata.json`/`metadata.json` duplicate pair (legacy `VideoScanner.cs` compatibility, STABLE_CORE_V1) is still present and still byte-identical — intentional, not a new bug. **Could not compare 1080p vs 720p stability as requested — all 19 sessions in this batch were recorded at 1080p; no 720p test data exists to compare against.** Found two new issues while checking the runtime log: (1) the GPU (Direct3D11) preview renderer **failed to initialize in all 38 camera-slot inits across the entire batch** — every single preview silently fell back to the CPU/WPF rendering path, with only a bare `InvalidCastException: Specified cast is not valid` logged (no HRESULT, no detail). This is a major, unverified-root-cause finding directly relevant to why GPU real-time rendering hasn't been engaging at all; replaced the implicit RCW cast with an explicit `QueryInterface` call and richer exception logging (HRESULT, InnerException) so the actual COM-level cause is diagnosable from the next test run instead of requiring a live debugger attach — did not attempt a blind fix of the interop itself without being able to verify against real hardware. (2) A lower-severity, already-diagnosed cosmetic bug: the Advanced Camera Controls capability probe (exposure/focus range display) threw "The object has been closed" 58 times across the batch, always for slot 0, triggered by the camera-target selector changing while that slot's camera was mid-teardown/reopen during a layout transition — fixed with a pipeline-state guard that skips the probe unless the slot is actually open; this never affected recording, only the displayed range text. V2 stable recording workflow, STABLE_CORE_V1 components, and CSV schema unchanged.
 
 ### Fixed
 * **`MainWindow.xaml.cs`** — `ProbeAndShowCameraCapabilitiesAsync` now checks the target slot's pipeline state before probing, avoiding a benign-but-noisy "The object has been closed" exception during layout transitions.
@@ -1610,7 +1969,7 @@ Full sweep of every project `.md`/`.cff` doc for staleness against the current v
 
 ## [v1.2.28-alpha] - 2026-07-02 (build 247)
 
-> **Full audit of C:\Users\1\Videos\ (3 test sessions); metadata completeness fixes; v1.2.27 color tagging reverted (verified non-functional).** Audited all 3 recording sessions (`test1/2/3_20260701_*`), their MP4s, and their metadata files. Found `cam1_metadata.json/txt` and `metadata.json/txt` are byte-identical duplicates in every session — **not a bug**: `VideoScanner.cs` (STABLE_CORE_V1, frozen) hardcodes the unprefixed `metadata.json`/`metadata.txt` filenames for its scan/verify logic, so the app intentionally writes both the current prefixed names and the legacy unprefixed names for backward compatibility. Left untouched. Found a real metadata gap: `flickerReduction` (and `digitalStabilization`) were the only controls missing the `warning` field that every other control (`focus`/`exposure`/`lowLightCompensation`) includes — so a "Failed" flicker-reduction result gave zero diagnostic info. Root cause traced deeper: `SetFlickerReductionAutoAsync` never populated a `WarningMessage` when the driver's `SetValueAsync` returned false without throwing — fixed to report the target mode and rejection. Verified via ffprobe on all 3 real recordings that the v1.2.27 color-primaries/matrix/range tagging (`mp4.Video.Properties[MF_MT_*]`) has **no effect** — all 3 still show `color_space`/`color_primaries=unknown` despite being built from build 246. Reverted that code (was shipping a no-op) with a detailed comment explaining why: `MediaCapture.PrepareLowLagRecordToStorageFileAsync` does not appear to propagate extra `VideoEncodingProperties.Properties` entries into the muxed H.264 output; properly fixing this would require replacing the encoder with a custom Media Foundation Sink Writer pipeline, which was not attempted. This has no visible playback impact since `color_range` already matches Windows Camera app and untagged HD H.264 is universally interpreted as BT.709 by virtually all players. No unnecessary files found to remove — the session folders are the user's own test recordings, not orphaned artifacts. V2 stable recording workflow, STABLE_CORE_V1 components, and CSV schema unchanged.
+> **Full audit of the Videos folder (3 test sessions); metadata completeness fixes; v1.2.27 color tagging reverted (verified non-functional).** Audited all 3 recording sessions (`test1/2/3_20260701_*`), their MP4s, and their metadata files. Found `cam1_metadata.json/txt` and `metadata.json/txt` are byte-identical duplicates in every session — **not a bug**: `VideoScanner.cs` (STABLE_CORE_V1, frozen) hardcodes the unprefixed `metadata.json`/`metadata.txt` filenames for its scan/verify logic, so the app intentionally writes both the current prefixed names and the legacy unprefixed names for backward compatibility. Left untouched. Found a real metadata gap: `flickerReduction` (and `digitalStabilization`) were the only controls missing the `warning` field that every other control (`focus`/`exposure`/`lowLightCompensation`) includes — so a "Failed" flicker-reduction result gave zero diagnostic info. Root cause traced deeper: `SetFlickerReductionAutoAsync` never populated a `WarningMessage` when the driver's `SetValueAsync` returned false without throwing — fixed to report the target mode and rejection. Verified via ffprobe on all 3 real recordings that the v1.2.27 color-primaries/matrix/range tagging (`mp4.Video.Properties[MF_MT_*]`) has **no effect** — all 3 still show `color_space`/`color_primaries=unknown` despite being built from build 246. Reverted that code (was shipping a no-op) with a detailed comment explaining why: `MediaCapture.PrepareLowLagRecordToStorageFileAsync` does not appear to propagate extra `VideoEncodingProperties.Properties` entries into the muxed H.264 output; properly fixing this would require replacing the encoder with a custom Media Foundation Sink Writer pipeline, which was not attempted. This has no visible playback impact since `color_range` already matches Windows Camera app and untagged HD H.264 is universally interpreted as BT.709 by virtually all players. No unnecessary files found to remove — the session folders are the user's own test recordings, not orphaned artifacts. V2 stable recording workflow, STABLE_CORE_V1 components, and CSV schema unchanged.
 
 ### Changed
 * **`MainWindow.xaml.cs`** — `flickerReduction`/`digitalStabilization` JSON and text metadata now include the `warning` field, matching the other controls.

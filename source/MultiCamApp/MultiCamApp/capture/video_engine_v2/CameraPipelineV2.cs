@@ -134,6 +134,9 @@ public sealed class CameraPipelineV2 : IDisposable
     public Windows.Graphics.DirectX.Direct3D11.IDirect3DDevice? SharedWinRtDevice =>
         _previewRenderer.SharedWinRtDevice;
     public V2CaptureFormat? ActiveFormat => _captureService.ActiveFormat;
+    /// <summary>Exception #14: camera-side subtype (NV12/YUY2/MJPG…) and watchdog mode-switch note.</summary>
+    public string? CaptureSubtype => _captureService.ActiveSubtype;
+    public string? CaptureNegotiationNote => _captureService.NegotiationNote;
     public EncoderBackendType ActiveEncoderBackend => _encoderService.ActiveEncoderBackend;
     public bool IsHardwareEncoderActive => _encoderService.HardwareEncoderAvailable;
     public string? WindowsStudioEffectsWarning => _controlManager.WindowsStudioEffectsWarning;
@@ -160,7 +163,8 @@ public sealed class CameraPipelineV2 : IDisposable
             RecordedFrames    = _encoderService.FramesSubmitted,
             DroppedFrames     = snap.FramesDropped,
             EncoderBackend    = _encoderService.ActiveEncoderBackend.ToString(),
-            FallbackWarning   = _formatResult?.FallbackReason,
+            FallbackWarning   = string.Join(" ", new[] { _formatResult?.FallbackReason, _captureService.NegotiationNote }
+                                    .Where(x => !string.IsNullOrWhiteSpace(x))) is { Length: > 0 } fw ? fw : null,
             ControlWarning    = _controlManager.WindowsStudioEffectsWarning,
         };
     }
@@ -230,6 +234,16 @@ public sealed class CameraPipelineV2 : IDisposable
             // Camera never actually opened — release the MF ref acquired above so a failed
             // open doesn't permanently keep the MF platform alive (or hold up MFShutdown for
             // other slots that legitimately close later).
+            // STABLE_CORE_V2 exception #2: if MediaCapture was created but a later step failed
+            // (format negotiation, frame reader, control attach), release it *before* dropping the
+            // MF ref — otherwise the device stays exclusively locked and MFShutdown could run
+            // while a MediaCapture is still alive (the native-crash ordering documented in
+            // MediaFoundationCaptureService).
+            try { await _captureService.CloseAsync(); }
+            catch (Exception closeEx)
+            {
+                AppDiagnosticLogger.Runtime($"V2_OPEN_FAILED_CLEANUP_ERROR {closeEx.GetType().Name}: {closeEx.Message}");
+            }
             if (_mfRefHeldForCapture) { MediaFoundationRuntime.Release(); _mfRefHeldForCapture = false; }
             SetState(CameraPipelineState.Error);
             PipelineError?.Invoke(this, ex);
@@ -400,7 +414,8 @@ public sealed class CameraPipelineV2 : IDisposable
             Height            = _captureService.ActiveFormat?.Height  ?? 1080,
             TargetFps         = cadenceFps,
             PreferHardware    = VideoEngineSettings.PreferHardwareEncoder,
-            TargetBitrateKbps = VideoEngineSettings.TargetBitrateKbps,
+            TargetBitrateKbps = VideoEngineSettings.ResolveTargetBitrateKbps(
+                _captureService.ActiveFormat?.Width ?? 1920, _captureService.ActiveFormat?.Height ?? 1080, cadenceFps),
         };
 
         AppDiagnosticLogger.Recording(
@@ -408,15 +423,22 @@ public sealed class CameraPipelineV2 : IDisposable
             $"target={encoderProfile.TargetFps:F3} previewFrames={previewHealth.FramesDelivered} " +
             $"previewSeconds={previewHealth.SessionElapsed.TotalSeconds:F2}");
 
-        if (VideoEngineSettings.WriteTimestampCsv)
-        {
-            var csvPath = timestampCsvPath ?? (Path.ChangeExtension(tempOutputPath, null) + "_timestamps.csv");
-            // Timestamp monitor may already be running for preview; restart its CSV
-            _timestampMonitor.OpenCsv(csvPath);
-        }
-
         try
         {
+            // STABLE_CORE_V2 exception #9: lock UVC-only exposure/focus/WB at the values settled
+            // during preview so shutter timing (and therefore FPS) stays constant while recording.
+            _controlManager.LockUvcControlsForRecording();
+
+            // STABLE_CORE_V2 exception #2: OpenCsv moved inside the try. An IO failure here
+            // (permissions, AV lock, full disk) previously left the slot stuck in
+            // StartingRecording, so Start/Stop Recording on it failed until Stop Preview.
+            if (VideoEngineSettings.WriteTimestampCsv)
+            {
+                var csvPath = timestampCsvPath ?? (Path.ChangeExtension(tempOutputPath, null) + "_timestamps.csv");
+                // Timestamp monitor may already be running for preview; restart its CSV
+                _timestampMonitor.OpenCsv(csvPath);
+            }
+
             // ConfigureAwait(false): this class never touches WPF UI objects directly (verified —
             // its events either have no UI-thread subscribers or are already independently
             // marshaled via Dispatcher.BeginInvoke inside Direct3DPreviewRenderer). Resuming these
@@ -436,6 +458,14 @@ public sealed class CameraPipelineV2 : IDisposable
         }
         catch (Exception ex)
         {
+            // STABLE_CORE_V2 exception #2: close the timestamp CSV opened above, otherwise it
+            // keeps collecting preview rows into the abandoned recording folder.
+            try { await _timestampMonitor.StopAsync().ConfigureAwait(false); }
+            catch (Exception csvEx)
+            {
+                AppDiagnosticLogger.Recording($"V2_REC_START_CSV_CLEANUP_ERROR {csvEx.GetType().Name}: {csvEx.Message}");
+            }
+            try { _controlManager.ReleaseUvcRecordingLocks(); } catch { /* best effort */ }
             SetState(CameraPipelineState.Previewing);
             PipelineError?.Invoke(this, ex);
             throw;
@@ -447,7 +477,14 @@ public sealed class CameraPipelineV2 : IDisposable
     /// </summary>
     public async Task StopRecordingAsync(CancellationToken ct = default)
     {
-        if (_state != CameraPipelineState.Recording) return;
+        // STABLE_CORE_V2 exception #6: a capture failure mid-recording (USB unplug, driver reset)
+        // moves the pipeline to Error while the sink writer is still open. Previously that slot was
+        // skipped by Stop Recording, so its MP4 was never finalized (no moov atom), never renamed
+        // and never given metadata. Finalize it like a normal stop, then return to Error.
+        var interrupted = IsRecordingInterrupted;
+        if (_state != CameraPipelineState.Recording && !interrupted) return;
+        if (interrupted)
+            AppDiagnosticLogger.Recording("V2_REC_STOP_AFTER_CAPTURE_ERROR finalizing interrupted recording");
 
         SetState(CameraPipelineState.StoppingRecording);
         _recordingClock.Stop();
@@ -463,13 +500,24 @@ public sealed class CameraPipelineV2 : IDisposable
             $"V2_REC_STOP elapsed={_recordingClock.Elapsed.TotalSeconds:F1}s " +
             $"delivered={health.FramesDelivered} avgFps={health.AverageFps:F2} liveFps={health.LiveFps:F1} " +
             $"drops=N/A(MediaFrameReader.Realtime) " +
-            $"rawFrameArrived={RawFrameArrivedCount} csvRows={_timestampMonitor.FrameCount} " +
+            $"rawFrameArrived={RawFrameArrivedCount} csvRows={_timestampMonitor.CsvRowCount} " +
             $"encoderSubmitted={_encoderService.FramesSubmittedSinceRecordingStart}");
 
         try { await _encoderService.FinaliseAsync(ct).ConfigureAwait(false); }
         catch (Exception ex) { PipelineError?.Invoke(this, ex); }
-        finally { SetState(CameraPipelineState.Previewing); }
+        finally
+        {
+            try { _controlManager.ReleaseUvcRecordingLocks(); } catch { /* best effort */ }
+            SetState(interrupted ? CameraPipelineState.Error : CameraPipelineState.Previewing);
+        }
     }
+
+    /// <summary>
+    /// True when the capture side failed (state <see cref="CameraPipelineState.Error"/>) while the
+    /// encoder still holds an open recording that must be finalized.
+    /// </summary>
+    public bool IsRecordingInterrupted =>
+        _state == CameraPipelineState.Error && _encoderService.IsEncoding;
 
     // ── Preview throttle ──────────────────────────────────────────────────────
 
@@ -514,6 +562,12 @@ public sealed class CameraPipelineV2 : IDisposable
     public Task<V2ControlApplyResult> SetWhiteBalanceManualAsync(uint kelvins, CancellationToken ct = default) =>
         _controlManager.SetWhiteBalanceManualAsync(kelvins, ct);
 
+    public Task<V2ControlApplyResult> ApplyUserFocusAsync(bool autoFocus, double? value, CancellationToken ct = default) =>
+        _controlManager.ApplyUserFocusAsync(autoFocus, value, ct);
+
+    public Task<V2ControlApplyResult> ApplyUserExposureAsync(bool autoExposure, double? sliderIndex, CancellationToken ct = default) =>
+        _controlManager.ApplyUserExposureAsync(autoExposure, sliderIndex, ct);
+
     public Task ReleaseEnvironmentalLockAsync(CancellationToken ct = default) =>
         _controlManager.ReleaseEnvironmentalLockAsync(ct);
 
@@ -534,7 +588,7 @@ public sealed class CameraPipelineV2 : IDisposable
     /// OnFrameArrived → FrameTimestampMonitor → CSV path. Stable after <see cref="StopRecordingAsync"/>.
     /// Matches <see cref="TimestampCsvRows"/> in <see cref="RecordingFinalizeResult"/>.
     /// </summary>
-    public long TimestampMonitorFrameCount => _timestampMonitor.FrameCount;
+    public long TimestampMonitorFrameCount => _timestampMonitor.CsvRowCount;
 
     /// <summary>
     /// Elapsed time on the internal recording stopwatch.
@@ -594,8 +648,10 @@ public sealed class CameraPipelineV2 : IDisposable
                 using (var reader = Windows.Storage.Streams.DataReader.FromBuffer(_encoderWinRtBuffer))
                     reader.ReadBytes(encBuf);
 
-                _encoderService.SubmitFrame(e, encBuf, stride, h);
+                var accepted = _encoderService.SubmitFrame(e, encBuf, stride, h);
                 _encoderBufPool.Add(encBuf); // SubmitFrame already copied into its own MF-owned buffer
+                // STABLE_CORE_V2 exception #8: one CSV row per frame actually in the MP4.
+                if (accepted) _timestampMonitor.AppendRecordedFrame(tsInfo);
             }
             catch (Exception ex)
             {

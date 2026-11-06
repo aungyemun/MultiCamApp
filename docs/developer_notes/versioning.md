@@ -21,10 +21,10 @@ MultiCamApp uses [semantic versioning](https://semver.org/) with early developme
 
 ```json
 {
-  "version": "2.0.5",
-  "build": 338,
+  "version": "2.1.0",
+  "build": 339,
   "stage": "stable",
-  "releaseDate": "2026-07-10"
+  "releaseDate": "2026-11-06"
 }
 ```
 

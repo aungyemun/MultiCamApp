@@ -38,6 +38,9 @@ public sealed class DeepVerifyService
 
     public bool IsAvailable => ResolveFfmpeg() != null;
 
+    /// <summary>Resolved ffmpeg.exe (also used by the visual stability audit), or null.</summary>
+    public string? ResolvedFfmpegPath => ResolveFfmpeg();
+
     public string MissingToolMessage =>
         "Deep Verify tool (ffmpeg) is missing. Please reinstall MultiCamApp or check runtime/ffmpeg.";
 
@@ -48,6 +51,16 @@ public sealed class DeepVerifyService
     /// feedback_duplicate_frame_detection_method in project history for why exact MD5 hashing
     /// was chosen over a perceptual-similarity approach).
     /// </summary>
+    /// <summary>
+    /// -v error: only real decode errors on stderr. -map 0:v:0: first video stream only.
+    /// -fps_mode passthrough (2.1.0, exception #21): hash every decoded frame exactly once. Without it
+    /// ffmpeg converts the variable-frame-rate recordings to a constant rate for the framemd5 muxer,
+    /// dropping or repeating frames — measured: 535 of 536 frames hashed on a real 720p30 file. A
+    /// repeated frame would be counted as a duplicate that is not in the file.
+    /// </summary>
+    public static string BuildFrameMd5Arguments(string filePath) =>
+        $"-v error -i \"{filePath}\" -map 0:v:0 -fps_mode passthrough -f framemd5 -";
+
     public async Task<DeepVerifyFileResult> VerifyFileAsync(string filePath, CancellationToken cancellationToken = default)
     {
         var sw = Stopwatch.StartNew();
@@ -76,10 +89,7 @@ public sealed class DeepVerifyService
             var psi = new ProcessStartInfo
             {
                 FileName = ffmpeg,
-                // -v error: suppress ffmpeg's normal banner/progress noise, only report real
-                // decode errors on stderr. -map 0:v:0: hash the first video stream only (this
-                // app's recordings are video-only, but audio-less inputs make this a no-op).
-                Arguments = $"-v error -i \"{filePath}\" -map 0:v:0 -f framemd5 -",
+                Arguments = BuildFrameMd5Arguments(filePath),
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,

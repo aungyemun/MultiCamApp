@@ -55,6 +55,19 @@ public sealed class VideoProbeData
     public string? PixelFormat { get; set; }
     public bool HasVideoStream { get; set; }
     public bool HasAudioStream { get; set; }
+
+    /// <summary>True when ffprobe itself could not be found/started (the file was never examined).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool ToolUnavailable { get; set; }
+
+    /// <summary>
+    /// True when ffprobe ran but could not read a valid video stream from the file (corrupt,
+    /// missing moov atom, truncated, no video stream). STABLE_CORE_V2 exception #5: such a
+    /// failure is about the file itself and must never be reconciled away by the session-level
+    /// V2 verdict written at recording time.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool FileUnreadable => !Success && !ToolUnavailable;
 }
 
 public sealed class ExpectedCameraSettings

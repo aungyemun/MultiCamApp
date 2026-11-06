@@ -20,7 +20,7 @@ public partial class AboutPage : UserControl
 
         VersionText.Text = $"MultiCamApp v{version.Version}";
         BuildText.Text = $"{lang["buildNumber"]}: {version.Build}";
-        StageText.Text = $"{lang["releaseStage"]}: {version.Stage}";
+        StageText.Text = $"{lang["releaseStage"]}: {LocalizedStage(lang, version.Stage)}";
         var releasedLabel = lang["releasedLabel"];
         ReleaseText.Text = $"{releasedLabel}: {(!string.IsNullOrWhiteSpace(version.ReleaseDate) ? version.ReleaseDate : "—")}";
 
@@ -52,13 +52,23 @@ public partial class AboutPage : UserControl
         FontHelper.ApplyLanguageFont(this, lang.CurrentLanguage);
     }
 
+    // 2.1.0: the stage is shown translated ("Stable" / "安定版") instead of the raw version.json value.
+    private static string LocalizedStage(LanguageManager lang, string? stage)
+    {
+        if (string.IsNullOrWhiteSpace(stage)) return "-";
+        var text = lang["releaseStage_" + stage.Trim().ToLowerInvariant()];
+        return string.IsNullOrWhiteSpace(text) || text.StartsWith("releaseStage_", StringComparison.Ordinal)
+            ? char.ToUpperInvariant(stage.Trim()[0]) + stage.Trim()[1..]
+            : text;
+    }
+
     private void CopyVersionBtn_Click(object sender, RoutedEventArgs e)
     {
         if (_currentVersion == null || _lang == null) return;
         
         var info = $"MultiCamApp v{_currentVersion.Version}\n" +
                    $"{_lang["buildNumber"]}: {_currentVersion.Build}\n" +
-                   $"{_lang["releaseStage"]}: {_currentVersion.Stage}\n" +
+                   $"{_lang["releaseStage"]}: {LocalizedStage(_lang, _currentVersion.Stage)}\n" +
                    (!string.IsNullOrEmpty(_currentVersion.ReleaseDate)
                        ? $"{_lang["releaseDateLabel"]}: {_currentVersion.ReleaseDate}\n"
                        : "") +
@@ -79,17 +89,28 @@ public partial class AboutPage : UserControl
         return $"Mun AY, Koketsu S. MultiCamApp: Offline multi-camera recording, metadata capture, and video verification platform for research and educational workflows. Version v{version.Version}. 2026.";
     }
 
+    private readonly Dictionary<Button, System.Windows.Threading.DispatcherTimer> _copyFeedbackTimers = new();
+
     private void TryCopy(string text, Button btn)
     {
         try
         {
             Clipboard.SetText(text);
             
-            // Temporary visual feedback
+            // Temporary visual feedback. A second click during the 2 s window must not capture "✓"
+            // as the "original" label (the button then stayed "✓" permanently).
+            if (_copyFeedbackTimers.ContainsKey(btn))
+                return;
             var originalContent = btn.Content;
             btn.Content = "✓";
             var timer = new System.Windows.Threading.DispatcherTimer { Interval = System.TimeSpan.FromSeconds(2) };
-            timer.Tick += (s, args) => { btn.Content = originalContent; timer.Stop(); };
+            _copyFeedbackTimers[btn] = timer;
+            timer.Tick += (s, args) =>
+            {
+                timer.Stop();
+                _copyFeedbackTimers.Remove(btn);
+                btn.Content = originalContent;
+            };
             timer.Start();
         }
         catch

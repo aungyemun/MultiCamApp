@@ -14,18 +14,34 @@ public sealed class UsbTopologyScanner
             Status = "Unknown"
         };
 
+        // 2.1.0: the controller/hub of each camera is now actually resolved from the Windows device
+        // tree (UsbTopologyResolver). Previously every camera stayed "Unknown" and 3–4 camera
+        // layouts — the case this check exists for — only got "USB topology unavailable".
+        var resolved = new List<(string Camera, UsbTopologyResolver.UsbPath? Path)>();
         foreach (var camera in selectedCameras.Where(c => !string.IsNullOrWhiteSpace(c.Id)))
         {
+            var path = UsbTopologyResolver.Resolve(camera.Id);
+            var name = PrivacySanitizer.SanitizeForOutput(camera.DisplayName);
+            resolved.Add((name, path));
             report.SelectedCameras.Add(new UsbCameraTopologyEntry
             {
-                DisplayName = PrivacySanitizer.SanitizeForOutput(camera.DisplayName),
+                DisplayName = name,
                 DeviceId = PrivacySanitizer.Redacted,
                 CameraKind = camera.Kind.ToString(),
-                UsbControllerOrHub = "Unknown"
+                UsbControllerOrHub = path is null ? "Unknown" : PrivacySanitizer.SanitizeForOutput(path.Controller),
+                UsbHubs = path is null ? [] : path.Hubs.Select(PrivacySanitizer.SanitizeForOutput).ToList()
             });
         }
 
-        if (report.SelectedCameras.Count >= 3)
+        if (resolved.Any(r => r.Path is not null))
+        {
+            report.Status = "OK";
+            var (notes, warnings) = UsbTopologyResolver.Summarize(resolved, DiagnosticsLocalization.T);
+            report.Notes.AddRange(notes);
+            report.Warnings.AddRange(warnings);
+            if (warnings.Count > 0) report.Status = "Warning";
+        }
+        else if (report.SelectedCameras.Count >= 3)
         {
             report.Notes.Add(DiagnosticsLocalization.T("hwDiagUsbUnavailable", "USB topology unavailable."));
         }

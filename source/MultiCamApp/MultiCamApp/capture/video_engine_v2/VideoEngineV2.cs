@@ -61,6 +61,14 @@ public sealed class VideoEngineV2 : IDisposable
     /// </summary>
     public event Action<int, System.Windows.Media.Imaging.WriteableBitmap>? SlotFallenBackToWpf;
 
+    /// <summary>
+    /// STABLE_CORE_V2 exception #7: raised (on any thread) when a slot's pipeline reports an error
+    /// — e.g. MediaCapture.Failed with "not enough USB bandwidth" right after preview starts, or a
+    /// camera unplugged mid-recording. Previously these were only logged, so the UI showed a
+    /// silent black panel next to a green "Previewing" status.
+    /// </summary>
+    public event Action<int, Exception>? SlotFailed;
+
     // ── Public state ──────────────────────────────────────────────────────────
 
     /// <summary>True when V2 is enabled and preview is allowed.</summary>
@@ -99,6 +107,10 @@ public sealed class VideoEngineV2 : IDisposable
     public V2FormatSelectionResult? GetSlotFormatResult(int slot) =>
         slot >= 0 && slot < MaxSlots ? _formatResults[slot] : null;
 
+    /// <summary>Exception #14: negotiated camera subtype and first-frame watchdog note for a slot.</summary>
+    public (string? Subtype, string? Note) GetSlotCaptureNegotiation(int slot) =>
+        slot >= 0 && slot < MaxSlots && _pipelines[slot] is { } p ? (p.CaptureSubtype, p.CaptureNegotiationNote) : (null, null);
+
     public System.Windows.Media.Imaging.WriteableBitmap? GetSlotPreviewBitmap(int slot) =>
         slot >= 0 && slot < MaxSlots ? _pipelines[slot]?.PreviewBitmap : null;
 
@@ -119,6 +131,11 @@ public sealed class VideoEngineV2 : IDisposable
     public bool IsAnySlotActive =>
         _pipelines.Any(p => p?.State is CameraPipelineState.Previewing or CameraPipelineState.Recording
                                      or CameraPipelineState.StartingRecording or CameraPipelineState.StoppingRecording);
+
+    /// <summary>True if the slot is recording, or its recording was interrupted by a capture error and still needs finalizing.</summary>
+    public bool IsSlotRecordingOrInterrupted(int slot) =>
+        slot >= 0 && slot < MaxSlots && _pipelines[slot] is { } p
+        && (p.State == CameraPipelineState.Recording || p.IsRecordingInterrupted);
 
     public bool IsAnySlotRecording =>
         _pipelines.Any(p => p?.State is CameraPipelineState.Recording or CameraPipelineState.StartingRecording);
@@ -310,7 +327,8 @@ public sealed class VideoEngineV2 : IDisposable
             return RecordingFinalizeResult.Failure("Invalid slot index.");
 
         var pipeline = _pipelines[slotIndex];
-        if (pipeline is null || pipeline.State != CameraPipelineState.Recording)
+        // STABLE_CORE_V2 exception #6: also finalize a recording interrupted by a capture error.
+        if (pipeline is null || (pipeline.State != CameraPipelineState.Recording && !pipeline.IsRecordingInterrupted))
             return RecordingFinalizeResult.Failure("No recording in progress.");
 
         await pipeline.StopRecordingAsync(ct);
@@ -583,6 +601,26 @@ public sealed class VideoEngineV2 : IDisposable
             .ContinueWith(t => (V2ControlApplyResult?)t.Result, ct);
     }
 
+    /// <summary>Manual/auto focus from the UI for an open slot (exception #13, focus part).</summary>
+    public Task<V2ControlApplyResult?> ApplySlotUserFocusAsync(
+        int slotIndex, bool autoFocus, double? value, CancellationToken ct = default)
+    {
+        if (slotIndex < 0 || slotIndex >= MaxSlots || _pipelines[slotIndex] is null)
+            return Task.FromResult<V2ControlApplyResult?>(null);
+        return _pipelines[slotIndex]!.ApplyUserFocusAsync(autoFocus, value, ct)
+            .ContinueWith(t => (V2ControlApplyResult?)t.Result, ct);
+    }
+
+    /// <summary>STABLE_CORE_V2 exception #13: manual/auto exposure from the UI for an open slot.</summary>
+    public Task<V2ControlApplyResult?> ApplySlotUserExposureAsync(
+        int slotIndex, bool autoExposure, double? sliderIndex, CancellationToken ct = default)
+    {
+        if (slotIndex < 0 || slotIndex >= MaxSlots || _pipelines[slotIndex] is null)
+            return Task.FromResult<V2ControlApplyResult?>(null);
+        return _pipelines[slotIndex]!.ApplyUserExposureAsync(autoExposure, sliderIndex, ct)
+            .ContinueWith(t => (V2ControlApplyResult?)t.Result, ct);
+    }
+
     public Task ReleaseSlotEnvironmentalLockAsync(int slotIndex, CancellationToken ct = default)
     {
         if (slotIndex < 0 || slotIndex >= MaxSlots || _pipelines[slotIndex] is null)
@@ -687,6 +725,8 @@ public sealed class VideoEngineV2 : IDisposable
         AppDiagnosticLogger.Runtime($"V2_PIPELINE_ERROR slot={slot} {ex.GetType().Name}: {ex.Message}");
         AppDiagnosticLogger.Failure("VideoEngineV2", $"slot={slot} {ex.Message}", ex);
         EmitDiagnostics(slot);
+        try { SlotFailed?.Invoke(slot, ex); }
+        catch (Exception handlerEx) { AppDiagnosticLogger.Runtime($"V2_SLOT_FAILED_HANDLER_ERROR {handlerEx.GetType().Name}: {handlerEx.Message}"); }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

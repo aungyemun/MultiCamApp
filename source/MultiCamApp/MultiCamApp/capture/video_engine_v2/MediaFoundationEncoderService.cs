@@ -35,6 +35,13 @@ namespace MultiCamApp.Capture.VideoEngineV2;
 /// </remarks>
 public sealed class MediaFoundationEncoderService : IDisposable
 {
+    // Media Foundation GUIDs (mfidl.h / codecapi.h) used by exception #15.
+    private static readonly Guid MfTranscodeContainerType      = new("150FF23F-4ABC-478B-AC4F-E1916FBA1CCA"); // MF_TRANSCODE_CONTAINERTYPE
+    private static readonly Guid MfTranscodeContainerTypeFmpeg4 = new("9BA876F1-419F-4B77-A1E0-35959D9D4004"); // MFTranscodeContainerType_FMPEG4
+    private static readonly Guid CodecApiGopSize               = new("95F31B26-95A4-41AA-9303-246A7FC6EEF1"); // CODECAPI_AVEncMPVGOPSize
+    private static readonly Guid CodecApiRateControlMode       = new("1C0608E9-370C-4710-8A58-CB6181C42423"); // CODECAPI_AVEncCommonRateControlMode
+    private static readonly Guid CodecApiQuality               = new("FCBF57A3-7EA5-4B0C-9644-69B40C39C391"); // CODECAPI_AVEncCommonQuality
+
     // Guards every call into _sinkWriter. IMFSinkWriter is not documented as safe for concurrent
     // calls from multiple threads; SubmitFrame runs on the camera's frame-arrived callback thread
     // while FinaliseAsync/Dispose can run on the UI/thread-pool thread that stopped the recording —
@@ -84,6 +91,44 @@ public sealed class MediaFoundationEncoderService : IDisposable
     /// <summary>Path to the output file as passed to <see cref="OpenAsync"/>.</summary>
     public string? OutputPath { get; private set; }
 
+    // ── Encoder warm-up (2.1.0) ────────────────────────────────────────────────
+    // Measured: the FIRST Start Recording in a process took 2.28 s, the next ones 0.31 s — the hardware
+    // H.264 MFT/driver initialisation is a one-time per-process cost. Opening and discarding one encoder
+    // in the background while the user is still previewing moves that cost out of the Start click.
+    private static int s_warmUpStarted;
+
+    public static Task WarmUpOnceAsync(int width, int height, double fps, TimeSpan delay)
+    {
+        if (!VideoEngineSettings.EncoderWarmUp || Interlocked.Exchange(ref s_warmUpStarted, 1) == 1)
+            return Task.CompletedTask;
+        return Task.Run(async () =>
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var path = Path.Combine(Path.GetTempPath(), $"multicamapp_encoder_warmup_{Environment.ProcessId}.mp4");
+            try
+            {
+                await Task.Delay(delay).ConfigureAwait(false);
+                sw.Restart();
+                using var enc = new MediaFoundationEncoderService();
+                await enc.OpenAsync(null!, path, new V2EncoderProfile
+                {
+                    Width = width, Height = height, TargetFps = fps > 0 ? fps : 30,
+                    TargetBitrateKbps = VideoEngineSettings.ResolveTargetBitrateKbps(width, height, fps),
+                    PreferHardware = VideoEngineSettings.PreferHardwareEncoder,
+                }).ConfigureAwait(false);
+                AppDiagnosticLogger.Recording($"V2_ENCODER_WARMUP ok ms={sw.ElapsedMilliseconds} size={width}x{height}@{fps:F1}");
+            }
+            catch (Exception ex)
+            {
+                AppDiagnosticLogger.Recording($"V2_ENCODER_WARMUP failed ms={sw.ElapsedMilliseconds} {ex.GetType().Name}: {ex.Message}");
+            }
+            finally
+            {
+                try { if (File.Exists(path)) File.Delete(path); } catch { /* best effort */ }
+            }
+        });
+    }
+
     // ── Lifecycle ──────────────────────────────────────────────────────────────
 
     /// <summary>
@@ -99,8 +144,13 @@ public sealed class MediaFoundationEncoderService : IDisposable
         if (_encoding)
             await FinaliseAsync(ct).ConfigureAwait(false);
 
-        MediaFoundationRuntime.AddRef();
-        _mfRefHeld = true;
+        // STABLE_CORE_V2 exception #2: only take the MF ref once. A failed OpenAsync keeps the ref
+        // (released by FinaliseAsync/Dispose); re-adding it on every retry leaked platform refs.
+        if (!_mfRefHeld)
+        {
+            MediaFoundationRuntime.AddRef();
+            _mfRefHeld = true;
+        }
 
         OutputPath = outputPath;
         _framesSubmitted  = 0;
@@ -128,9 +178,14 @@ public sealed class MediaFoundationEncoderService : IDisposable
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath) ?? ".");
             if (File.Exists(outputPath)) File.Delete(outputPath);
 
-            using var sinkAttrs = MediaFactory.MFCreateAttributes(2);
+            using var sinkAttrs = MediaFactory.MFCreateAttributes(3);
             sinkAttrs.Set(SinkWriterAttributeKeys.ReadwriteEnableHardwareTransforms, HardwareEncoderAvailable);
             sinkAttrs.Set(SinkWriterAttributeKeys.LowLatency, true);
+            // STABLE_CORE_V2 exception #15: crash-safe container. A plain MP4 gets its index (moov)
+            // only at Finalize(), so a crash / power loss / forced close left camN.tmp.mp4 unplayable.
+            // Fragmented MP4 writes self-describing fragments as it goes (verified by a kill test).
+            if (VideoEngineSettings.CrashSafeFragmentedMp4)
+                sinkAttrs.Set(MfTranscodeContainerType, MfTranscodeContainerTypeFmpeg4);
             // No IMFDXGIDeviceManager/D3DManager wired up: the capture pipeline always delivers CPU
             // SoftwareBitmap frames on this app's camera configuration (MediaFoundationCaptureService
             // hard-codes MemoryPreference.Cpu), so there is no GPU surface to hand the encoder directly.
@@ -156,6 +211,8 @@ public sealed class MediaFoundationEncoderService : IDisposable
             outType.Set(MediaTypeAttributeKeys.InterlaceMode, (uint)2 /* MFVideoInterlace_Progressive */);
             ApplyColorTags(outType);
 
+            try
+            {
             var newStreamIndex = newWriter.AddStream(outType);
 
             using var inType = MediaFactory.MFCreateMediaType();
@@ -168,7 +225,26 @@ public sealed class MediaFoundationEncoderService : IDisposable
             inType.Set(MediaTypeAttributeKeys.InterlaceMode, (uint)2);
             ApplyColorTags(inType); // tag input too — some MFTs propagate input color tags to output when the output doesn't already specify its own
 
-            newWriter.SetInputMediaType(newStreamIndex, inType, null);
+            // Exception #15: 1-second keyframe interval — bounds crash loss to about one fragment and
+            // gives analysis tools frame-accurate seeking (previous encoder default ≈ 4.4 s GOP).
+            using var encParams = MediaFactory.MFCreateAttributes(3);
+            // Test hook (off unless set): MULTICAMAPP_TEST_RATE_CONTROL=quality:70 — used to measure on hardware
+            // whether the selected encoder honours quality-based rate control before relying on it.
+            var rcTest = Environment.GetEnvironmentVariable("MULTICAMAPP_TEST_RATE_CONTROL");
+            if (rcTest is { } rt && rt.StartsWith("quality:", StringComparison.OrdinalIgnoreCase)
+                && uint.TryParse(rt[8..], out var tq))
+            {
+                VideoEngineSettings.RateControl = V2RateControl.QualityVbr;
+                VideoEngineSettings.EncoderQuality = tq;
+            }
+            if (VideoEngineSettings.RateControl == V2RateControl.QualityVbr)
+            {
+                encParams.Set(CodecApiRateControlMode, 3u);   // eAVEncCommonRateControlMode_Quality
+                encParams.Set(CodecApiQuality, Math.Clamp(VideoEngineSettings.EncoderQuality, 1u, 100u));
+            }
+            if (VideoEngineSettings.KeyframeIntervalSeconds > 0)
+                encParams.Set(CodecApiGopSize, (uint)Math.Clamp(Math.Round(profile.TargetFps * VideoEngineSettings.KeyframeIntervalSeconds), 1, 600));
+            newWriter.SetInputMediaType(newStreamIndex, inType, encParams);
             newWriter.BeginWriting();
 
             lock (_sinkWriterLock)
@@ -176,11 +252,20 @@ public sealed class MediaFoundationEncoderService : IDisposable
                 _sinkWriter = newWriter;
                 _videoStreamIndex = newStreamIndex;
             }
+            }
+            catch
+            {
+                // STABLE_CORE_V2 exception #2: a rejected media type (e.g. a size/FPS the H.264 MFT
+                // refuses) previously leaked the sink writer, keeping camN.tmp.mp4 open.
+                newWriter.Dispose();
+                throw;
+            }
         }, ct).ConfigureAwait(false);
 
         AppDiagnosticLogger.Recording(
             $"V2_ENC_OPEN codec={profile.Codec} requestedWidth={profile.Width} requestedHeight={profile.Height} " +
             $"bitrateKbps={profile.TargetBitrateKbps} targetFps={profile.TargetFps:F1} " +
+            $"rateControl={VideoEngineSettings.RateControl} quality={VideoEngineSettings.EncoderQuality} gopS={VideoEngineSettings.KeyframeIntervalSeconds} " +
             $"preferHardware={profile.PreferHardware} hwAvailable={HardwareEncoderAvailable} " +
             $"backend={ActiveEncoderBackend} sinkWriter=IMFSinkWriter file={Path.GetFileName(outputPath)}");
     }
@@ -216,21 +301,23 @@ public sealed class MediaFoundationEncoderService : IDisposable
     /// is renegotiating the capture format, and computing the destination buffer size from a value
     /// that doesn't match the actual source array's length risks an out-of-bounds native copy.
     /// </param>
-    public void SubmitFrame(V2FrameArrivedEventArgs frame, byte[] bgra8Pixels, int stride, int height)
+    /// <returns>True only when the frame was written to the sink writer (STABLE_CORE_V2 exception #8:
+    /// the timestamp CSV row is written only for accepted frames).</returns>
+    public bool SubmitFrame(V2FrameArrivedEventArgs frame, byte[] bgra8Pixels, int stride, int height)
     {
-        if (!_encoding || _videoStreamIndex < 0) return;
+        if (!_encoding || _videoStreamIndex < 0) return false;
 
         int byteCount = stride * height;
         if (byteCount <= 0 || bgra8Pixels.Length < byteCount)
         {
             AppDiagnosticLogger.Recording(
                 $"V2_ENC_SUBMIT_SIZE_MISMATCH byteCount={byteCount} pixelsLength={bgra8Pixels.Length} — frame dropped");
-            return;
+            return false;
         }
 
         lock (_sinkWriterLock)
         {
-            if (_sinkWriter is null) return;
+            if (_sinkWriter is null) return false;
             // buffer/sample are native COM wrapper objects (IMFMediaBuffer/IMFSample). Each one
             // holds an unmanaged allocation (byteCount bytes — e.g. ~5.5 MB at 1920x1080 BGRA)
             // that is only released when the wrapper's Dispose()/finalizer runs Release() on the
@@ -269,6 +356,7 @@ public sealed class MediaFoundationEncoderService : IDisposable
 
                 Interlocked.Increment(ref _framesSubmitted);
                 FrameEncoded?.Invoke(this, frame.FrameIndex);
+                return true;
             }
             catch (Exception ex)
             {
@@ -283,6 +371,7 @@ public sealed class MediaFoundationEncoderService : IDisposable
                 buffer?.Dispose();
             }
         }
+        return false;
     }
 
     /// <summary>

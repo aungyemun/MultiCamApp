@@ -109,7 +109,12 @@ public static class RuntimeBootstrapper
         if (process == null)
             return -2;
 
-        process.WaitForExit(TimeSpan.FromMinutes(2));
+        // ExitCode throws if the process is still running, which previously crashed startup.
+        if (!process.WaitForExit(TimeSpan.FromMinutes(2)))
+        {
+            try { process.Kill(entireProcessTree: true); } catch { /* already exited */ }
+            return -3;
+        }
         return process.ExitCode;
     }
 

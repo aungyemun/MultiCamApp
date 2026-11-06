@@ -12,15 +12,15 @@
     <ApplicationTitle>MultiCamApp</ApplicationTitle>
     <AssemblyName>MultiCamApp</AssemblyName>
     <ApplicationIcon>assets\icons\MultiCamApp.ico</ApplicationIcon>
-    <Version>2.0.5</Version>
-    <FileVersion>2.0.5.338</FileVersion>
-    <InformationalVersion>2.0.5</InformationalVersion>
+    <Version>2.1.0</Version>
+    <FileVersion>2.1.0.339</FileVersion>
+    <InformationalVersion>2.1.0</InformationalVersion>
     <Product>MultiCamApp</Product>
     <ProductName>MultiCamApp</ProductName>
     <Company>Aung Ye Mun</Company>
     <Authors>Aung Ye Mun</Authors>
     <Description>Multi-camera video recording application for educational and research use</Description>
-    <Copyright>© 2026–Present Aung Ye Mun and contributors. Non-commercial research and educational use only.</Copyright>
+    <Copyright>© 2026 Aung Ye Mun and contributors. Non-commercial research and educational use only.</Copyright>
     <OriginalFilename>MultiCamApp.exe</OriginalFilename>
     <PublishSelfContained>true</PublishSelfContained>
     <PublishSingleFile>false</PublishSingleFile>
@@ -52,8 +52,9 @@
     <EmbeddedResource Include="localization\en.json" />
     <EmbeddedResource Include="localization\ja.json" />
     <Content Include="assets\icons\Multicam.png" CopyToOutputDirectory="PreserveNewest" Link="assets\icons\Multicam.png" />
+    <Content Include="assets\icons\MulticamMark.png" CopyToOutputDirectory="PreserveNewest" Link="assets\icons\MulticamMark.png" />
     <Content Include="assets\icons\MultiCamApp.ico" CopyToOutputDirectory="PreserveNewest" Link="assets\icons\MultiCamApp.ico" />
-    <PackageReference Include="System.Management" Version="10.0.9" />
+    <PackageReference Include="System.Management" Version="10.0.14" />
   </ItemGroup>
 
   <!--

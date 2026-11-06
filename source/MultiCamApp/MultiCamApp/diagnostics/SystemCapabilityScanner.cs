@@ -99,17 +99,20 @@ public sealed class SystemCapabilityScanner
     {
         try
         {
+            // 2.1.0: Win32_VideoController has no DriverProviderName property; asking for it made WMI
+            // reject the whole query ("Invalid query"), so no GPU was ever listed. The vendor is
+            // AdapterCompatibility.
             using var searcher = new ManagementObjectSearcher(
-                "SELECT Name, DriverProviderName, DriverVersion, DriverDate, AdapterRAM FROM Win32_VideoController");
+                "SELECT Name, AdapterCompatibility, DriverVersion, DriverDate, AdapterRAM FROM Win32_VideoController");
             foreach (var obj in searcher.Get().OfType<ManagementObject>())
             {
                 profile.DisplayAdapters.Add(new DisplayAdapterProfile
                 {
                     Name = Convert.ToString(obj["Name"])?.Trim() ?? "Unknown",
-                    DriverProvider = Convert.ToString(obj["DriverProviderName"])?.Trim() ?? "Unknown",
+                    DriverProvider = Convert.ToString(obj["AdapterCompatibility"])?.Trim() is { Length: > 0 } vendor ? vendor : "Unknown",
                     DriverVersion = Convert.ToString(obj["DriverVersion"])?.Trim() ?? "Unknown",
-                    DriverDate = Convert.ToString(obj["DriverDate"])?.Trim() ?? "Unknown",
-                    AdapterRam = Convert.ToString(obj["AdapterRAM"])?.Trim() ?? "Unknown"
+                    DriverDate = FormatCimDate(Convert.ToString(obj["DriverDate"])),
+                    AdapterRam = FormatAdapterRam(obj["AdapterRAM"])
                 });
             }
         }
@@ -117,6 +120,26 @@ public sealed class SystemCapabilityScanner
         {
             profile.Warnings.Add(string.Format(DiagnosticsLocalization.T("hwDiagWarnDisplayWmiUnavailable", "Display adapter WMI scan unavailable: {0}"), ex.GetType().Name));
         }
+    }
+
+    /// <summary>CIM datetime ("20260617000000.000000-000") to yyyy-MM-dd; anything else unchanged.</summary>
+    public static string FormatCimDate(string? cim)
+    {
+        if (string.IsNullOrWhiteSpace(cim)) return "Unknown";
+        var t = cim.Trim();
+        return t.Length >= 8 && t[..8].All(char.IsDigit)
+            ? $"{t[..4]}-{t.Substring(4, 2)}-{t.Substring(6, 2)}"
+            : t;
+    }
+
+    /// <summary>AdapterRAM is a 32-bit WMI value: it cannot report more than 4 GB.</summary>
+    public static string FormatAdapterRam(object? value)
+    {
+        if (value is null || !ulong.TryParse(Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture), out var bytes) || bytes == 0)
+            return "Unknown";
+        var gb = bytes / 1024d / 1024d / 1024d;
+        var text = gb.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " GB";
+        return bytes >= 0xFFF00000UL ? text + " (WMI reports at most 4 GB)" : text;
     }
 
     private static bool IsSafeWmiFailure(Exception ex) =>

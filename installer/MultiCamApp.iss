@@ -2,16 +2,16 @@
 ; Fully offline, self-contained bundle. Supports in-place upgrade without manual uninstall.
 #define AppName "MultiCamApp"
 #ifndef AppVersion
-#define AppVersion "2.0.5"
+#define AppVersion "2.1.0"
 #endif
 #define AppPublisher "Aung Ye Mun"
 ; Numeric-only version for Windows VersionInfoVersion (no alpha/beta suffix allowed)
-#define AppVersionNumeric "2.0.5.338"
+#define AppVersionNumeric "2.1.0.339"
 ; Short semantic version ("X.Y.Z", no build suffix) matching config/version.json's "version"
 ; field exactly. build_release.bat always passes the FULL "X.Y.Z.build" string into AppVersion
 ; via /DAppVersion (needed for AppVerName/OutputBaseFilename), so AppVersion itself can never be
 ; used to check version.json's separate version/build fields — use this instead.
-#define AppVersionShort "2.0.5"
+#define AppVersionShort "2.1.0"
 #define AppExeName "MultiCamApp.exe"
 #ifndef PublishDir
 #define PublishDir "..\dist"
@@ -25,7 +25,7 @@ AppName={#AppName}
 AppVersion={#AppVersion}
 AppVerName={#AppName} v{#AppVersion}
 AppPublisher={#AppPublisher}
-AppCopyright=Copyright (C) 2026-Present Aung Ye Mun and contributors
+AppCopyright=Copyright (C) 2026 Aung Ye Mun and contributors
 AppPublisherURL=
 AppSupportURL=
 AppUpdatesURL=
@@ -86,7 +86,7 @@ Name: "{group}\{#AppName} Offline Diagnostic"; Filename: "{app}\runtime\run_offl
 Name: "{userdesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#AppExeName}"; Tasks: desktopicon; BeforeInstall: RemoveExistingDesktopShortcuts
 
 [Run]
-Filename: "{cmd}"; Parameters: "/c ""{app}\runtime\setup_runtime.bat"" install"; WorkingDir: "{app}"; StatusMsg: "Configuring bundled runtimes..."; Flags: waituntilterminated; BeforeInstall: RunVCRedistBeforeRuntime; Check: ShouldRunRuntimeSetup
+Filename: "{cmd}"; Parameters: "/c ""{app}\runtime\setup_runtime.bat"" install"; WorkingDir: "{app}"; StatusMsg: "Configuring bundled runtimes..."; Flags: waituntilterminated runhidden; BeforeInstall: RunVCRedistBeforeRuntime; Check: ShouldRunRuntimeSetup
 
 [InstallDelete]
 ; Pre-install cleanup on upgrade only (before new files are copied). Preserves logs, backups, user_settings, config_user, and video files.
@@ -121,11 +121,21 @@ Type: files; Name: "{app}\{#AppExeName}"; Check: IsUpgradeInstall
 Type: files; Name: "{app}\createdump.exe"; Check: IsUpgradeInstall
 
 [UninstallDelete]
-; Full removal: the entire app folder (all files and subfolders) is deleted recursively,
-; including the folder itself. Recorded videos are never stored under {app} — they default
-; to %USERPROFILE%\Videos or a user-chosen folder (see OutputFolderManager) — so this cannot
-; touch user recordings, regardless of where the user pointed the output folder.
-Type: filesandordirs; Name: "{app}"
+; 2.1.0 release check: removes only what Setup and the app create. Files Setup installed are
+; removed by the uninstaller itself; the folders below hold files the app or Setup create at run
+; time. The install folder is removed only if it is then empty. Previously the whole {app} folder
+; was deleted recursively, which also deleted anything else in it: a recording folder the user had
+; chosen inside the install folder (the app does not prevent that), or the existing contents of a
+; non-empty folder the user typed as the install location.
+Type: filesandordirs; Name: "{app}\logs"
+Type: filesandordirs; Name: "{app}\backup_before_update"
+Type: filesandordirs; Name: "{app}\user_settings"
+Type: filesandordirs; Name: "{app}\config_user"
+Type: filesandordirs; Name: "{app}\runtime"
+Type: filesandordirs; Name: "{app}\assets"
+Type: filesandordirs; Name: "{app}\config"
+Type: filesandordirs; Name: "{app}\localization"
+Type: dirifempty; Name: "{app}"
 
 [Code]
 var
@@ -323,9 +333,11 @@ begin
   Result := True;
   if not IsMultiCamAppRunning() then Exit;
 
-  if MsgBox('MultiCamApp is currently running. Please close it to continue installation.' + #13#10 + #13#10 +
+  { SuppressibleMsgBox: a silent install (/SUPPRESSMSGBOXES) answers No, i.e. cancels instead of
+    force-closing a running MultiCamApp. }
+  if SuppressibleMsgBox('MultiCamApp is currently running. Please close it to continue installation.' + #13#10 + #13#10 +
     'Click Yes to close MultiCamApp automatically, or No to cancel setup.',
-    mbConfirmation, MB_YESNO) = IDNO then
+    mbConfirmation, MB_YESNO, IDNO) = IDNO then
   begin
     Result := False;
     Exit;
@@ -333,14 +345,14 @@ begin
 
   if not TerminateMultiCamApp() then
   begin
-    MsgBox('Could not close MultiCamApp automatically. Please close it manually and run setup again.', mbError, MB_OK);
+    SuppressibleMsgBox('Could not close MultiCamApp automatically. Please close it manually and run setup again.', mbError, MB_OK, IDOK);
     Result := False;
     Exit;
   end;
 
   if IsMultiCamAppRunning() then
   begin
-    MsgBox('MultiCamApp is still running. Please close it manually and run setup again.', mbError, MB_OK);
+    SuppressibleMsgBox('MultiCamApp is still running. Please close it manually and run setup again.', mbError, MB_OK, IDOK);
     Result := False;
   end;
 end;
@@ -667,16 +679,17 @@ begin
   begin
     AppendToInstallLog('Final checks FAILED (Core installation incomplete).');
     AppendToUpdateLog('=== Installation verification FAILED ===');
-    MsgBox('MultiCamApp installation did not complete correctly.' + #13#10 + #13#10 +
+    SuppressibleMsgBox('MultiCamApp installation did not complete correctly.' + #13#10 + #13#10 +
            'Reason: Critical dependency, version mismatch, or setup failure.' + #13#10 +
-           'Please check ' + ExpandConstant('{app}') + '\logs\install_update.log for details.', mbError, MB_OK);
+           'Please check ' + ExpandConstant('{app}') + '\logs\install_update.log for details.', mbError, MB_OK, IDOK);
     Result := False;
   end;
 end;
 
 function InitializeUninstall(): Boolean;
 begin
-  Result := MsgBox('This will remove MultiCamApp and all application components installed by Setup.exe. Your recorded videos and exported project files will not be removed. Do you want to continue?', mbConfirmation, MB_YESNO) = IDYES;
+  { SuppressibleMsgBox: a silent uninstall (/VERYSILENT /SUPPRESSMSGBOXES) no longer stops on this prompt. }
+  Result := SuppressibleMsgBox('This will remove MultiCamApp and the files Setup installed. Your recorded videos, exported reports and any other files you placed in the install folder will not be removed. Do you want to continue?', mbConfirmation, MB_YESNO, IDYES) = IDYES;
 end;
 
 procedure DeinitializeUninstall();
