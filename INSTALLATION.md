@@ -2,6 +2,8 @@
 
 MultiCamApp is a self-contained, offline-capable Windows application. This guide covers end-user installation, offline install testing, developer setup, dependencies, and troubleshooting.
 
+New to MultiCamApp? The illustrated [Getting started](docs/user_guide/getting_started.md) guide walks through installing, recording and checking recordings step by step.
+
 ## System Requirements
 
 | Requirement | Minimum | Recommended |

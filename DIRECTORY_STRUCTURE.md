@@ -116,6 +116,7 @@ docs\
     overview.md
     installer_logic.md
   user_guide\
+    getting_started.md       illustrated step-by-step guide for new users
     video_verification.md
     hardware_diagnostics.md
     security_antivirus.md
@@ -124,6 +125,11 @@ docs\
     versioning.md
   changelogs\
     CHANGELOG.md
+  images\
+    README.md                catalogue of all images and how they are made
+    guide\                   guide cards (overview_workflow, step2..step8, extra_*)
+    social_preview.png       repository link preview (1280 x 640)
+    *.png                    application screenshots used in the README gallery
 ```
 
 Root-level docs: `README.md`, `INSTALLATION.md`, `DIRECTORY_STRUCTURE.md`, `THIRD_PARTY_NOTICES.md`.
@@ -138,6 +144,8 @@ scripts\
   maintenance\   versioning, structure validation, and environment audit helpers
   packaging\     release ZIP, installer inspection, security scan, and signing helpers
   setup\         local development environment setup
+  autotest\      UI automation, recording and verification tests, README screenshots;
+                 guide_graphics\ builds the guide images (see scripts\autotest\README.md)
 ```
 
 ## Local Dependencies

@@ -2,6 +2,15 @@
 
 All notable changes to MultiCamApp will be documented in this file.
 
+## [Unreleased]
+
+### Documentation
+* **README:** illustrated "How to use" guide (eight steps) and a "How it works" overview, using screenshots of the real application with numbered markers; documentation table links the new guide and image catalogue.
+* **New `docs/user_guide/getting_started.md`:** the same step-by-step guide with every explanation also as text, plus common questions.
+* **New images:** guide cards in `docs/images/guide/` and `docs/images/social_preview.png` (repository link preview). Demo recordings with the camera preview off; the user name in the save path is replaced with `<you>`. Catalogue and privacy notes in `docs/images/README.md`.
+* **Scripts:** `scripts/autotest/guide_screenshots.ps1` and `scripts/autotest/guide_graphics/` regenerate the images.
+* No application changes.
+
 ## [v2.1.0] - 2026-11-06 (build 339)
 
 > **Version:** released as **2.1.0** rather than the earlier "proposed 2.0.6". `docs/developer_notes/versioning.md` reserves the patch number for fixes. This release also adds features: quality presets, interrupted-recording recovery, the visual stability audit and the shared-clock CSV column. Version files bumped together: `version.json` (build 339, 2026-11-06), both `.csproj` files, `MultiCamApp.iss`, `VideoEngineRegistry.BackendVersion` and its test, plus the README, INSTALLATION, LICENSE and installer-licence citations.
