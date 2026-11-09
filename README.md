@@ -13,7 +13,7 @@
 [![License](https://img.shields.io/badge/license-non--commercial%20academic-64748b)](LICENSE.md)
 
 [**Download**](https://github.com/aungyemun/MultiCamApp/releases/latest) ·
-[Quick start](#quick-start) ·
+[How to use](#how-to-use) ·
 [Documentation](#documentation) ·
 [Changelog](CHANGELOG.md) ·
 [Cite](#citation)
@@ -36,6 +36,14 @@ It was developed for behavioural and locomotor activity studies and suits any se
 | **Time-stamp** | A per-frame timestamp CSV for each camera; real camera frames only, never duplicated or padded |
 | **Verify** | Offline checks of frame counts, timing, duplicates and visual stability, with TXT / JSON / CSV reports |
 | **Stay private** | Fully offline; output files contain no user names or hardware IDs |
+
+---
+
+## How it works
+
+<p align="center">
+  <img src="docs/images/guide/guide_workflow.png" alt="Five steps: install, connect cameras, set up, record, check" width="900">
+</p>
 
 ---
 
@@ -117,29 +125,97 @@ For several cameras at 720p or higher, connect them to separate USB ports rather
 
 ---
 
-## Quick start
+## How to use
 
-1. Run `MultiCamApp_2.1.0.339_Setup.exe` and launch **MultiCamApp** from the Desktop or Start Menu.
-2. Choose a **1–4 camera layout** and assign a camera to each slot.
-3. Choose the **resolution** and **frame rate**.
-4. Click **Start Preview** and wait until every active camera shows a live image.
-5. Click **Start Recording**, then **Stop Recording** when finished.
-6. Open **Video Verification**, select the session folder and click **Verify All** (and **Deep Verify** for the per-frame check).
+A step-by-step guide with pictures from the real application. No technical knowledge is needed. Numbered yellow markers in each picture match the list below it. The pictures use demo recordings with the camera preview turned off, and the user name in the save path is shown as `<you>`.
 
-Each session is saved in its own folder:
+> [!TIP]
+> In short: **choose cameras → Start Preview → Start Recording → Stop Recording → Video Verification → Verify All.**
 
-```text
-SessionName_YYYYMMDD_HHMMSS\
-  session_metadata.json / .txt
-  cam1\
-    cam1.mp4
-    cam1_timestamps.csv
-    cam1_metadata.json / .txt
-  cam2\
-    ...
-```
+### Step 1 — Install
 
-See [Output Files and Metadata](docs/OUTPUT_FILES_AND_METADATA.md) for every field.
+1. Download **`MultiCamApp_2.1.0.339_Setup.exe`** from the [latest release](https://github.com/aungyemun/MultiCamApp/releases/latest).
+2. Double-click it and follow the installer. Everything the app needs is included, and no internet connection is required afterwards.
+3. If Windows shows *"Windows protected your PC"*, click **More info → Run anyway** (the installer is not code-signed).
+4. Open **MultiCamApp** from the Desktop or the Start Menu.
+
+### Step 2 — Choose your cameras
+
+Plug in your webcams first, ideally each into its own USB port.
+
+![Main window: choosing the camera layout and the camera for each slot](docs/images/guide/guide_1_cameras.png)
+
+### Step 3 — Choose the picture settings
+
+Scroll down the left panel. If you are unsure, keep **720p** and **30 fps**.
+
+![Video settings: resolution, frame rate and optional advanced controls](docs/images/guide/guide_2_quality.png)
+
+### Step 4 — Choose where to save
+
+Recordings go to your **Videos** folder unless you choose another one.
+
+![Output settings: output folder, session title and the folder name that will be created](docs/images/guide/guide_3_save.png)
+
+### Step 5 — Preview, then record
+
+Click **Start Preview** and wait until every camera shows a picture. Then click **Start Recording**, and **Stop Recording** when you are done.
+
+![Recording controls and status panel](docs/images/guide/guide_4_record.png)
+
+> [!NOTE]
+> If the computer shuts down or the app closes during a recording, the video stays playable. The app recovers it the next time it starts and writes a `RECOVERY_REPORT.txt`.
+
+### Step 6 — Find your recordings
+
+<p align="center">
+  <img src="docs/images/guide/guide_folder.png" alt="Each recording has its own folder with a video, a timestamp file and a details file per camera" width="900">
+</p>
+
+Every field is described in [Output Files and Metadata](docs/OUTPUT_FILES_AND_METADATA.md).
+
+### Step 7 — Check your recordings
+
+Open the **Video Verification** tab, choose the folder that holds your recordings and click **Verify All**. **Deep Verify** adds an independent frame-by-frame check and takes longer.
+
+![Video Verification: choosing a folder, Verify All, Deep Verify and export buttons](docs/images/guide/guide_5_verify.png)
+
+### Step 8 — Read the results
+
+The summary at the top gives the result for the whole folder:
+
+![Verification summary: overall result, passed, warnings, failed and timing confidence](docs/images/guide/guide_6_results.png)
+
+<p align="center">
+  <img src="docs/images/guide/guide_results.png" alt="What PASS, WARNING and FAIL mean and what to do" width="900">
+</p>
+
+Further down, each recording session has its own table with one row per camera:
+
+![Per-session results table with a result for each camera](docs/images/guide/guide_7_sessions.png)
+
+Click **Export TXT**, **Export JSON**, **Export CSV** or **Export all to folder** to keep a copy of the report. See the [Video Verification guide](docs/user_guide/video_verification.md) for every check.
+
+### Optional — Check your computer and cameras
+
+The **Hardware Diagnostics** tab shows your computer, the detected cameras and which USB connection each camera uses. It warns when cameras share a USB hub, which can limit picture size or frame rate.
+
+![Hardware Diagnostics: run a scan, read the advice and the USB connection of each camera](docs/images/guide/guide_8_hardware.png)
+
+### Language, version and citation
+
+Switch between **English** and **日本語** with the **Language** menu at the top right. The **About** button shows the version, licence and the citation to use in publications.
+
+<p align="center">
+  <img src="docs/images/guide/guide_9_about.png" alt="About window with version, build number and licence" width="620">
+</p>
+
+### Tips for good recordings
+
+- Use bright, even lighting. If you see moving horizontal bands under fluorescent or LED lights, set **Anti-flicker** (under *Advanced Camera Controls*) to your mains frequency or *Auto*.
+- Connect each camera to its own USB port rather than one hub, especially at 720p or higher.
+- Check focus in the preview before you start recording; focus is locked when recording starts.
+- Record a short test first and run **Verify All** on it before an important session.
 
 ---
 
