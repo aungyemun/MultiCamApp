@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MultiCamApp guide illustrations</title>
+<!-- Source of overview_workflow.png, step6_recording_folder.png, step8_results_meaning.png and social_preview.png.
+     render.py replaces {{LOGO}} and {{HERO}} with data URIs; the page loads nothing from the network. -->
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<section class="panel il" id="overview_workflow">
+  <div class="head">
+    <div><div class="eyebrow">How it works</div><h2>From cameras to checked videos in five steps</h2></div>
+    <div class="brand"><img src="{{LOGO}}" alt="">MultiCamApp</div>
+  </div>
+  <div class="flow">
+    <div class="step"><div class="n">1</div>
+      <div class="ic c-blue"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></div>
+      <h3>Install</h3><p>Run the setup file. Everything needed is included.</p></div>
+    <div class="arrow"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></div>
+    <div class="step"><div class="n">2</div>
+      <div class="ic c-blue"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg></div>
+      <h3>Connect</h3><p>Plug in 1 to 4 webcams, ideally into separate USB ports.</p></div>
+    <div class="arrow"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></div>
+    <div class="step"><div class="n">3</div>
+      <div class="ic c-violet"><svg class="i" viewBox="0 0 24 24"><path d="M4 6h10"/><path d="M18 6h2"/><circle cx="16" cy="6" r="2"/><path d="M4 12h4"/><path d="M12 12h8"/><circle cx="10" cy="12" r="2"/><path d="M4 18h12"/><circle cx="18" cy="18" r="2"/></svg></div>
+      <h3>Set up</h3><p>Choose the cameras, picture size and frame rate.</p></div>
+    <div class="arrow"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></div>
+    <div class="step"><div class="n">4</div>
+      <div class="ic c-red"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></div>
+      <h3>Record</h3><p>Preview first, then record all cameras together.</p></div>
+    <div class="arrow"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></div>
+    <div class="step"><div class="n">5</div>
+      <div class="ic c-green"><svg class="i" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></div>
+      <h3>Check</h3><p>Verify every video and save a report.</p></div>
+  </div>
+  <div class="foot">
+    <span><svg class="i" viewBox="0 0 24 24"><path d="M2 2l20 20"/><path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M5 12.9a10 10 0 0 1 5.2-2.8"/><path d="M19 12.9a10 10 0 0 0-2.3-1.6"/><path d="M12 20h0"/></svg>Works fully offline</span>
+    <span><svg class="i" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>No account, no cloud</span>
+    <span><svg class="i" viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Files stay on your computer</span>
+  </div>
+</section>
+
+<section class="panel il" id="step6_recording_folder">
+  <div class="head">
+    <div><div class="eyebrow">Step 6 of 8</div><h2>Find your recordings</h2></div>
+    <div class="brand"><img src="{{LOGO}}" alt="">MultiCamApp</div>
+  </div>
+  <div class="tree">
+    <div class="row"><div class="name"><span class="ic c-amber"><svg class="i" viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>MyStudy_20261106_182959</div>
+      <div class="desc"><b>One folder per recording</b> <span class="dim">— your session title (or “Session”) plus the date and time</span></div></div>
+    <div class="row"><div class="name d1"><span class="ic c-grey"><svg class="i" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h5"/></svg></span>session_metadata.txt / .json</div>
+      <div class="desc"><b>Summary of the recording</b> <span class="dim">— cameras, settings and timing checks</span></div></div>
+    <div class="row"><div class="name d1"><span class="ic c-amber"><svg class="i" viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>cam1</div>
+      <div class="desc"><b>One folder per camera</b></div></div>
+    <div class="row"><div class="name d2"><span class="ic c-red"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z" fill="currentColor"/></svg></span>cam1.mp4</div>
+      <div class="desc"><b>The video</b> <span class="dim">— opens in any video player</span></div></div>
+    <div class="row"><div class="name d2"><span class="ic c-green"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></svg></span>cam1_timestamps.csv</div>
+      <div class="desc"><b>The exact time of every frame</b> <span class="dim">— opens in Excel</span></div></div>
+    <div class="row"><div class="name d2"><span class="ic c-grey"><svg class="i" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h5"/></svg></span>cam1_metadata.txt / .json</div>
+      <div class="desc"><b>Details for this camera</b> <span class="dim">— model, picture size, frame rate, frame counts</span></div></div>
+    <div class="row"><div class="name d1"><span class="ic c-amber"><svg class="i" viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>cam2, cam3, cam4</div>
+      <div class="desc"><span class="dim">The same files for each additional camera</span></div></div>
+  </div>
+</section>
+
+<section class="panel il" id="step8_results_meaning">
+  <div class="head">
+    <div><div class="eyebrow">Step 8 of 8</div><h2>What PASS, WARNING and FAIL mean</h2></div>
+    <div class="brand"><img src="{{LOGO}}" alt="">MultiCamApp</div>
+  </div>
+  <div class="cards">
+    <div class="res pass">
+      <div class="tag"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>PASS</div>
+      <h4>Ready to use</h4>
+      <p>Every frame the camera delivered was saved, nothing was duplicated or padded, and the timing records match the video.</p>
+      <div class="do"><b>What to do:</b> nothing. The video is ready for analysis.</div>
+    </div>
+    <div class="res warn">
+      <div class="tag"><svg class="i" viewBox="0 0 24 24"><path d="M12 3 2 20h20z"/><path d="M12 10v4"/><path d="M12 17h0"/></svg>WARNING</div>
+      <h4>Usually usable, needs a look</h4>
+      <p>The frames are intact, but the timing was uneven or some details are incomplete. The result explains why.</p>
+      <div class="do"><b>What to do:</b> read the note. For timing-sensitive work, use the timestamp file.</div>
+    </div>
+    <div class="res fail">
+      <div class="tag"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/></svg>FAIL</div>
+      <h4>Do not use it for analysis yet</h4>
+      <p>Frames were lost or duplicated, a file is missing or damaged, or the timing record does not match the video.</p>
+      <div class="do"><b>What to do:</b> check the reason shown, fix the cause, and record again if needed.</div>
+    </div>
+  </div>
+  <p class="note">A folder's <b>overall result</b> is the worst result among its videos, so one FAIL makes the whole folder FAIL.</p>
+</section>
+
+<section class="panel social" id="social_preview">
+  <div class="txt">
+    <img class="logo" src="{{LOGO}}" alt="">
+    <h1>MultiCamApp</h1>
+    <p class="tag2">Offline multi-camera recording and video verification for Windows</p>
+    <div class="chips"><span>1–4 cameras</span><span>Per-frame timestamps</span><span>Offline verification</span><span>English · 日本語</span></div>
+  </div>
+  <img class="shot" src="{{HERO}}" alt="">
+  <div class="url">github.com/aungyemun/MultiCamApp</div>
+</section>
+
+</body>
+</html>

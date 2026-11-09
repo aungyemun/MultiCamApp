@@ -59,9 +59,9 @@ The Video Verification page test scans the whole default output folder. Sessions
 | `pages_func.ps1 [-Sessions <patterns>]` | Video Verification and Hardware Diagnostics functions on copies of known sessions (verify, deep verify, exports, dialogs, hardware scan); uses the app test hook `MULTICAMAPP_TEST_VERIFY_FOLDER` |
 | `verify_texts.ps1 -Folder <dir> -Lang en\|ja` | Every text on the Video Verification page after scan, Verify All and Deep Verify, saved as UTF-8 JSON |
 | `screenshots.ps1 -Folder <dir>` | README screenshots with preview off (no camera images) |
-| `guide_screenshots.ps1 -Folder <dir> -OutDir <raw>` | Raw captures and element positions for the illustrated README guide (preview off) |
-| `guide_annotate.py <raw> <out>` | Numbered callouts and legends for `docs/images/guide/guide_*.png`; replaces the Videos path (user name) with `<you>` |
-| `guide_graphics/render.py <out>` | Renders the guide illustrations (workflow, folder, results) from `guide_graphics/guide_graphics.html` |
+| `guide_screenshots.ps1 -Folder <dir> -OutDir <raw>` | Raw captures and control positions for the guide images in `docs/images/guide/` (preview off) |
+| `guide_graphics/annotate.py <raw> <work>` | Crops the captures and draws the numbered markers; replaces the Videos path (user name) with `<you>` and stops if it is only partly visible |
+| `guide_graphics/render.py <work> <out>` | Builds the guide cards, illustrations and `docs/images/social_preview.png` (Playwright, network blocked); card text and markers are defined in `guide_graphics/guide_spec.py`. See [docs/images/README.md](../../docs/images/README.md) |
 | `synth_visual.py`, `visual_validate.ps1` | Lossless synthetic videos with known bands, drift, flashes and noise (limited/full range, CFR/VFR); compares the app's audit and `visual_audit.py` with the known values and on real recordings |
 | `big_verify.ps1 -Folder <dir>` | Verify All on a large folder; reports the app's UI-freeze log lines and `VERIFY_UI_PHASE_TIMING` |
 | `scroll_check.ps1 -Folder <dir> [-SkipDeep]` | After Verify All (and Deep Verify): scroll ranges, last session reachable, texts of failed sessions (UI Automation only, no mouse input) |

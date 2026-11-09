@@ -1,11 +1,11 @@
-# Raw screenshots for the illustrated user guide in README.md (docs/images/guide/*).
+# Raw screenshots for the guide images (docs/images/guide/*), used in README.md and docs/user_guide/getting_started.md.
 # Video preview stays OFF (no camera images); verification uses demo sessions only.
 # Every shot is saved with a JSON file of on-screen element rectangles (window-relative, physical px),
-# which scripts/autotest/guide_annotate.py uses to place the numbered callouts.
+# which guide_graphics/annotate.py uses to place the numbered markers (see docs/images/README.md).
 # Usage: guide_screenshots.ps1 -Folder <folder with demo sessions> -OutDir <raw output folder>
 #        [-Camera '<device name>'] [-Layout '1 Camera']
 # Tip: map the demo folder to a drive letter first (subst V: <folder>) so the folder box shows a short path.
-# Note: the main page shows the Windows Videos folder (contains the user name); guide_annotate.py masks it.
+# Note: the main page shows the Windows Videos folder (contains the user name); guide_graphics/annotate.py masks it.
 param([Parameter(Mandatory)][string]$Folder, [Parameter(Mandatory)][string]$OutDir,
       [string]$Camera = 'Integrated Webcam (Built-in front)', [string]$Layout = '1 Camera',
       [int]$Width = 1600, [int]$Height = 1000, [switch]$AboutOnly)

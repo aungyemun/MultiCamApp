@@ -42,7 +42,7 @@ It was developed for behavioural and locomotor activity studies and suits any se
 ## How it works
 
 <p align="center">
-  <img src="docs/images/guide/guide_workflow.png" alt="Five steps: install, connect cameras, set up, record, check" width="900">
+  <img src="docs/images/guide/overview_workflow.png" alt="Five steps: install, connect cameras, set up, record, check" width="900">
 </p>
 
 ---
@@ -127,95 +127,69 @@ For several cameras at 720p or higher, connect them to separate USB ports rather
 
 ## How to use
 
-A step-by-step guide with pictures from the real application. No technical knowledge is needed. Numbered yellow markers in each picture match the list below it. The pictures use demo recordings with the camera preview turned off, and the user name in the save path is shown as `<you>`.
+Eight short steps, no technical knowledge needed. The numbered yellow markers in each picture are explained beside or below it. For the same guide with every explanation as text, see **[Getting started](docs/user_guide/getting_started.md)**.
 
 > [!TIP]
 > In short: **choose cameras → Start Preview → Start Recording → Stop Recording → Video Verification → Verify All.**
 
-### Step 1 — Install
+### 1. Install
 
 1. Download **`MultiCamApp_2.1.0.339_Setup.exe`** from the [latest release](https://github.com/aungyemun/MultiCamApp/releases/latest).
 2. Double-click it and follow the installer. Everything the app needs is included, and no internet connection is required afterwards.
 3. If Windows shows *"Windows protected your PC"*, click **More info → Run anyway** (the installer is not code-signed).
 4. Open **MultiCamApp** from the Desktop or the Start Menu.
 
-### Step 2 — Choose your cameras
+### 2. Choose your cameras
 
-Plug in your webcams first, ideally each into its own USB port.
+![Step 2: choose how many cameras, pick a camera for each slot, refresh the camera list](docs/images/guide/step2_choose_cameras.png)
 
-![Main window: choosing the camera layout and the camera for each slot](docs/images/guide/guide_1_cameras.png)
+### 3. Choose the picture settings
 
-### Step 3 — Choose the picture settings
+![Step 3: resolution, frame rate and the optional advanced camera controls](docs/images/guide/step3_picture_settings.png)
 
-Scroll down the left panel. If you are unsure, keep **720p** and **30 fps**.
+### 4. Choose where to save
 
-![Video settings: resolution, frame rate and optional advanced controls](docs/images/guide/guide_2_quality.png)
+![Step 4: output folder, session title and the folder each recording gets](docs/images/guide/step4_save_location.png)
 
-### Step 4 — Choose where to save
+### 5. Preview, then record
 
-Recordings go to your **Videos** folder unless you choose another one.
+![Step 5: Start Preview, Start Recording, Stop Recording and the status panel](docs/images/guide/step5_preview_record.png)
 
-![Output settings: output folder, session title and the folder name that will be created](docs/images/guide/guide_3_save.png)
+### 6. Find your recordings
 
-### Step 5 — Preview, then record
+![Step 6: each recording has its own folder with a video, a timestamp file and a details file per camera](docs/images/guide/step6_recording_folder.png)
 
-Click **Start Preview** and wait until every camera shows a picture. Then click **Start Recording**, and **Stop Recording** when you are done.
+### 7. Check your recordings
 
-![Recording controls and status panel](docs/images/guide/guide_4_record.png)
+![Step 7: choose the folder, Verify All, Deep Verify and export the report](docs/images/guide/step7_verify.png)
 
-> [!NOTE]
-> If the computer shuts down or the app closes during a recording, the video stays playable. The app recovers it the next time it starts and writes a `RECOVERY_REPORT.txt`.
+### 8. Read the results
 
-### Step 6 — Find your recordings
+![Step 8: overall result, number of passed, warning and failed videos, timing confidence](docs/images/guide/step8_results_summary.png)
 
-<p align="center">
-  <img src="docs/images/guide/guide_folder.png" alt="Each recording has its own folder with a video, a timestamp file and a details file per camera" width="900">
-</p>
+![Step 8: what PASS, WARNING and FAIL mean and what to do](docs/images/guide/step8_results_meaning.png)
 
-Every field is described in [Output Files and Metadata](docs/OUTPUT_FILES_AND_METADATA.md).
+![Step 8: per-session table with a result and frame counts for each camera](docs/images/guide/step8_session_table.png)
 
-### Step 7 — Check your recordings
+### More
 
-Open the **Video Verification** tab, choose the folder that holds your recordings and click **Verify All**. **Deep Verify** adds an independent frame-by-frame check and takes longer.
+<details>
+<summary><b>Check your computer and cameras</b> (Hardware Diagnostics)</summary>
 
-![Video Verification: choosing a folder, Verify All, Deep Verify and export buttons](docs/images/guide/guide_5_verify.png)
+![Hardware Diagnostics: run a scan, read the advice, see the USB connection of each camera](docs/images/guide/extra_hardware_diagnostics.png)
 
-### Step 8 — Read the results
+</details>
 
-The summary at the top gives the result for the whole folder:
+<details>
+<summary><b>Version, licence and citation</b> (About)</summary>
 
-![Verification summary: overall result, passed, warnings, failed and timing confidence](docs/images/guide/guide_6_results.png)
+![About window: version, Copy Version Info, licence and usage](docs/images/guide/extra_about.png)
 
-<p align="center">
-  <img src="docs/images/guide/guide_results.png" alt="What PASS, WARNING and FAIL mean and what to do" width="900">
-</p>
+</details>
 
-Further down, each recording session has its own table with one row per camera:
+Switch between **English** and **日本語** with the **Language** menu at the top right of the main window.
 
-![Per-session results table with a result for each camera](docs/images/guide/guide_7_sessions.png)
-
-Click **Export TXT**, **Export JSON**, **Export CSV** or **Export all to folder** to keep a copy of the report. See the [Video Verification guide](docs/user_guide/video_verification.md) for every check.
-
-### Optional — Check your computer and cameras
-
-The **Hardware Diagnostics** tab shows your computer, the detected cameras and which USB connection each camera uses. It warns when cameras share a USB hub, which can limit picture size or frame rate.
-
-![Hardware Diagnostics: run a scan, read the advice and the USB connection of each camera](docs/images/guide/guide_8_hardware.png)
-
-### Language, version and citation
-
-Switch between **English** and **日本語** with the **Language** menu at the top right. The **About** button shows the version, licence and the citation to use in publications.
-
-<p align="center">
-  <img src="docs/images/guide/guide_9_about.png" alt="About window with version, build number and licence" width="620">
-</p>
-
-### Tips for good recordings
-
-- Use bright, even lighting. If you see moving horizontal bands under fluorescent or LED lights, set **Anti-flicker** (under *Advanced Camera Controls*) to your mains frequency or *Auto*.
-- Connect each camera to its own USB port rather than one hub, especially at 720p or higher.
-- Check focus in the preview before you start recording; focus is locked when recording starts.
-- Record a short test first and run **Verify All** on it before an important session.
+The pictures use demo recordings with the camera preview turned off; the user name in the save path is shown as `<you>`.
 
 ---
 
@@ -280,6 +254,7 @@ The application works offline and saves everything locally. Output files do not 
 
 | Topic | Document |
 | --- | --- |
+| Getting started (illustrated step-by-step guide) | [docs/user_guide/getting_started.md](docs/user_guide/getting_started.md) |
 | Installation, upgrade and uninstallation | [INSTALLATION.md](INSTALLATION.md) |
 | Output files and metadata fields | [docs/OUTPUT_FILES_AND_METADATA.md](docs/OUTPUT_FILES_AND_METADATA.md) |
 | Video Verification | [docs/user_guide/video_verification.md](docs/user_guide/video_verification.md) |
@@ -288,6 +263,7 @@ The application works offline and saves everything locally. Output files do not 
 | Architecture | [docs/architecture/overview.md](docs/architecture/overview.md) |
 | Installer logic | [docs/architecture/installer_logic.md](docs/architecture/installer_logic.md) |
 | Repository layout | [DIRECTORY_STRUCTURE.md](DIRECTORY_STRUCTURE.md) |
+| Images and how they are made | [docs/images/README.md](docs/images/README.md) |
 | Release history | [CHANGELOG.md](CHANGELOG.md) |
 | Frozen core and its documented exceptions | [docs/STABLE_CORE_V2_FREEZE.md](docs/STABLE_CORE_V2_FREEZE.md), [docs/STABLE_CORE_V2_EXCEPTIONS.md](docs/STABLE_CORE_V2_EXCEPTIONS.md) |
 | Third-party components | [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) |
