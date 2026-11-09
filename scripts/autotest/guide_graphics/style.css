@@ -1,0 +1,103 @@
+/* Shared look of the MultiCamApp guide images (cards, illustrations, social preview). */
+:root {
+  --bg: #0b1220; --card: #111a2e; --line: #23314d; --text: #f1f5f9; --soft: #cbd5e1; --muted: #94a3b8;
+  --accent: #fbbf24; --ink: #111827; --pass: #22c55e; --warn: #eab308; --fail: #ef4444;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: transparent; font-family: Inter, "Segoe UI", system-ui, sans-serif; color: var(--text);
+       -webkit-font-smoothing: antialiased; }
+.panel { background: radial-gradient(1200px 500px at 100% 0%, rgba(59,130,246,.10), transparent 60%), var(--bg);
+         border: 1px solid var(--line); box-shadow: 0 12px 34px rgba(0,0,0,.38); }
+.brand { display: flex; align-items: center; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.brand img { display: block; }
+.eyebrow { color: var(--accent); font-weight: 700; text-transform: uppercase; }
+h2 { font-weight: 700; letter-spacing: -.012em; }
+.n { flex: none; border-radius: 50%; background: var(--accent); color: var(--ink); font-weight: 800;
+     display: grid; place-items: center; box-shadow: 0 0 0 3px var(--ink); }
+
+/* ── screenshot cards (rendered at device scale 1, so the screenshot keeps its real pixels) ── */
+.sc { width: 1704px; border-radius: 28px; padding: 40px 52px 48px; margin: 90px 40px; }
+.sc .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 40px; margin-bottom: 30px; }
+.sc .eyebrow { font-size: 19px; letter-spacing: .15em; }
+.sc h2 { font-size: 40px; margin-top: 8px; }
+.sc .lead { color: var(--muted); font-size: 22px; line-height: 1.45; margin-top: 10px; }
+.sc .brand { gap: 12px; font-size: 20px; margin-top: 2px; }
+.sc .brand img { width: 40px; height: 40px; border-radius: 10px; }
+.sc .shot { display: block; border-radius: 16px; border: 1px solid #2b3b5c; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+.sc ol { list-style: none; }
+.sc li { display: flex; gap: 18px; }
+.sc li .n { width: 38px; height: 38px; font-size: 19px; margin-top: 1px; }
+.sc li b { display: block; font-size: 23px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.sc li span { display: block; font-size: 21px; line-height: 1.45; color: var(--soft); }
+.sc .side { display: flex; gap: 60px; align-items: flex-start; }
+.sc .side { align-items: stretch; }
+.sc .side .shot { align-self: flex-start; }
+.sc .side .col { display: flex; flex-direction: column; flex: 1; }
+.sc .side ol { display: flex; flex-direction: column; gap: 34px; padding-top: 18px; }
+.sc .tip { margin-top: auto; background: rgba(251,191,36,.07); border: 1px solid rgba(251,191,36,.38); border-radius: 16px;
+           padding: 20px 24px; font-size: 20px; line-height: 1.5; color: var(--soft); }
+.sc .tip b { display: block; color: var(--accent); font-size: 15px; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 6px; }
+.sc .below ol { display: grid; grid-template-columns: 1fr 1fr; gap: 26px 56px; margin-top: 34px; }
+
+/* ── illustrations (1100 px layout, rendered at device scale 1.549 → same pixel width as the cards) ── */
+.il { width: 1100px; border-radius: 18px; padding: 26px 34px 30px; margin: 60px 26px; }
+.il .head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+.il .eyebrow { font-size: 12.3px; letter-spacing: .15em; }
+.il h2 { font-size: 26px; margin-top: 5px; }
+.il .brand { gap: 8px; font-size: 13px; }
+.il .brand img { width: 26px; height: 26px; border-radius: 7px; }
+svg.i { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+
+.flow { display: flex; align-items: stretch; }
+.step { flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px 16px 18px; position: relative; }
+.step .ic { width: 54px; height: 54px; border-radius: 14px; display: grid; place-items: center; margin-bottom: 14px; }
+.step .n { position: absolute; top: 16px; right: 16px; width: 25px; height: 25px; font-size: 13.5px; box-shadow: none; }
+.step h3 { font-size: 17.5px; font-weight: 700; margin-bottom: 6px; }
+.step p { font-size: 13.8px; line-height: 1.45; color: var(--muted); }
+.c-blue { background: rgba(59,130,246,.15); color: #93c5fd; } .c-violet { background: rgba(139,92,246,.17); color: #c4b5fd; }
+.c-red { background: rgba(239,68,68,.15); color: #fca5a5; } .c-green { background: rgba(34,197,94,.15); color: #86efac; }
+.c-amber { background: rgba(251,191,36,.15); color: var(--accent); } .c-grey { background: rgba(148,163,184,.15); color: #cbd5e1; }
+.arrow { width: 26px; display: grid; place-items: center; color: var(--accent); flex: none; }
+.arrow svg { width: 18px; height: 18px; stroke-width: 2.6; }
+.foot { margin-top: 18px; display: flex; gap: 24px; color: var(--muted); font-size: 13.2px; }
+.foot span { display: inline-flex; align-items: center; gap: 7px; }
+.foot svg { width: 17px; height: 17px; color: var(--accent); }
+
+.tree { display: grid; grid-template-columns: 430px 1fr; }
+.row { display: contents; }
+.row > div { padding: 10px 0; border-bottom: 1px solid rgba(35,49,77,.75); display: flex; align-items: center; }
+.row:last-child > div { border-bottom: 0; }
+.name { gap: 11px; font-family: "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace; font-size: 14px; }
+.name .ic { width: 31px; height: 31px; border-radius: 8px; display: grid; place-items: center; flex: none; }
+.name .ic svg { width: 18px; height: 18px; }
+.d1 { padding-left: 30px !important; } .d2 { padding-left: 60px !important; }
+.desc { font-size: 14.2px; color: var(--soft); gap: 8px; }
+.desc b { color: var(--text); font-weight: 650; } .dim { color: var(--muted); }
+
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.res { background: var(--card); border: 1px solid var(--line); border-top: 4px solid; border-radius: 14px; padding: 19px 19px 20px; }
+.res.pass { border-top-color: var(--pass); } .res.warn { border-top-color: var(--warn); } .res.fail { border-top-color: var(--fail); }
+.tag { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: 18px; letter-spacing: .02em; margin-bottom: 10px; }
+.pass .tag { color: var(--pass); } .warn .tag { color: var(--warn); } .fail .tag { color: var(--fail); }
+.tag svg { width: 23px; height: 23px; stroke-width: 2.4; }
+.res h4 { font-size: 15.5px; font-weight: 700; margin-bottom: 7px; }
+.res p { font-size: 13.8px; line-height: 1.5; color: var(--muted); }
+.res .do { margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--line); font-size: 13.8px; color: #e2e8f0; line-height: 1.45; }
+.res .do b { color: var(--accent); }
+.note { margin-top: 16px; color: var(--muted); font-size: 13.8px; } .note b { color: var(--text); }
+
+/* ── social preview 1280 x 640 ── */
+.social { width: 1280px; height: 640px; position: relative; overflow: hidden; border: 0; box-shadow: none;
+          background: radial-gradient(900px 520px at 85% 15%, rgba(59,130,246,.30), transparent 60%),
+                      radial-gradient(700px 500px at 0% 100%, rgba(139,92,246,.22), transparent 60%), #0a101d; }
+.social .txt { position: absolute; left: 72px; top: 92px; width: 520px; }
+.social .logo { width: 92px; height: 92px; border-radius: 22px; box-shadow: 0 10px 26px rgba(0,0,0,.4); }
+.social h1 { font-size: 64px; font-weight: 800; letter-spacing: -.025em; margin-top: 28px; }
+.social .tag2 { font-size: 25px; line-height: 1.4; color: var(--soft); margin-top: 14px; }
+.social .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+.social .chips span { font-size: 17px; font-weight: 600; color: var(--text); padding: 8px 14px; border-radius: 999px;
+                      background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); }
+.social .chips span:first-child { background: rgba(251,191,36,.14); border-color: rgba(251,191,36,.5); color: var(--accent); }
+.social .shot { position: absolute; left: 650px; top: 96px; width: 820px; border-radius: 14px;
+                border: 1px solid rgba(255,255,255,.14); box-shadow: 0 28px 60px rgba(0,0,0,.55); }
+.social .url { position: absolute; left: 72px; bottom: 44px; font-size: 18px; color: var(--muted); }
